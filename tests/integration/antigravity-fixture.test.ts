@@ -11,6 +11,7 @@ import {
   createFixtureWorkspace,
   cleanupFixtureWorkspace,
   CLASSIFICATION_LABEL,
+  FixtureFileSystem,
 } from "../fixtures/antigravity-fixture.js";
 
 const CANONICAL_SKILL_PATH = path.resolve(
@@ -320,5 +321,241 @@ describe("Antigravity Installation Fixture (Simulation)", () => {
 
     // Calling cleanup on already cleaned directory should not throw
     expect(() => cleanupFixtureWorkspace(tempDirToClean)).not.toThrow();
+  });
+
+  // Focused Security Tests Added to Address Blockers
+
+  it("should reject targetRoot when it is a direct child, nested descendant, or case-variant of real home", () => {
+    // Direct child of home
+    const childOfHome = path.join(os.homedir(), "child-project");
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: childOfHome,
+      });
+    }).toThrow(/Safety violation/);
+
+    // Nested descendant of home
+    const nestedDescendant = path.join(
+      os.homedir(),
+      "documents",
+      "code",
+      "subproject"
+    );
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: nestedDescendant,
+      });
+    }).toThrow(/Safety violation/);
+
+    // Case variant of home
+    expect(() => {
+      installSkillFixture({
+        scope: "global",
+        targetRoot: os.homedir().toUpperCase(),
+      });
+    }).toThrow(/Safety violation/);
+
+    expect(() => {
+      installSkillFixture({
+        scope: "global",
+        targetRoot: os.homedir().toLowerCase(),
+      });
+    }).toThrow(/Safety violation/);
+
+    // System temp directory root itself
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: os.tmpdir(),
+      });
+    }).toThrow(/Safety violation/);
+
+    // Real home must remain untouched
+    const realHomeSkill = path.join(
+      os.homedir(),
+      ".gemini",
+      "config",
+      "skills",
+      "safe-change"
+    );
+    expect(fs.existsSync(realHomeSkill)).toBe(false);
+  });
+
+  it("should reject paths using .. traversal resolving into the real home directory", () => {
+    // Traversal resolving to home
+    const traversalToHome = path.join(os.homedir(), "projects", "..");
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: traversalToHome,
+      });
+    }).toThrow(/Safety violation/);
+
+    // Traversal resolving to a home subdirectory
+    const traversalInsideHome = path.join(
+      os.homedir(),
+      "folderA",
+      "..",
+      "folderB"
+    );
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: traversalInsideHome,
+      });
+    }).toThrow(/Safety violation/);
+
+    // Real home must remain untouched
+    const realHomeSkill = path.join(
+      os.homedir(),
+      ".gemini",
+      "config",
+      "skills",
+      "safe-change"
+    );
+    expect(fs.existsSync(realHomeSkill)).toBe(false);
+  });
+
+  it("should reject target directory that is a symlink or junction pointing outside fixture", () => {
+    const outsideTarget = makeTrackedWorkspace("outside-symlink-target-");
+    const skillsParent = path.join(tempWorkspace, ".agents", "skills");
+    fs.mkdirSync(skillsParent, { recursive: true });
+
+    const linkPath = path.join(skillsParent, "safe-change");
+
+    // Create a directory symlink / junction pointing outside the fixture
+    const symlinkType = process.platform === "win32" ? "junction" : "dir";
+    fs.symlinkSync(outsideTarget, linkPath, symlinkType);
+
+    // installSkillFixture must reject the symlink
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: tempWorkspace,
+        sourceSkillFile: CANONICAL_SKILL_PATH,
+      });
+    }).toThrow(/Safety violation.*symbolic link/i);
+
+    // Verify outside directory was never modified
+    expect(fs.readdirSync(outsideTarget)).toHaveLength(0);
+
+    // uninstallSkillFixture must also reject the symlink rather than traversing it
+    expect(() => {
+      uninstallSkillFixture({
+        scope: "project",
+        targetRoot: tempWorkspace,
+      });
+    }).toThrow(/Safety violation.*symbolic link/i);
+
+    // Verify outside directory was not deleted
+    expect(fs.existsSync(outsideTarget)).toBe(true);
+  });
+
+  it("should reject file symlinks and TOCTOU replacement attacks using filesystem seam", () => {
+    const targetDir = resolveTargetDir("project", tempWorkspace);
+    fs.mkdirSync(targetDir, { recursive: true });
+    const targetFile = path.join(targetDir, "SKILL.md");
+    fs.writeFileSync(targetFile, "dummy");
+
+    // Mock filesystem simulating a symbolic link for the target file
+    const mockFileSymlinkFs: FixtureFileSystem = {
+      ...fs,
+      lstatSync: (p: string) => {
+        if (p === targetFile) {
+          return {
+            isSymbolicLink: () => true,
+            isDirectory: () => false,
+            isFile: () => false,
+          };
+        }
+        return fs.lstatSync(p);
+      },
+    };
+
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: tempWorkspace,
+        sourceSkillFile: CANONICAL_SKILL_PATH,
+        overwrite: true,
+        fsImpl: mockFileSymlinkFs,
+      });
+    }).toThrow(/Safety violation.*Target file.*symbolic link/i);
+
+    // Mock filesystem simulating TOCTOU replacement between directory creation and file write
+    let mkdirCalled = false;
+    const mockToctouFs: FixtureFileSystem = {
+      ...fs,
+      mkdirSync: (p: string, opts?: any) => {
+        mkdirCalled = true;
+        return fs.mkdirSync(p, opts);
+      },
+      lstatSync: (p: string) => {
+        if (mkdirCalled && p === targetDir) {
+          return {
+            isSymbolicLink: () => true,
+            isDirectory: () => false,
+            isFile: () => false,
+          };
+        }
+        return fs.lstatSync(p);
+      },
+    };
+
+    expect(() => {
+      installSkillFixture({
+        scope: "project",
+        targetRoot: tempWorkspace,
+        sourceSkillFile: CANONICAL_SKILL_PATH,
+        overwrite: true,
+        fsImpl: mockToctouFs,
+      });
+    }).toThrow(/Safety violation.*Target directory.*replaced with a symbolic link/i);
+  });
+
+  it("should detect regular-file collision where a directory was expected without overwriting", () => {
+    const skillsParent = path.join(tempWorkspace, ".agents", "skills");
+    fs.mkdirSync(skillsParent, { recursive: true });
+
+    // Place a regular file at .agents/skills/safe-change
+    const regularFilePath = path.join(skillsParent, "safe-change");
+    fs.writeFileSync(regularFilePath, "I AM A REGULAR FILE");
+
+    const result = installSkillFixture({
+      scope: "project",
+      targetRoot: tempWorkspace,
+      sourceSkillFile: CANONICAL_SKILL_PATH,
+      overwrite: false,
+    });
+
+    expect(result.status).toBe("collision_detected");
+    expect(result.bytesWritten).toBe(0);
+    expect(result.message).toMatch(/regular file.*directory was expected/i);
+
+    // Verify the regular file was untouched
+    expect(fs.readFileSync(regularFilePath, "utf-8")).toBe("I AM A REGULAR FILE");
+  });
+
+  it("should report cleanup failure explicitly and never silently pass when deletion fails", () => {
+    const dummyDir = path.join(tempWorkspace, "dummy-cleanup");
+    fs.mkdirSync(dummyDir);
+
+    // Mock filesystem that simulates rmSync failure
+    const failingFs = {
+      existsSync: () => true,
+      rmSync: () => {
+        throw new Error("EPERM: operation not permitted");
+      },
+    };
+
+    expect(() => {
+      cleanupFixtureWorkspace(dummyDir, {
+        fsImpl: failingFs,
+        maxRetries: 1,
+        retryDelayMs: 5,
+      });
+    }).toThrow(/Cleanup failure: Failed to remove temporary directory/i);
   });
 });
