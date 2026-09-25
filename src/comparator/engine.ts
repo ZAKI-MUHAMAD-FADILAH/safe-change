@@ -27,6 +27,8 @@ function checkResultToState(result: CheckResult): CheckState {
 
 /**
  * Detect configuration drift between the baseline and the current config.
+ * Accurately detects added checks, removed checks, and checks whose definitions
+ * (executable, args, or timeout) have changed since the baseline was recorded.
  */
 export function detectConfigDrift(
   baseline: Baseline,
@@ -49,7 +51,10 @@ export function detectConfigDrift(
     const argsChanged =
       currentCheck.args.length !== baselineCheck.args.length ||
       currentCheck.args.some((arg, idx) => arg !== baselineCheck.args[idx]);
-    if (currentCheck.executable !== baselineCheck.executable || argsChanged) {
+    const timeoutChanged = currentCheck.timeout !== baselineCheck.timeout;
+    const executableChanged = currentCheck.executable !== baselineCheck.executable;
+
+    if (executableChanged || argsChanged || timeoutChanged) {
       changedChecks.push(name);
     }
   }
@@ -69,7 +74,7 @@ export function detectConfigDrift(
     }
     if (changedChecks.length > 0) {
       parts.push(
-        `Changed check definitions: ${changedChecks.join(", ")}. Commands changed since baseline and are not comparable.`
+        `Changed check definitions: ${changedChecks.join(", ")}. Commands or parameters changed since baseline and are not comparable.`
       );
     }
     if (parts.length === 0) {
@@ -96,7 +101,7 @@ export function compareChecks(
 
   const baselineByName = new Map(baseline.checks.map((c) => [c.name, c]));
 
-  // Compare checks present in both baseline and current
+  // Compare checks present in current results
   for (const current of currentResults) {
     const before = baselineByName.get(current.name);
 
@@ -116,11 +121,13 @@ export function compareChecks(
       continue;
     }
 
-    // Check if definition changed (executable or args differ)
+    // Check if definition changed (executable, args, or timeout differ)
     const argsChanged =
       current.args.length !== before.args.length ||
       current.args.some((arg, idx) => arg !== before.args[idx]);
-    const definitionChanged = current.executable !== before.executable || argsChanged;
+    const timeoutChanged = current.timeout !== before.timeout;
+    const definitionChanged =
+      current.executable !== before.executable || argsChanged || timeoutChanged;
 
     if (definitionChanged) {
       comparisons.push({
@@ -172,6 +179,7 @@ export function compareChecks(
 
 /**
  * Compare file entries between baseline and current state.
+ * Uses safe property lookup to support arbitrary file names (like '__proto__').
  */
 export function compareFiles(
   baselineFiles: Readonly<Record<string, FileEntry>>,
@@ -188,8 +196,12 @@ export function compareFiles(
   ]);
 
   for (const path of allPaths) {
-    const before = baselineFiles[path];
-    const now = currentFiles[path];
+    const before = Object.prototype.hasOwnProperty.call(baselineFiles, path)
+      ? baselineFiles[path]
+      : undefined;
+    const now = Object.prototype.hasOwnProperty.call(currentFiles, path)
+      ? currentFiles[path]
+      : undefined;
 
     if (!before && now) {
       added.push(path);

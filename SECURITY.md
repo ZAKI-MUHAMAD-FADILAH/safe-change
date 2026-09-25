@@ -22,6 +22,12 @@ Until a private reporting channel exists, do not disclose exploit details, token
 
 safe-change runs on a developer's machine with access to a Git working tree. It reads repository files, Git metadata, and executes verification commands that the user explicitly configures in `.safe-change.json`.
 
+### Repository read boundary and symlinks
+
+safe-change operates strictly within the working tree of the Git repository. When encountering symbolic links inside the repository, safe-change uses `lstat` and `readlink` to inspect only the link target path string itself. It never traverses or opens target files located outside the repository root. This ensures that symlinks cannot be used to escape the repository read boundary or expose external filesystem content into baseline data. Broken symlinks or symlinks pointing to directories are hashed by their link target string without traversing.
+
+Platform note: On Windows systems, creation of symbolic links in tests or development may require elevated administrator privileges or Developer Mode enabled in Windows Settings.
+
 ### What safe-change writes
 
 safe-change writes only to the `.safe-change/` directory within the project root. It creates:
@@ -38,13 +44,14 @@ Each command runs with:
 - A configurable timeout (default 60 seconds, maximum 3600 seconds)
 - Bounded output capture (default 100 KB per stream, 8 KB diagnostic tail)
 - No stdin (stdin is set to `ignore`)
+- Explicit timeout timers that accurately distinguish between execution timeouts and external process termination signals
 
 ### Data treatment
 
 - Repository content, file paths, Git output, process output, and any agent-produced text are treated as untrusted data.
 - Terminal output sanitizes control characters (stripping non-printable control characters except newline, carriage return, and tab) to mitigate terminal escape injection.
 - JSON output uses standard serialization without executing embedded content.
-- Baseline files store file hashes (sha256), not file contents.
+- Baseline files store file hashes (sha256), not file contents. This privacy-preserving design minimizes disk footprint and prevents accidental leakage of secrets or source code into tool state.
 - Process stdout/stderr is captured in bounded buffers for diagnostic display. safe-change does NOT perform automated secret or token detection; configured checks should avoid emitting sensitive credentials.
 
 ## Implemented safety properties

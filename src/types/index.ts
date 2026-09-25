@@ -45,6 +45,7 @@ export interface CheckResult {
   readonly name: string;
   readonly executable: string;
   readonly args: readonly string[];
+  readonly timeout: number;
   readonly exitCode: number | null; // null if killed/timeout before exit
   readonly passed: boolean;
   readonly durationMs: number;
@@ -139,10 +140,8 @@ export interface CheckReport {
 export interface DiffSummary {
   readonly files: FileChanges;
   readonly hasBaseline: boolean;
-  readonly totalLinesAdded: number;
-  readonly totalLinesRemoved: number;
-  readonly truncated: boolean;
-  readonly diffText: string;
+  readonly lineDiffAvailable: false;
+  readonly note: string;
 }
 
 // -- Exit codes --------------------------------------------------------------

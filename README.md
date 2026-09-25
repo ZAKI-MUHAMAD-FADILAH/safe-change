@@ -56,7 +56,7 @@ Note: a passing check proves only that its configured command succeeded.
 | --- | --- |
 | `safe-change save [description]` | Record a baseline of the repository state and verification results. |
 | `safe-change check` | Compare the current state against the baseline. Report new failures, fixes, and drift. |
-| `safe-change diff` | Show a bounded change summary since the baseline. |
+| `safe-change diff` | Show file-level changes since the baseline. |
 
 All commands accept `--json` for structured output and `--help` for usage information.
 

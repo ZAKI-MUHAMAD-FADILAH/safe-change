@@ -9,8 +9,12 @@ import {
   getGitState,
   getFileEntries,
   getDiffText,
+  computeFileHash,
   GitError,
 } from "../../src/git/inspector.js";
+import { symlink, mkdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 describe("git/inspector", () => {
   let repo: TempRepo;
@@ -119,6 +123,98 @@ describe("git/inspector", () => {
       const files = await getFileEntries(repo.path);
       expect(files["my file.txt"]).toBeDefined();
       expect(files["my file.txt"]!.tracked).toBe(true);
+    });
+
+    it("should safely track files named __proto__, constructor, and toString as own keys", async () => {
+      repo = await createTempRepo();
+      await repo.writeFile("__proto__", "prototype file content");
+      await repo.writeFile("constructor", "constructor file content");
+      await repo.writeFile("toString", "toString file content");
+      await repo.writeFile("normal.txt", "normal content");
+
+      await repo.git("add", "__proto__", "constructor", "toString", "normal.txt");
+      await repo.git("commit", "-m", "add special filename files");
+
+      const files = await getFileEntries(repo.path);
+
+      // Verify all keys exist as own properties on the null-prototype dictionary
+      const ownKeys = Object.keys(files);
+      expect(ownKeys).toContain("__proto__");
+      expect(ownKeys).toContain("constructor");
+      expect(ownKeys).toContain("toString");
+      expect(ownKeys).toContain("normal.txt");
+
+      expect(files["__proto__"]).toBeDefined();
+      expect(files["__proto__"]!.tracked).toBe(true);
+      expect(files["__proto__"]!.status).toBe("clean");
+      expect(files["__proto__"]!.worktreeHash).toBeTruthy();
+
+      expect(files["constructor"]).toBeDefined();
+      expect(files["constructor"]!.tracked).toBe(true);
+      expect(files["constructor"]!.status).toBe("clean");
+
+      expect(files["toString"]).toBeDefined();
+      expect(files["toString"]!.tracked).toBe(true);
+      expect(files["toString"]!.status).toBe("clean");
+    });
+  });
+
+  describe("computeFileHash and symlinks", () => {
+    it("should hash symlink target path without reading external file content", async () => {
+      // Create external directory and file outside repository
+      const externalDir = join(tmpdir(), "sc-external-" + Date.now());
+      await mkdir(externalDir, { recursive: true });
+      const externalFile = join(externalDir, "secret.txt");
+      await writeFile(externalFile, "super secret token that should not be read", "utf-8");
+
+      repo = await createTempRepo();
+      const linkPath = join(repo.path, "symlink-to-external");
+
+      try {
+        // Use junction on Windows for directory or symlink if permitted
+        await symlink(externalDir, linkPath, "junction");
+        const hash = await computeFileHash(linkPath);
+
+        expect(hash).toBeTruthy();
+        expect(hash.startsWith("sha256:")).toBe(true);
+      } finally {
+        try {
+          await rm(externalDir, { recursive: true, force: true });
+        } catch {}
+      }
+    });
+
+    it("should hash broken symlink target without failing or marking deleted", async () => {
+      repo = await createTempRepo();
+      const nonExistentTarget = join(repo.path, "does-not-exist-" + Date.now());
+      const linkPath = join(repo.path, "broken-link");
+
+      // Junction pointing to non-existent folder
+      await symlink(nonExistentTarget, linkPath, "junction");
+      const hash = await computeFileHash(linkPath);
+
+      expect(hash).toBeTruthy();
+      expect(hash.startsWith("sha256:")).toBe(true);
+    });
+
+    it("should detect changed symlink target as a hash change", async () => {
+      repo = await createTempRepo();
+      const targetDirA = join(repo.path, "target-a");
+      const targetDirB = join(repo.path, "target-b");
+      await mkdir(targetDirA, { recursive: true });
+      await mkdir(targetDirB, { recursive: true });
+
+      const linkPath = join(repo.path, "dynamic-link");
+      await symlink(targetDirA, linkPath, "junction");
+      const hashA = await computeFileHash(linkPath);
+
+      // Change target
+      const { unlink } = await import("node:fs/promises");
+      await unlink(linkPath);
+      await symlink(targetDirB, linkPath, "junction");
+      const hashB = await computeFileHash(linkPath);
+
+      expect(hashA).not.toBe(hashB);
     });
   });
 

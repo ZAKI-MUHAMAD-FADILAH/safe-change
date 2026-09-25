@@ -2,13 +2,14 @@
 // safe-change -- Baseline manager (atomic read/write, schema versioning)
 // ---------------------------------------------------------------------------
 
-import { mkdir, readFile, rename, writeFile, access, stat } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile, unlink } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import type {
   Baseline,
   CheckResult,
   FileEntry,
+  FileStatus,
   GitState,
   SafeChangeConfig,
 } from "../types/index.js";
@@ -16,6 +17,14 @@ import type {
 const STATE_DIR = ".safe-change";
 const BASELINE_FILE = "baseline.json";
 const CURRENT_SCHEMA_VERSION = 2;
+
+const VALID_FILE_STATUSES = new Set<string>([
+  "clean",
+  "modified",
+  "staged",
+  "untracked",
+  "deleted",
+]);
 
 export class BaselineError extends Error {
   constructor(message: string) {
@@ -65,15 +74,13 @@ export async function saveBaseline(
 
   const content = JSON.stringify(baseline, null, 2) + "\n";
   const baselinePath = join(stateDir, BASELINE_FILE);
-  const tempPath = baselinePath + ".tmp." + process.pid;
+  const tempPath = baselinePath + ".tmp." + process.pid + "." + Date.now();
 
   try {
     await writeFile(tempPath, content, "utf-8");
     await rename(tempPath, baselinePath);
   } catch (err: unknown) {
-    // Attempt cleanup of temp file on failure
     try {
-      const { unlink } = await import("node:fs/promises");
       await unlink(tempPath);
     } catch {
       // Ignore cleanup failure
@@ -150,7 +157,7 @@ export function getStateDirPath(repoRoot: string): string {
   return join(repoRoot, STATE_DIR);
 }
 
-// -- Validation --------------------------------------------------------------
+// -- Deep Validation ---------------------------------------------------------
 
 function validateBaseline(data: unknown, filePath: string): Baseline {
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
@@ -181,22 +188,121 @@ function validateBaseline(data: unknown, filePath: string): Baseline {
     throw new BaselineError("Baseline missing git state.");
   }
 
-  if (typeof obj["files"] !== "object" || obj["files"] === null) {
+  const rawGit = obj["git"] as Record<string, unknown>;
+  if (typeof rawGit["repositoryRoot"] !== "string") {
+    throw new BaselineError("Baseline missing git repositoryRoot.");
+  }
+  if (rawGit["headCommit"] !== null && typeof rawGit["headCommit"] !== "string") {
+    throw new BaselineError("Baseline invalid git headCommit.");
+  }
+  if (rawGit["headBranch"] !== null && typeof rawGit["headBranch"] !== "string") {
+    throw new BaselineError("Baseline invalid git headBranch.");
+  }
+  if (typeof rawGit["isClean"] !== "boolean") {
+    throw new BaselineError("Baseline invalid git isClean.");
+  }
+
+  const gitState: GitState = {
+    repositoryRoot: rawGit["repositoryRoot"] as string,
+    headCommit: rawGit["headCommit"] as string | null,
+    headBranch: rawGit["headBranch"] as string | null,
+    isClean: rawGit["isClean"] as boolean,
+  };
+
+  if (typeof obj["files"] !== "object" || obj["files"] === null || Array.isArray(obj["files"])) {
     throw new BaselineError("Baseline missing file entries.");
+  }
+
+  // Deeply validate file entries and construct null-prototype dictionary
+  // to prevent prototype pollution from files named '__proto__'
+  const rawFiles = obj["files"] as Record<string, unknown>;
+  const safeFiles: Record<string, FileEntry> = Object.create(null);
+
+  for (const filePath of Object.keys(rawFiles)) {
+    const rawEntry = rawFiles[filePath];
+    if (typeof rawEntry !== "object" || rawEntry === null) {
+      throw new BaselineError(`Baseline file entry "${filePath}" is corrupt.`);
+    }
+
+    const fe = rawEntry as Record<string, unknown>;
+    if (typeof fe["tracked"] !== "boolean") {
+      throw new BaselineError(`Baseline file entry "${filePath}" has invalid tracked flag.`);
+    }
+    if (typeof fe["status"] !== "string" || !VALID_FILE_STATUSES.has(fe["status"])) {
+      throw new BaselineError(`Baseline file entry "${filePath}" has invalid status.`);
+    }
+    if (fe["worktreeHash"] !== null && typeof fe["worktreeHash"] !== "string") {
+      throw new BaselineError(`Baseline file entry "${filePath}" has invalid worktreeHash.`);
+    }
+    if (fe["indexHash"] !== null && typeof fe["indexHash"] !== "string") {
+      throw new BaselineError(`Baseline file entry "${filePath}" has invalid indexHash.`);
+    }
+
+    safeFiles[filePath] = {
+      tracked: fe["tracked"] as boolean,
+      status: fe["status"] as FileStatus,
+      worktreeHash: fe["worktreeHash"] as string | null,
+      indexHash: fe["indexHash"] as string | null,
+    };
   }
 
   if (!Array.isArray(obj["checks"])) {
     throw new BaselineError("Baseline missing check results.");
   }
 
+  // Deeply validate checks
+  const safeChecks: CheckResult[] = [];
+  for (const rawCheck of obj["checks"]) {
+    if (typeof rawCheck !== "object" || rawCheck === null) {
+      throw new BaselineError("Baseline contains an invalid check result.");
+    }
+    const c = rawCheck as Record<string, unknown>;
+    if (typeof c["name"] !== "string" || typeof c["executable"] !== "string") {
+      throw new BaselineError("Baseline check result missing name or executable.");
+    }
+    if (!Array.isArray(c["args"])) {
+      throw new BaselineError(`Baseline check "${c["name"]}" has invalid args.`);
+    }
+    if (c["exitCode"] !== null && typeof c["exitCode"] !== "number") {
+      throw new BaselineError(`Baseline check "${c["name"]}" has invalid exitCode.`);
+    }
+    if (typeof c["passed"] !== "boolean") {
+      throw new BaselineError(`Baseline check "${c["name"]}" has invalid passed flag.`);
+    }
+    if (typeof c["timedOut"] !== "boolean") {
+      throw new BaselineError(`Baseline check "${c["name"]}" has invalid timedOut flag.`);
+    }
+
+    safeChecks.push({
+      name: c["name"] as string,
+      executable: c["executable"] as string,
+      args: (c["args"] as unknown[]).map(String),
+      timeout: typeof c["timeout"] === "number" ? (c["timeout"] as number) : 60,
+      exitCode: c["exitCode"] as number | null,
+      passed: c["passed"] as boolean,
+      durationMs: typeof c["durationMs"] === "number" ? (c["durationMs"] as number) : 0,
+      timedOut: c["timedOut"] as boolean,
+      outputBytes: typeof c["outputBytes"] === "number" ? (c["outputBytes"] as number) : 0,
+      outputTruncated: Boolean(c["outputTruncated"]),
+      stdout: typeof c["stdout"] === "string" ? (c["stdout"] as string) : "",
+      stderr: typeof c["stderr"] === "string" ? (c["stderr"] as string) : "",
+    });
+  }
+
   if (typeof obj["checksConfigHash"] !== "string") {
     throw new BaselineError("Baseline missing checksConfigHash.");
   }
 
-  // We trust the structure after the top-level validation since we wrote it.
-  // A more thorough per-field validation could be added if baselines from
-  // other sources need to be accepted.
-  return data as unknown as Baseline;
+  return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    createdAt: obj["createdAt"] as string,
+    description: obj["description"] as string,
+    git: gitState,
+    files: safeFiles,
+    excludedPaths: [".safe-change/"],
+    checks: safeChecks,
+    checksConfigHash: obj["checksConfigHash"] as string,
+  };
 }
 
 function isNodeError(err: unknown): err is NodeJS.ErrnoException {

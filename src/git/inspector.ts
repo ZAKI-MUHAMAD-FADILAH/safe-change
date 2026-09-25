@@ -4,8 +4,8 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
-import { join, relative, resolve } from "node:path";
+import { readFile, lstat, readlink } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import type { FileEntry, FileStatus, GitState } from "../types/index.js";
 
 const EXCLUDED_PATHS = [".safe-change/", ".safe-change\\"];
@@ -55,20 +55,30 @@ export async function getGitState(repoRoot: string): Promise<GitState> {
     "--porcelain",
     "-uall",
   ]);
-  const isClean =
-    statusResult.exitCode === 0 && statusResult.stdout.trim() === "";
+  if (statusResult.exitCode !== 0) {
+    throw new GitError(
+      `Failed to determine Git status: ${statusResult.stderr || statusResult.stdout}`
+    );
+  }
+  const isClean = statusResult.stdout.trim() === "";
 
   return { repositoryRoot: repoRoot, headCommit, headBranch, isClean };
 }
 
 /**
  * Build a complete file map covering tracked files and untracked files.
+ * Uses a null-prototype dictionary so special filenames like '__proto__',
+ * 'constructor', and 'toString' are safely tracked without collision.
+ *
+ * Symlinks are hashed by their link target string using lstat/readlink,
+ * without traversing or reading target contents outside the repository.
  * Excludes .safe-change/ directory.
  */
 export async function getFileEntries(
   repoRoot: string
 ): Promise<Record<string, FileEntry>> {
-  const entries: Record<string, FileEntry> = {};
+  // Use null prototype to avoid special key issues (__proto__, constructor, etc.)
+  const entries: Record<string, FileEntry> = Object.create(null);
 
   // 1. Get all tracked files from the index with their index hashes
   const lsResult = await git(repoRoot, [
@@ -78,7 +88,13 @@ export async function getFileEntries(
     "-z",
   ]);
 
-  if (lsResult.exitCode === 0 && lsResult.stdout.length > 0) {
+  if (lsResult.exitCode !== 0) {
+    throw new GitError(
+      `git ls-files failed with exit code ${lsResult.exitCode}: ${lsResult.stderr || lsResult.stdout}`
+    );
+  }
+
+  if (lsResult.stdout.length > 0) {
     // Format: <mode> <hash> <stage>\t<filename>\0
     const parts = lsResult.stdout.split("\0").filter((s) => s.length > 0);
     for (const part of parts) {
@@ -110,7 +126,13 @@ export async function getFileEntries(
     "-z",
   ]);
 
-  if (statusResult.exitCode === 0 && statusResult.stdout.length > 0) {
+  if (statusResult.exitCode !== 0) {
+    throw new GitError(
+      `git status failed with exit code ${statusResult.exitCode}: ${statusResult.stderr || statusResult.stdout}`
+    );
+  }
+
+  if (statusResult.stdout.length > 0) {
     const parts = statusResult.stdout.split("\0").filter((s) => s.length > 0);
 
     for (const part of parts) {
@@ -130,7 +152,7 @@ export async function getFileEntries(
         entries[filePath] = {
           tracked: false,
           status: "untracked",
-          worktreeHash: null, // computed below
+          worktreeHash: null,
           indexHash: null,
         };
       } else if (status === "deleted") {
@@ -139,55 +161,78 @@ export async function getFileEntries(
           tracked: true,
           status: "deleted",
           worktreeHash: null,
-          indexHash: existing?.indexHash ?? null,
+          indexHash: existing ? existing.indexHash : null,
         };
       } else {
         const existing = entries[filePath];
         entries[filePath] = {
-          tracked: existing?.tracked ?? true,
+          tracked: existing ? existing.tracked : true,
           status,
-          worktreeHash: null, // computed below
-          indexHash: existing?.indexHash ?? null,
+          worktreeHash: null,
+          indexHash: existing ? existing.indexHash : null,
         };
       }
     }
   }
 
-  // 3. Compute worktree hashes for all non-deleted files
-  const hashPromises: Array<Promise<void>> = [];
+  // 3. Compute worktree hashes in bounded concurrency batches (concurrency: 16)
+  const filePaths = Object.keys(entries);
+  const CONCURRENCY_LIMIT = 16;
 
-  for (const [filePath, entry] of Object.entries(entries)) {
-    if (entry.status === "deleted") continue;
+  for (let i = 0; i < filePaths.length; i += CONCURRENCY_LIMIT) {
+    const batch = filePaths.slice(i, i + CONCURRENCY_LIMIT);
+    await Promise.all(
+      batch.map(async (filePath) => {
+        const entry = entries[filePath];
+        if (!entry || entry.status === "deleted") return;
 
-    hashPromises.push(
-      computeFileHash(join(repoRoot, filePath)).then((hash) => {
-        entries[filePath] = { ...entry, worktreeHash: hash };
-      }).catch(() => {
-        // File might have been deleted between status and hash
-        entries[filePath] = {
-          tracked: entry.tracked,
-          status: "deleted",
-          worktreeHash: null,
-          indexHash: entry.indexHash,
-        };
+        try {
+          const hash = await computeFileHash(join(repoRoot, filePath));
+          entries[filePath] = { ...entry, worktreeHash: hash };
+        } catch (err: unknown) {
+          if (isNodeError(err) && err.code === "ENOENT") {
+            // File was genuinely deleted between status and hash computation
+            entries[filePath] = {
+              tracked: entry.tracked,
+              status: "deleted",
+              worktreeHash: null,
+              indexHash: entry.indexHash,
+            };
+          } else {
+            // Permission or I/O failure: do NOT misclassify as deleted
+            throw new GitError(
+              `Failed to inspect file "${filePath}": ${err instanceof Error ? err.message : String(err)}`
+            );
+          }
+        }
       })
     );
   }
-
-  await Promise.all(hashPromises);
 
   return entries;
 }
 
 /**
- * Generate a bounded diff summary of changes since a given commit or against
- * the working tree. Optionally filtered to specific file paths.
+ * Generate a bounded diff summary of changes against the working tree.
+ * Optionally filtered to specific file paths.
  */
 export async function getDiffText(
   repoRoot: string,
-  paths?: readonly string[],
-  maxBytes: number = 100_000
+  pathsOrMaxBytes?: readonly string[] | number,
+  maxBytesArg?: number
 ): Promise<{ text: string; truncated: boolean; linesAdded: number; linesRemoved: number }> {
+  let paths: readonly string[] | undefined;
+  let maxBytes = 100_000;
+
+  if (typeof pathsOrMaxBytes === "number") {
+    maxBytes = pathsOrMaxBytes;
+  } else if (Array.isArray(pathsOrMaxBytes)) {
+    paths = pathsOrMaxBytes;
+    if (typeof maxBytesArg === "number") {
+      maxBytes = maxBytesArg;
+    }
+  }
+
   if (paths !== undefined && paths.length === 0) {
     return { text: "", truncated: false, linesAdded: 0, linesRemoved: 0 };
   }
@@ -197,20 +242,17 @@ export async function getDiffText(
     gitArgs.push("--", ...paths);
   }
 
-  // Show diff of working tree (staged + unstaged)
   const result = await git(repoRoot, gitArgs);
 
   let text = result.stdout;
   let truncated = false;
 
   if (Buffer.byteLength(text, "utf-8") > maxBytes) {
-    // Truncate to maxBytes
     const buf = Buffer.from(text, "utf-8");
     text = buf.subarray(0, maxBytes).toString("utf-8");
     truncated = true;
   }
 
-  // Count added/removed lines
   let linesAdded = 0;
   let linesRemoved = 0;
   for (const line of result.stdout.split("\n")) {
@@ -250,9 +292,20 @@ function isExcluded(filePath: string): boolean {
   );
 }
 
-async function computeFileHash(absolutePath: string): Promise<string> {
-  // Check if it is a file (not a directory or symlink target that is a dir)
-  const st = await stat(absolutePath);
+/**
+ * Compute the SHA-256 hash of a file or symbolic link.
+ * For symlinks, hashes the link target string itself using lstat/readlink,
+ * preventing target traversal and keeping reads strictly within repository bounds.
+ */
+export async function computeFileHash(absolutePath: string): Promise<string> {
+  const st = await lstat(absolutePath);
+
+  if (st.isSymbolicLink()) {
+    // Read the link target string without following it
+    const linkTarget = await readlink(absolutePath);
+    return "sha256:" + createHash("sha256").update("symlink:" + linkTarget).digest("hex");
+  }
+
   if (!st.isFile()) {
     return "not-a-file";
   }
@@ -289,4 +342,8 @@ function git(cwd: string, args: string[]): Promise<GitResult> {
       }
     );
   });
+}
+
+function isNodeError(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error && "code" in err;
 }

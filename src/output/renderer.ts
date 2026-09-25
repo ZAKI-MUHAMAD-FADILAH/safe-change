@@ -342,9 +342,8 @@ export function renderDiffSummary(
           : null,
         hasBaseline: diff.hasBaseline,
         files: diff.files,
-        linesAdded: diff.totalLinesAdded,
-        linesRemoved: diff.totalLinesRemoved,
-        truncated: diff.truncated,
+        lineDiffAvailable: false,
+        note: diff.note,
       },
       null,
       2
@@ -401,29 +400,21 @@ export function renderDiffSummary(
       lines.push(c(DIM, `      ... and ${fc.deleted.length - 20} more`));
     }
   }
+  lines.push(c(DIM, `    Unchanged: ${fc.unchangedCount}`));
 
   lines.push("");
   lines.push(
-    `  Lines: ${c(GREEN, `+${diff.totalLinesAdded}`)} ${c(
-      RED,
-      `-${diff.totalLinesRemoved}`
-    )}`
+    c(
+      DIM,
+      "  Line diff unavailable: safe-change records integrity hashes at baseline rather than full file contents to preserve privacy and minimize storage."
+    )
   );
-
-  if (diff.truncated) {
-    lines.push("");
-    lines.push(
-      c(
-        YELLOW,
-        "  Output truncated. Run 'git diff HEAD' for the complete diff."
-      )
-    );
-  } else {
-    lines.push("");
-    lines.push(
-      c(DIM, "  Run 'git diff' to inspect full working tree changes.")
-    );
-  }
+  lines.push(
+    c(
+      DIM,
+      "  Run 'git diff' to inspect uncommitted changes in your working tree, or 'git diff <commit>' for changes since a commit."
+    )
+  );
 
   lines.push("");
   return lines.join("\n");

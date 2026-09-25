@@ -34,8 +34,8 @@ function makeBaseline(overrides?: Partial<Baseline>): Baseline {
     files: {},
     excludedPaths: [".safe-change/"],
     checks: [
-      { name: "build", executable: "npm", args: ["run", "build"], exitCode: 0, passed: true, durationMs: 1000, timedOut: false, outputBytes: 100, outputTruncated: false },
-      { name: "test", executable: "npm", args: ["test"], exitCode: 0, passed: true, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false },
+      { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: 0, passed: true, durationMs: 1000, timedOut: false, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
+      { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 0, passed: true, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
     ],
     checksConfigHash: computeConfigHash(config),
     ...overrides,
@@ -55,6 +55,7 @@ describe("comparator/engine", () => {
       const baseline = makeBaseline();
       const drift = detectConfigDrift(baseline, config);
       expect(drift.detected).toBe(false);
+      expect(drift.changedChecks).toHaveLength(0);
     });
 
     it("should detect added checks", () => {
@@ -84,6 +85,21 @@ describe("comparator/engine", () => {
       expect(drift.detected).toBe(true);
       expect(drift.removedChecks).toContain("test");
     });
+
+    it("should detect timeout-only change and list check in changedChecks", () => {
+      const config: SafeChangeConfig = {
+        version: 1,
+        checks: [
+          { name: "build", executable: "npm", args: ["run", "build"], timeout: 60 },
+          { name: "test", executable: "npm", args: ["test"], timeout: 30 }, // timeout changed from 120 to 30
+        ],
+      };
+      const baseline = makeBaseline();
+      const drift = detectConfigDrift(baseline, config);
+      expect(drift.detected).toBe(true);
+      expect(drift.changedChecks).toContain("test");
+      expect(drift.changedChecks).toHaveLength(1);
+    });
   });
 
   describe("compareChecks", () => {
@@ -96,8 +112,8 @@ describe("comparator/engine", () => {
         ],
       };
       const currentResults: CheckResult[] = [
-        { name: "build", executable: "npm", args: ["run", "build"], exitCode: 0, passed: true, durationMs: 1100, timedOut: false, outputBytes: 100, outputTruncated: false },
-        { name: "test", executable: "npm", args: ["test"], exitCode: 0, passed: true, durationMs: 2100, timedOut: false, outputBytes: 200, outputTruncated: false },
+        { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: 0, passed: true, durationMs: 1100, timedOut: false, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
+        { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 0, passed: true, durationMs: 2100, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const { comparisons } = compareChecks(makeBaseline(), currentResults, config);
@@ -114,8 +130,8 @@ describe("comparator/engine", () => {
         ],
       };
       const currentResults: CheckResult[] = [
-        { name: "build", executable: "npm", args: ["run", "build"], exitCode: 0, passed: true, durationMs: 1100, timedOut: false, outputBytes: 100, outputTruncated: false },
-        { name: "test", executable: "npm", args: ["test"], exitCode: 1, passed: false, durationMs: 2100, timedOut: false, outputBytes: 200, outputTruncated: false },
+        { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: 0, passed: true, durationMs: 1100, timedOut: false, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
+        { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 1, passed: false, durationMs: 2100, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const { comparisons } = compareChecks(makeBaseline(), currentResults, config);
@@ -125,7 +141,7 @@ describe("comparator/engine", () => {
     it("should classify fail-pass as fixed", () => {
       const baseline = makeBaseline({
         checks: [
-          { name: "build", executable: "npm", args: ["run", "build"], exitCode: 1, passed: false, durationMs: 1000, timedOut: false, outputBytes: 100, outputTruncated: false },
+          { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: 1, passed: false, durationMs: 1000, timedOut: false, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
         ],
       });
       const config: SafeChangeConfig = {
@@ -133,7 +149,7 @@ describe("comparator/engine", () => {
         checks: [{ name: "build", executable: "npm", args: ["run", "build"], timeout: 60 }],
       };
       const currentResults: CheckResult[] = [
-        { name: "build", executable: "npm", args: ["run", "build"], exitCode: 0, passed: true, durationMs: 1100, timedOut: false, outputBytes: 100, outputTruncated: false },
+        { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: 0, passed: true, durationMs: 1100, timedOut: false, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const { comparisons } = compareChecks(baseline, currentResults, config);
@@ -143,7 +159,7 @@ describe("comparator/engine", () => {
     it("should classify fail-fail correctly", () => {
       const baseline = makeBaseline({
         checks: [
-          { name: "test", executable: "npm", args: ["test"], exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false },
+          { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
         ],
       });
       const config: SafeChangeConfig = {
@@ -151,7 +167,7 @@ describe("comparator/engine", () => {
         checks: [{ name: "test", executable: "npm", args: ["test"], timeout: 120 }],
       };
       const currentResults: CheckResult[] = [
-        { name: "test", executable: "npm", args: ["test"], exitCode: 1, passed: false, durationMs: 2100, timedOut: false, outputBytes: 200, outputTruncated: false },
+        { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const { comparisons } = compareChecks(baseline, currentResults, config);
@@ -164,11 +180,28 @@ describe("comparator/engine", () => {
         checks: [{ name: "build", executable: "npm", args: ["run", "build"], timeout: 60 }],
       };
       const currentResults: CheckResult[] = [
-        { name: "build", executable: "npm", args: ["run", "build"], exitCode: null, passed: false, durationMs: 60000, timedOut: true, outputBytes: 100, outputTruncated: false },
+        { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: null, passed: false, durationMs: 60000, timedOut: true, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const { comparisons } = compareChecks(makeBaseline(), currentResults, config);
       expect(comparisons.find((c) => c.name === "build")!.result).toBe("pass-timeout");
+    });
+
+    it("should classify timeout-only change as definition-changed", () => {
+      const config: SafeChangeConfig = {
+        version: 1,
+        checks: [
+          { name: "build", executable: "npm", args: ["run", "build"], timeout: 60 },
+          { name: "test", executable: "npm", args: ["test"], timeout: 30 }, // changed from 120 to 30
+        ],
+      };
+      const currentResults: CheckResult[] = [
+        { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: 0, passed: true, durationMs: 1000, timedOut: false, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
+        { name: "test", executable: "npm", args: ["test"], timeout: 30, exitCode: 0, passed: true, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
+      ];
+
+      const { comparisons } = compareChecks(makeBaseline(), currentResults, config);
+      expect(comparisons.find((c) => c.name === "test")!.result).toBe("definition-changed");
     });
 
     it("should detect config-removed and config-added", () => {
@@ -179,7 +212,7 @@ describe("comparator/engine", () => {
         ],
       };
       const currentResults: CheckResult[] = [
-        { name: "lint", executable: "npm", args: ["run", "lint"], exitCode: 0, passed: true, durationMs: 500, timedOut: false, outputBytes: 50, outputTruncated: false },
+        { name: "lint", executable: "npm", args: ["run", "lint"], timeout: 30, exitCode: 0, passed: true, durationMs: 500, timedOut: false, outputBytes: 50, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const { comparisons, drift } = compareChecks(makeBaseline(), currentResults, config);
@@ -192,30 +225,54 @@ describe("comparator/engine", () => {
 
   describe("compareFiles", () => {
     it("should detect added files", () => {
-      const before: Record<string, FileEntry> = {};
-      const after: Record<string, FileEntry> = {
-        "new.ts": { tracked: false, status: "untracked", worktreeHash: "sha256:aaa", indexHash: null },
-      };
+      const before: Record<string, FileEntry> = Object.create(null);
+      const after: Record<string, FileEntry> = Object.create(null);
+      after["new.ts"] = { tracked: false, status: "untracked", worktreeHash: "sha256:aaa", indexHash: null };
       const result = compareFiles(before, after);
       expect(result.added).toContain("new.ts");
     });
 
     it("should detect modified files by hash change", () => {
-      const entry: FileEntry = { tracked: true, status: "clean", worktreeHash: "sha256:aaa", indexHash: "sha256:aaa" };
-      const modified: FileEntry = { tracked: true, status: "modified", worktreeHash: "sha256:bbb", indexHash: "sha256:aaa" };
-      const result = compareFiles({ "file.ts": entry }, { "file.ts": modified });
+      const before: Record<string, FileEntry> = Object.create(null);
+      const after: Record<string, FileEntry> = Object.create(null);
+      before["file.ts"] = { tracked: true, status: "clean", worktreeHash: "sha256:aaa", indexHash: "sha256:aaa" };
+      after["file.ts"] = { tracked: true, status: "modified", worktreeHash: "sha256:bbb", indexHash: "sha256:aaa" };
+      const result = compareFiles(before, after);
       expect(result.modified).toContain("file.ts");
     });
 
     it("should detect deleted files", () => {
-      const entry: FileEntry = { tracked: true, status: "clean", worktreeHash: "sha256:aaa", indexHash: "sha256:aaa" };
-      const result = compareFiles({ "file.ts": entry }, {});
+      const before: Record<string, FileEntry> = Object.create(null);
+      const after: Record<string, FileEntry> = Object.create(null);
+      before["file.ts"] = { tracked: true, status: "clean", worktreeHash: "sha256:aaa", indexHash: "sha256:aaa" };
+      const result = compareFiles(before, after);
       expect(result.deleted).toContain("file.ts");
     });
 
     it("should count unchanged files", () => {
-      const entry: FileEntry = { tracked: true, status: "clean", worktreeHash: "sha256:aaa", indexHash: "sha256:aaa" };
-      const result = compareFiles({ "file.ts": entry }, { "file.ts": entry });
+      const before: Record<string, FileEntry> = Object.create(null);
+      const after: Record<string, FileEntry> = Object.create(null);
+      before["file.ts"] = { tracked: true, status: "clean", worktreeHash: "sha256:aaa", indexHash: "sha256:aaa" };
+      after["file.ts"] = { tracked: true, status: "clean", worktreeHash: "sha256:aaa", indexHash: "sha256:aaa" };
+      const result = compareFiles(before, after);
+      expect(result.unchangedCount).toBe(1);
+    });
+
+    it("should safely handle files named __proto__, constructor, and toString", () => {
+      const before: Record<string, FileEntry> = Object.create(null);
+      const after: Record<string, FileEntry> = Object.create(null);
+
+      before["__proto__"] = { tracked: true, status: "clean", worktreeHash: "sha256:111", indexHash: "sha256:111" };
+      before["constructor"] = { tracked: true, status: "clean", worktreeHash: "sha256:222", indexHash: "sha256:222" };
+
+      // Modified __proto__, untouched constructor, added toString
+      after["__proto__"] = { tracked: true, status: "modified", worktreeHash: "sha256:333", indexHash: "sha256:111" };
+      after["constructor"] = { tracked: true, status: "clean", worktreeHash: "sha256:222", indexHash: "sha256:222" };
+      after["toString"] = { tracked: false, status: "untracked", worktreeHash: "sha256:444", indexHash: null };
+
+      const result = compareFiles(before, after);
+      expect(result.modified).toContain("__proto__");
+      expect(result.added).toContain("toString");
       expect(result.unchangedCount).toBe(1);
     });
   });
@@ -230,8 +287,8 @@ describe("comparator/engine", () => {
         ],
       };
       const currentResults: CheckResult[] = [
-        { name: "build", executable: "npm", args: ["run", "build"], exitCode: 0, passed: true, durationMs: 1000, timedOut: false, outputBytes: 100, outputTruncated: false },
-        { name: "test", executable: "npm", args: ["test"], exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false },
+        { name: "build", executable: "npm", args: ["run", "build"], timeout: 60, exitCode: 0, passed: true, durationMs: 1000, timedOut: false, outputBytes: 100, outputTruncated: false, stdout: "", stderr: "" },
+        { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const report = buildReport(makeBaseline(), currentResults, {}, config);
@@ -242,7 +299,7 @@ describe("comparator/engine", () => {
     it("should set exit code 0 for fail-fail (no NEW failure)", () => {
       const baseline = makeBaseline({
         checks: [
-          { name: "test", executable: "npm", args: ["test"], exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
+          { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
         ],
       });
       const config: SafeChangeConfig = {
@@ -250,7 +307,7 @@ describe("comparator/engine", () => {
         checks: [{ name: "test", executable: "npm", args: ["test"], timeout: 120 }],
       };
       const currentResults: CheckResult[] = [
-        { name: "test", executable: "npm", args: ["test"], exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
+        { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const report = buildReport(baseline, currentResults, {}, config);
@@ -261,7 +318,7 @@ describe("comparator/engine", () => {
     it("should not trigger exit code 1 when check definition changes with same name", () => {
       const baseline = makeBaseline({
         checks: [
-          { name: "test", executable: "npm", args: ["test"], exitCode: 0, passed: true, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
+          { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 0, passed: true, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
         ],
       });
       const config: SafeChangeConfig = {
@@ -269,7 +326,30 @@ describe("comparator/engine", () => {
         checks: [{ name: "test", executable: "npx", args: ["vitest", "run"], timeout: 120 }],
       };
       const currentResults: CheckResult[] = [
-        { name: "test", executable: "npx", args: ["vitest", "run"], exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "fail" },
+        { name: "test", executable: "npx", args: ["vitest", "run"], timeout: 120, exitCode: 1, passed: false, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "fail" },
+      ];
+
+      const report = buildReport(baseline, currentResults, {}, config);
+      expect(report.configDrift.detected).toBe(true);
+      expect(report.configDrift.changedChecks).toContain("test");
+      expect(report.results.find((c) => c.name === "test")!.result).toBe("definition-changed");
+      expect(report.summary.newFailures).toBe(0);
+      expect(report.summary.definitionChanged).toBe(1);
+      expect(report.exitCode).toBe(0);
+    });
+
+    it("should not trigger exit code 1 when only timeout changes", () => {
+      const baseline = makeBaseline({
+        checks: [
+          { name: "test", executable: "npm", args: ["test"], timeout: 120, exitCode: 0, passed: true, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
+        ],
+      });
+      const config: SafeChangeConfig = {
+        version: 1,
+        checks: [{ name: "test", executable: "npm", args: ["test"], timeout: 30 }], // only timeout changed
+      };
+      const currentResults: CheckResult[] = [
+        { name: "test", executable: "npm", args: ["test"], timeout: 30, exitCode: 0, passed: true, durationMs: 2000, timedOut: false, outputBytes: 200, outputTruncated: false, stdout: "", stderr: "" },
       ];
 
       const report = buildReport(baseline, currentResults, {}, config);

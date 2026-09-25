@@ -17,6 +17,13 @@ export interface ExecutorOptions {
  * Execute a single verification check. The executable is spawned directly
  * without a shell. Bounded stdout/stderr content is captured so that
  * the user can diagnose why a check failed.
+ *
+ * Reliably distinguishes between:
+ * - Successful completion (exitCode: 0, timedOut: false)
+ * - Non-zero exit code (exitCode: N, timedOut: false)
+ * - Explicit execution timeout (exitCode: null, timedOut: true)
+ * - Process terminated by external signal (exitCode: null, timedOut: false)
+ * - Spawn error / executable not found (exitCode: null, timedOut: false)
  */
 export async function executeCheck(
   check: CheckDefinition,
@@ -35,9 +42,15 @@ export async function executeCheck(
     let timedOut = false;
     let resolved = false;
 
+    let timeoutTimer: NodeJS.Timeout | null = null;
+    let forceKillTimer: NodeJS.Timeout | null = null;
+
     function finish(exitCode: number | null): void {
       if (resolved) return;
       resolved = true;
+
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
 
       const durationMs = Math.round(performance.now() - startTime);
 
@@ -51,6 +64,7 @@ export async function executeCheck(
         name: check.name,
         executable: check.executable,
         args: check.args,
+        timeout: check.timeout,
         exitCode,
         passed: exitCode === 0 && !timedOut,
         durationMs,
@@ -68,13 +82,35 @@ export async function executeCheck(
         cwd: options.cwd,
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
-        timeout: timeoutMs,
         windowsHide: true,
       });
     } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      stderrChunks.push(Buffer.from(`Spawn error: ${msg}\n`, "utf-8"));
       finish(null);
       return;
     }
+
+    // Set explicit execution timeout timer
+    timeoutTimer = setTimeout(() => {
+      timedOut = true;
+      try {
+        child.kill("SIGTERM");
+      } catch {
+        // Child may already have exited
+      }
+
+      // If still not closed after 2 seconds, force kill
+      forceKillTimer = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          // Ignore
+        }
+      }, 2000);
+      forceKillTimer.unref();
+    }, timeoutMs);
+    timeoutTimer.unref();
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdoutBytes += chunk.length;
@@ -95,15 +131,22 @@ export async function executeCheck(
     });
 
     child.on("error", (err: NodeJS.ErrnoException) => {
-      if (err.code === "ETIMEDOUT" || (err as unknown as Record<string, unknown>)["killed"] === true) {
+      const msg = err.message || String(err);
+      stderrChunks.push(Buffer.from(`Execution error: ${msg}\n`, "utf-8"));
+      if (err.code === "ETIMEDOUT") {
         timedOut = true;
       }
       finish(null);
     });
 
     child.on("close", (code: number | null, signal: string | null) => {
-      if (signal === "SIGTERM" || signal === "SIGKILL") {
-        timedOut = true;
+      if (signal) {
+        // Only classify as timedOut if our timeout timer actually fired
+        if (!timedOut) {
+          stderrChunks.push(
+            Buffer.from(`Process terminated by external signal: ${signal}\n`, "utf-8")
+          );
+        }
         finish(null);
       } else {
         finish(code);

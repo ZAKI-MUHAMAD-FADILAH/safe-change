@@ -284,7 +284,7 @@ describe("Acceptance: dirty working tree", () => {
     expect(report.results.find((r) => r.name === "check-c")!.result).toBe("config-added");
   });
 
-  it("should show zero diff lines when uncommitted changes existed before baseline and no new edits were made", async () => {
+  it("should show no changes and line diff unavailable when uncommitted changes existed before baseline and no new edits were made", async () => {
     repo = await createTempRepo();
 
     // 1. Initial commit
@@ -314,7 +314,6 @@ describe("Acceptance: dirty working tree", () => {
     await saveBaseline(repoRoot, "dirty baseline", gitState, files, checkResults, config);
 
     // 3. User makes NO NEW EDITS after baseline
-    // 4. Now run diff comparison against baseline
     const baseline = await loadBaseline(repoRoot);
     expect(baseline).not.toBeNull();
 
@@ -326,37 +325,193 @@ describe("Acceptance: dirty working tree", () => {
     expect(fileChanges.added).toHaveLength(0);
     expect(fileChanges.deleted).toHaveLength(0);
 
-    // Line diff filtered by changed files must return 0 lines added/removed
-    const changedFiles = [
-      ...fileChanges.modified,
-      ...fileChanges.added,
-      ...fileChanges.deleted,
-    ];
-    let diffData;
-    if (changedFiles.length === 0) {
-      diffData = { text: "", truncated: false, linesAdded: 0, linesRemoved: 0 };
-    } else {
-      diffData = await getDiffText(repoRoot, changedFiles);
-    }
+    const rendered = renderDiffSummary(
+      "terminal",
+      {
+        files: fileChanges,
+        hasBaseline: true,
+        lineDiffAvailable: false,
+        note: "Line diff unavailable",
+      },
+      baseline
+    );
 
-    expect(diffData.linesAdded).toBe(0);
-    expect(diffData.linesRemoved).toBe(0);
+    expect(rendered).toContain("No changes detected since baseline");
+  });
+
+  it("should report file as modified when dirty file is edited again after baseline without misleading line counts", async () => {
+    repo = await createTempRepo();
+
+    // Commit file with 1 line
+    await repo.writeFile("file.txt", "line 1\n");
+    await repo.git("add", "file.txt");
+    await repo.git("commit", "-m", "initial");
+
+    // Add second line without committing (dirty tree)
+    await repo.writeFile("file.txt", "line 1\nline 2\n");
+
+    await repo.createConfig([
+      {
+        name: "dummy",
+        executable: "node",
+        args: ["-e", "process.exit(0)"],
+        timeout: 10,
+      },
+    ]);
+
+    const repoRoot = await getRepositoryRoot(repo.path);
+    const config = await loadConfig(repoRoot);
+    const gitState = await getGitState(repoRoot);
+    const files = await getFileEntries(repoRoot);
+    const checkResults = await executeAllChecks(config.checks, { cwd: repoRoot });
+    await saveBaseline(repoRoot, "baseline with dirty file", gitState, files, checkResults, config);
+
+    // Add third line after baseline
+    await repo.writeFile("file.txt", "line 1\nline 2\nline 3\n");
+
+    const baseline = await loadBaseline(repoRoot);
+    const currentFiles = await getFileEntries(repoRoot);
+    const fileChanges = compareFiles(baseline!.files, currentFiles);
+
+    // Must report file as modified
+    expect(fileChanges.modified).toContain("file.txt");
+    expect(fileChanges.added).toHaveLength(0);
 
     const rendered = renderDiffSummary(
       "terminal",
       {
         files: fileChanges,
         hasBaseline: true,
-        totalLinesAdded: diffData.linesAdded,
-        totalLinesRemoved: diffData.linesRemoved,
-        truncated: diffData.truncated,
-        diffText: diffData.text,
+        lineDiffAvailable: false,
+        note: "Line diff unavailable",
       },
       baseline
     );
 
-    expect(rendered).toContain("No changes detected since baseline");
-    expect(rendered).not.toContain("Lines: +1");
+    expect(rendered).toContain("Modified:  1");
+    expect(rendered).toContain("~ file.txt");
+    expect(rendered).toContain("Line diff unavailable");
+    // Ensure no misleading lines count
+    expect(rendered).not.toContain("Lines: +");
+  });
+
+  it("should report untracked file added after baseline with line diff unavailable", async () => {
+    repo = await createTempRepo();
+
+    await repo.writeFile("base.txt", "base content\n");
+    await repo.git("add", "base.txt");
+    await repo.git("commit", "-m", "base commit");
+
+    await repo.createConfig([
+      {
+        name: "dummy",
+        executable: "node",
+        args: ["-e", "process.exit(0)"],
+        timeout: 10,
+      },
+    ]);
+
+    const repoRoot = await getRepositoryRoot(repo.path);
+    const config = await loadConfig(repoRoot);
+    const gitState = await getGitState(repoRoot);
+    const files = await getFileEntries(repoRoot);
+    const checkResults = await executeAllChecks(config.checks, { cwd: repoRoot });
+    await saveBaseline(repoRoot, "clean baseline", gitState, files, checkResults, config);
+
+    // Add untracked file after baseline
+    await repo.writeFile("untracked-after.txt", "brand new content\n");
+
+    const baseline = await loadBaseline(repoRoot);
+    const currentFiles = await getFileEntries(repoRoot);
+    const fileChanges = compareFiles(baseline!.files, currentFiles);
+
+    expect(fileChanges.added).toContain("untracked-after.txt");
+
+    const rendered = renderDiffSummary(
+      "terminal",
+      {
+        files: fileChanges,
+        hasBaseline: true,
+        lineDiffAvailable: false,
+        note: "Line diff unavailable",
+      },
+      baseline
+    );
+
+    expect(rendered).toContain("Added:     1");
+    expect(rendered).toContain("+ untracked-after.txt");
+    expect(rendered).toContain("Line diff unavailable");
+  });
+
+  it("should report changes committed after baseline as modified against baseline", async () => {
+    repo = await createTempRepo();
+
+    await repo.writeFile("tracked.txt", "v1\n");
+    await repo.git("add", "tracked.txt");
+    await repo.git("commit", "-m", "v1");
+
+    await repo.createConfig([
+      {
+        name: "dummy",
+        executable: "node",
+        args: ["-e", "process.exit(0)"],
+        timeout: 10,
+      },
+    ]);
+
+    const repoRoot = await getRepositoryRoot(repo.path);
+    const config = await loadConfig(repoRoot);
+    const gitState = await getGitState(repoRoot);
+    const files = await getFileEntries(repoRoot);
+    const checkResults = await executeAllChecks(config.checks, { cwd: repoRoot });
+    await saveBaseline(repoRoot, "v1 baseline", gitState, files, checkResults, config);
+
+    // Edit and COMMIT after baseline
+    await repo.writeFile("tracked.txt", "v2 committed\n");
+    await repo.git("add", "tracked.txt");
+    await repo.git("commit", "-m", "v2 committed");
+
+    const baseline = await loadBaseline(repoRoot);
+    const currentFiles = await getFileEntries(repoRoot);
+    const fileChanges = compareFiles(baseline!.files, currentFiles);
+
+    // Must be detected as modified relative to baseline, even though working tree is clean
+    expect(fileChanges.modified).toContain("tracked.txt");
+  });
+
+  it("should detect edits to file named __proto__ after baseline in check and diff", async () => {
+    repo = await createTempRepo();
+
+    await repo.writeFile("__proto__", "initial proto content\n");
+    await repo.git("add", "__proto__");
+    await repo.git("commit", "-m", "commit proto file");
+
+    await repo.createConfig([
+      {
+        name: "check-proto",
+        executable: "node",
+        args: ["-e", "process.exit(0)"],
+        timeout: 10,
+      },
+    ]);
+
+    const repoRoot = await getRepositoryRoot(repo.path);
+    const config = await loadConfig(repoRoot);
+    const gitState = await getGitState(repoRoot);
+    const files = await getFileEntries(repoRoot);
+    const checkResults = await executeAllChecks(config.checks, { cwd: repoRoot });
+    await saveBaseline(repoRoot, "proto baseline", gitState, files, checkResults, config);
+
+    // Modify __proto__
+    await repo.writeFile("__proto__", "modified proto content\n");
+
+    const baseline = await loadBaseline(repoRoot);
+    const currentFiles = await getFileEntries(repoRoot);
+    const report = buildReport(baseline!, checkResults, currentFiles, config);
+    const fileChanges = compareFiles(baseline!.files, currentFiles);
+
+    expect(report.files.modified).toContain("__proto__");
+    expect(fileChanges.modified).toContain("__proto__");
   });
 
   it("should classify modified check definition with same name as definition-changed and not fail check run", async () => {
@@ -400,5 +555,48 @@ describe("Acceptance: dirty working tree", () => {
     expect(report.summary.newFailures).toBe(0);
     expect(report.summary.definitionChanged).toBe(1);
     expect(report.exitCode).toBe(0); // Not classified as a regression in app code
+  });
+
+  it("should classify timeout-only config change as definition-changed with exit code 0", async () => {
+    repo = await createTempRepo();
+
+    await repo.createConfig([
+      {
+        name: "timeout-check",
+        executable: "node",
+        args: ["-e", "process.exit(0)"],
+        timeout: 60,
+      },
+    ]);
+
+    const repoRoot = await getRepositoryRoot(repo.path);
+    let config = await loadConfig(repoRoot);
+    const gitState = await getGitState(repoRoot);
+    const files = await getFileEntries(repoRoot);
+    const checkResults = await executeAllChecks(config.checks, { cwd: repoRoot });
+    await saveBaseline(repoRoot, "baseline with 60s timeout", gitState, files, checkResults, config);
+
+    // Modify ONLY timeout (from 60 to 15)
+    await repo.createConfig([
+      {
+        name: "timeout-check",
+        executable: "node",
+        args: ["-e", "process.exit(0)"],
+        timeout: 15,
+      },
+    ]);
+
+    config = await loadConfig(repoRoot);
+    const baseline = await loadBaseline(repoRoot);
+    const currentFiles = await getFileEntries(repoRoot);
+    const currentResults = await executeAllChecks(config.checks, { cwd: repoRoot });
+    const report = buildReport(baseline!, currentResults, currentFiles, config);
+
+    expect(report.configDrift.detected).toBe(true);
+    expect(report.configDrift.changedChecks).toContain("timeout-check");
+    expect(report.results[0]!.result).toBe("definition-changed");
+    expect(report.summary.newFailures).toBe(0);
+    expect(report.summary.definitionChanged).toBe(1);
+    expect(report.exitCode).toBe(0);
   });
 });
