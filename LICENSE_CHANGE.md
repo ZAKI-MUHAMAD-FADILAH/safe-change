@@ -2,7 +2,7 @@
 
 ## License Change to AGPL-3.0-only
 
-Effective starting from commit `[PENDING_COMMIT_HASH]`, the licensing of the safe-change repository transitioned from the MIT License to the GNU Affero General Public License version 3 only (SPDX identifier: `AGPL-3.0-only`).
+Effective starting from commit `0c86eaf4b3e499063b9319159af53c931edf27af` (and continuing in all subsequent commits and releases), the licensing of the safe-change repository transitioned from the MIT License to the GNU Affero General Public License version 3 only (SPDX identifier: `AGPL-3.0-only`).
 
 ## Historical MIT Availability
 
