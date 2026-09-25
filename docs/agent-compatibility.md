@@ -29,9 +29,9 @@ To maintain strict evidence quality, all claims in this document are classified 
   *(Downgraded from Verified: specification source is private to the local runtime environment without a public canonical URL; no automated installation fixture or runtime test has been executed in safe-change.)*
 - **Source Environment**: Local runtime environment documentation (Private).
 - **Exact Path**:
-  - `C:\Users\zakim\.gemini\antigravity-ide\builtin\skills\agy-customizations\SKILL.md`
-  - `C:\Users\zakim\.gemini\antigravity-ide\builtin\skills\agy-customizations\docs\skills.md`
-  - `C:\Users\zakim\.gemini\antigravity-ide\builtin\skills\agy-customizations\docs\plugins.md`
+  - `<appDataDir>\builtin\skills\agy-customizations\SKILL.md`
+  - `<appDataDir>\builtin\skills\agy-customizations\docs\skills.md`
+  - `<appDataDir>\builtin\skills\agy-customizations\docs\plugins.md`
 - **Runtime Version**: Antigravity IDE (Gemini agent environment, built-in skill version 2.0).
 - **Reproduction Method**: Open Antigravity IDE and inspect `<appDataDir>\builtin\skills\agy-customizations\SKILL.md` or invoke the built-in skill `agy-customizations`.
 - **Source Visibility**: Private local runtime specification (not accessible via public web URL).
