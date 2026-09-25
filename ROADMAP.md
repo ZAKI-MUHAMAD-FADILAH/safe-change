@@ -66,7 +66,8 @@ No release dates are provided. Milestones are ordered by priority, not by calend
 | Interactive installer (npx) | Planned |
 | Install/update/uninstall tests | Planned |
 | npm package publication | Planned |
-| Antigravity plugin | Planned |
+| Antigravity adapter prototype (plugins/antigravity/) | Implemented |
+| Antigravity production plugin and manifest | Planned |
 | Claude Code plugin | Planned |
 | Codex plugin | Planned |
 | Cursor plugin | Planned |
