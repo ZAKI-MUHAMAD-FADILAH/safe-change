@@ -5,3 +5,5 @@ dist/
 coverage/
 .DS_Store
 Thumbs.db
+tests/
+vitest.config.ts
