@@ -34,7 +34,7 @@ No release dates are provided. Milestones are ordered by priority, not by calend
 
 | Feature | Status |
 | --- | --- |
-| Canonical Agent Skill (skills/safe-change/SKILL.md) | Planned |
+| Canonical Agent Skill (skills/safe-change/SKILL.md) | Implemented |
 | Interactive installer (npx) | Planned |
 | Agent compatibility research | Planned |
 | Install/update/uninstall tests | Planned |

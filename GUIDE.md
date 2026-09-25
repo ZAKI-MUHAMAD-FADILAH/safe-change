@@ -127,7 +127,7 @@ This re-runs your configured checks and compares results against the baseline. I
 safe-change diff
 ```
 
-Shows a summary of file changes and line counts. For the full patch, run `git diff HEAD`.
+Shows a summary of file changes (added, modified, deleted, unchanged). Exact line diffs from baseline are unavailable because safe-change records integrity hashes rather than full file contents to protect privacy. Run `git diff` to inspect uncommitted changes in your working tree.
 
 ### 5. Use JSON output
 
@@ -136,6 +136,19 @@ Add `--json` to any command for structured output:
 ```bash
 safe-change check --json
 ```
+
+## Using with Coding Agents
+
+safe-change provides a canonical Agent Skill at [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md).
+
+When working with an AI coding agent:
+1. Provide the skill instructions to the agent.
+2. The agent checks if the CLI is available via `safe-change --version`.
+3. If available, the agent follows the safety workflow:
+   - `safe-change save "<description>"` before risky edits.
+   - `safe-change check` immediately after modifications to catch regressions.
+   - `safe-change diff` when a file change summary is needed.
+4. The skill enforces non-negotiable safety rules: the agent is forbidden from running `git commit`, `git stash`, `git reset`, `git clean`, or `git checkout`, preserving all uncommitted work.
 
 ## Troubleshooting
 

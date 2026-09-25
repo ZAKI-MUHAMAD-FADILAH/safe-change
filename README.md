@@ -118,18 +118,25 @@ See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 | Document | Contents |
 | --- | --- |
 | [GUIDE.md](GUIDE.md) | Setup, usage, and troubleshooting |
+| [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md) | Canonical agent skill for coding agents |
 | [ROADMAP.md](ROADMAP.md) | Shipped and planned features |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and contribution guidelines |
 | [SECURITY.md](SECURITY.md) | Trust boundaries and vulnerability reporting |
 | [LICENSE_CHANGE.md](LICENSE_CHANGE.md) | Historical licensing transition notice |
+
+## Agent Skill
+
+safe-change includes a canonical Agent Skill at [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md).
+
+The skill defines the CLI invocation contract, non-negotiable safety rules (no silent commits, stashes, or resets), and the standard agent workflow: save a baseline before making risky edits, check for regressions immediately after, and run diff when a change summary is requested.
 
 ## Roadmap
 
 | Milestone | Goal | Status |
 | --- | --- | --- |
 | Core CLI | `save`, `check`, `diff` with tests | Implemented |
-| Agent Skill | Canonical skill for coding agents | Planned |
-| Distribution | Plugins for Cursor, Claude Code, Codex, Antigravity, and others | Planned |
+| Agent Skill | Canonical skill at [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md) | Implemented |
+| Distribution | Agent plugins and installer | Planned |
 | Recovery | Reviewed rollback with preview and confirmation | Deferred |
 
 See [ROADMAP.md](ROADMAP.md) for the full breakdown.
