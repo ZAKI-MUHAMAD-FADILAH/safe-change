@@ -181,14 +181,24 @@ export async function getFileEntries(
 
 /**
  * Generate a bounded diff summary of changes since a given commit or against
- * the working tree.
+ * the working tree. Optionally filtered to specific file paths.
  */
 export async function getDiffText(
   repoRoot: string,
+  paths?: readonly string[],
   maxBytes: number = 100_000
 ): Promise<{ text: string; truncated: boolean; linesAdded: number; linesRemoved: number }> {
+  if (paths !== undefined && paths.length === 0) {
+    return { text: "", truncated: false, linesAdded: 0, linesRemoved: 0 };
+  }
+
+  const gitArgs = ["diff", "HEAD", "--stat", "--patch"];
+  if (paths !== undefined && paths.length > 0) {
+    gitArgs.push("--", ...paths);
+  }
+
   // Show diff of working tree (staged + unstaged)
-  const result = await git(repoRoot, ["diff", "HEAD", "--stat", "--patch"]);
+  const result = await git(repoRoot, gitArgs);
 
   let text = result.stdout;
   let truncated = false;

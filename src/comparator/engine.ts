@@ -35,11 +35,24 @@ export function detectConfigDrift(
   const currentHash = computeConfigHash(config);
   const driftDetected = currentHash !== baseline.checksConfigHash;
 
-  const baselineNames = new Set(baseline.checks.map((c) => c.name));
-  const currentNames = new Set(config.checks.map((c) => c.name));
+  const baselineByName = new Map(baseline.checks.map((c) => [c.name, c]));
+  const currentByName = new Map(config.checks.map((c) => [c.name, c]));
 
-  const removedChecks = [...baselineNames].filter((n) => !currentNames.has(n));
-  const addedChecks = [...currentNames].filter((n) => !baselineNames.has(n));
+  const removedChecks = [...baselineByName.keys()].filter((n) => !currentByName.has(n));
+  const addedChecks = [...currentByName.keys()].filter((n) => !baselineByName.has(n));
+  const changedChecks: string[] = [];
+
+  for (const [name, currentCheck] of currentByName) {
+    const baselineCheck = baselineByName.get(name);
+    if (!baselineCheck) continue;
+
+    const argsChanged =
+      currentCheck.args.length !== baselineCheck.args.length ||
+      currentCheck.args.some((arg, idx) => arg !== baselineCheck.args[idx]);
+    if (currentCheck.executable !== baselineCheck.executable || argsChanged) {
+      changedChecks.push(name);
+    }
+  }
 
   let message = "";
   if (driftDetected) {
@@ -54,15 +67,20 @@ export function detectConfigDrift(
         `Added checks: ${addedChecks.join(", ")}. These have no baseline to compare against.`
       );
     }
+    if (changedChecks.length > 0) {
+      parts.push(
+        `Changed check definitions: ${changedChecks.join(", ")}. Commands changed since baseline and are not comparable.`
+      );
+    }
     if (parts.length === 0) {
       parts.push(
-        "Check definitions changed (executable, args, or timeout) since baseline."
+        "Check definitions or configuration changed since baseline."
       );
     }
     message = parts.join(" ");
   }
 
-  return { detected: driftDetected, removedChecks, addedChecks, message };
+  return { detected: driftDetected, removedChecks, addedChecks, changedChecks, message };
 }
 
 /**
@@ -77,7 +95,6 @@ export function compareChecks(
   const comparisons: CheckComparison[] = [];
 
   const baselineByName = new Map(baseline.checks.map((c) => [c.name, c]));
-  const currentByName = new Map(currentResults.map((c) => [c.name, c]));
 
   // Compare checks present in both baseline and current
   for (const current of currentResults) {
@@ -92,6 +109,30 @@ export function compareChecks(
         result: "config-added",
         durationMs: current.durationMs,
         timedOut: current.timedOut,
+        stdout: current.stdout,
+        stderr: current.stderr,
+        exitCode: current.exitCode,
+      });
+      continue;
+    }
+
+    // Check if definition changed (executable or args differ)
+    const argsChanged =
+      current.args.length !== before.args.length ||
+      current.args.some((arg, idx) => arg !== before.args[idx]);
+    const definitionChanged = current.executable !== before.executable || argsChanged;
+
+    if (definitionChanged) {
+      comparisons.push({
+        name: current.name,
+        before: checkResultToState(before),
+        now: checkResultToState(current),
+        result: "definition-changed",
+        durationMs: current.durationMs,
+        timedOut: current.timedOut,
+        stdout: current.stdout,
+        stderr: current.stderr,
+        exitCode: current.exitCode,
       });
       continue;
     }
@@ -107,6 +148,9 @@ export function compareChecks(
       result,
       durationMs: current.durationMs,
       timedOut: current.timedOut,
+      stdout: current.stdout,
+      stderr: current.stderr,
+      exitCode: current.exitCode,
     });
   }
 
@@ -242,6 +286,7 @@ function buildSummary(
   let fixed = 0;
   let stillFailing = 0;
   let stillPassing = 0;
+  let definitionChanged = 0;
 
   for (const c of comparisons) {
     switch (c.result) {
@@ -262,6 +307,9 @@ function buildSummary(
       case "timeout-timeout":
         stillFailing++;
         break;
+      case "definition-changed":
+        definitionChanged++;
+        break;
       // config-added and config-removed do not count in these categories
     }
   }
@@ -272,5 +320,6 @@ function buildSummary(
     stillFailing,
     stillPassing,
     configDrift: drift.detected,
+    definitionChanged,
   };
 }

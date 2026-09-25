@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import type { CheckDefinition, CheckResult } from "../types/index.js";
 
 const DEFAULT_OUTPUT_LIMIT = 100 * 1024; // 100 KB per stream
+const DIAGNOSTIC_TAIL_LIMIT = 8 * 1024; // 8 KB tail kept for diagnostics
 
 export interface ExecutorOptions {
   readonly cwd: string;
@@ -14,7 +15,8 @@ export interface ExecutorOptions {
 
 /**
  * Execute a single verification check. The executable is spawned directly
- * without a shell. Output is captured up to the configured limit.
+ * without a shell. Bounded stdout/stderr content is captured so that
+ * the user can diagnose why a check failed.
  */
 export async function executeCheck(
   check: CheckDefinition,
@@ -27,6 +29,8 @@ export async function executeCheck(
     const startTime = performance.now();
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
     let outputTruncated = false;
     let timedOut = false;
     let resolved = false;
@@ -36,6 +40,12 @@ export async function executeCheck(
       resolved = true;
 
       const durationMs = Math.round(performance.now() - startTime);
+
+      // Keep only the tail of captured output for diagnostics
+      const stdoutFull = Buffer.concat(stdoutChunks);
+      const stderrFull = Buffer.concat(stderrChunks);
+      const stdout = tailString(stdoutFull, DIAGNOSTIC_TAIL_LIMIT);
+      const stderr = tailString(stderrFull, DIAGNOSTIC_TAIL_LIMIT);
 
       resolve({
         name: check.name,
@@ -47,6 +57,8 @@ export async function executeCheck(
         timedOut,
         outputBytes: stdoutBytes + stderrBytes,
         outputTruncated,
+        stdout,
+        stderr,
       });
     }
 
@@ -66,14 +78,18 @@ export async function executeCheck(
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdoutBytes += chunk.length;
-      if (stdoutBytes + stderrBytes > outputLimit) {
+      if (stdoutBytes + stderrBytes <= outputLimit) {
+        stdoutChunks.push(chunk);
+      } else {
         outputTruncated = true;
       }
     });
 
     child.stderr.on("data", (chunk: Buffer) => {
       stderrBytes += chunk.length;
-      if (stdoutBytes + stderrBytes > outputLimit) {
+      if (stdoutBytes + stderrBytes <= outputLimit) {
+        stderrChunks.push(chunk);
+      } else {
         outputTruncated = true;
       }
     });
@@ -114,4 +130,16 @@ export async function executeAllChecks(
   }
 
   return results;
+}
+
+// -- Helpers -----------------------------------------------------------------
+
+/**
+ * Return the last `limit` bytes of a buffer as a UTF-8 string.
+ */
+function tailString(buf: Buffer, limit: number): string {
+  if (buf.length <= limit) {
+    return buf.toString("utf-8");
+  }
+  return buf.subarray(buf.length - limit).toString("utf-8");
 }

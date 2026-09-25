@@ -36,20 +36,20 @@ Verification commands are spawned directly via `child_process.spawn` without a s
 
 Each command runs with:
 - A configurable timeout (default 60 seconds, maximum 3600 seconds)
-- Bounded output capture (default 100 KB per stream)
+- Bounded output capture (default 100 KB per stream, 8 KB diagnostic tail)
 - No stdin (stdin is set to `ignore`)
 
 ### Data treatment
 
 - Repository content, file paths, Git output, process output, and any agent-produced text are treated as untrusted data.
-- Terminal output sanitizes control characters to prevent injection.
+- Terminal output sanitizes control characters (stripping non-printable control characters except newline, carriage return, and tab) to mitigate terminal escape injection.
 - JSON output uses standard serialization without executing embedded content.
 - Baseline files store file hashes (sha256), not file contents.
-- Diagnostic output may include fragments of check output. Best-effort redaction reduces accidental secret disclosure but is not a secret-detection guarantee.
+- Process stdout/stderr is captured in bounded buffers for diagnostic display. safe-change does NOT perform automated secret or token detection; configured checks should avoid emitting sensitive credentials.
 
 ## Implemented safety properties
 
-- `save`, `check`, and `diff` do not commit, stash, reset, clean, delete, or overwrite user files. This is verified by the acceptance test suite.
+- `save`, `check`, and `diff` do not commit, stash, reset, clean, delete, or overwrite user files. This is verified by the integration test suite.
 - Reading a baseline and rendering a report does not execute repository-provided instructions.
 - Verification uses an explicit allowlist of user-configured commands with a documented execution model. No implicit execution of arbitrary package scripts.
 - Process execution has timeouts, output bounds, and clean termination behavior.
@@ -65,7 +65,7 @@ User-configured verification commands can themselves be destructive or communica
 
 A safe-change baseline is not a general-purpose backup. It stores hashes for comparison, not full file contents for restoration.
 
-Best-effort diagnostic redaction may reduce accidental disclosure, but it is not a promise that every secret will be found.
+safe-change does not redact secrets, API keys, or sensitive credentials from process output or terminal displays. Ensure configured test commands do not print credentials.
 
 ## Before package release
 

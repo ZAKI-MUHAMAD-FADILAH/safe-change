@@ -51,6 +51,8 @@ export interface CheckResult {
   readonly timedOut: boolean;
   readonly outputBytes: number;
   readonly outputTruncated: boolean;
+  readonly stdout: string; // bounded capture for diagnostic display
+  readonly stderr: string; // bounded capture for diagnostic display
 }
 
 // -- Baseline ----------------------------------------------------------------
@@ -79,7 +81,8 @@ export type CheckComparisonResult =
   | "timeout-fail"
   | "timeout-timeout"
   | "config-removed"
-  | "config-added";
+  | "config-added"
+  | "definition-changed";
 
 export interface CheckComparison {
   readonly name: string;
@@ -88,12 +91,16 @@ export interface CheckComparison {
   readonly result: CheckComparisonResult;
   readonly durationMs: number | null;
   readonly timedOut: boolean;
+  readonly stdout?: string;
+  readonly stderr?: string;
+  readonly exitCode?: number | null;
 }
 
 export interface ConfigDrift {
   readonly detected: boolean;
   readonly removedChecks: readonly string[];
   readonly addedChecks: readonly string[];
+  readonly changedChecks: readonly string[];
   readonly message: string;
 }
 
@@ -110,6 +117,7 @@ export interface CheckReportSummary {
   readonly stillFailing: number;
   readonly stillPassing: number;
   readonly configDrift: boolean;
+  readonly definitionChanged: number;
 }
 
 export interface CheckReport {
@@ -130,6 +138,7 @@ export interface CheckReport {
 
 export interface DiffSummary {
   readonly files: FileChanges;
+  readonly hasBaseline: boolean;
   readonly totalLinesAdded: number;
   readonly totalLinesRemoved: number;
   readonly truncated: boolean;

@@ -45,6 +45,20 @@ export function sanitize(text: string): string {
 
 // -- Render save output ------------------------------------------------------
 
+export interface SaveOutputData {
+  readonly description: string;
+  readonly headCommit: string | null;
+  readonly headBranch: string | null;
+  readonly isClean: boolean;
+  readonly totalFiles: number;
+  readonly trackedFiles: number;
+  readonly untrackedFiles: number;
+  readonly checksRun: number;
+  readonly checksPassed: number;
+  readonly baselinePath: string;
+  readonly gitignoreWarning: boolean;
+}
+
 export function renderSaveResult(
   format: OutputFormat,
   description: string,
@@ -57,7 +71,6 @@ export function renderSaveResult(
   if (format === "json") {
     return JSON.stringify(
       {
-        action: "save",
         description,
         checksRun,
         checksPassed,
@@ -72,11 +85,10 @@ export function renderSaveResult(
 
   const lines: string[] = [];
   lines.push("");
-  lines.push(c(BOLD, "Baseline saved"));
+  lines.push(c(BOLD, "Baseline saved successfully"));
   lines.push("");
-  lines.push(`  Description:  ${sanitize(description)}`);
-  lines.push(`  Files:        ${fileCount}`);
-  lines.push(`  Checks run:   ${checksRun}`);
+  lines.push(`  Description:   ${sanitize(description)}`);
+  lines.push(`  Files:         ${fileCount} indexed`);
   lines.push(
     `  Checks passed: ${checksPassed}/${checksRun}${
       checksPassed < checksRun
@@ -84,9 +96,64 @@ export function renderSaveResult(
         : ""
     }`
   );
-  lines.push(`  Stored at:    ${baselinePath}`);
+  lines.push(`  Stored at:     ${baselinePath}`);
 
   if (gitignoreWarning) {
+    lines.push("");
+    lines.push(
+      c(
+        YELLOW,
+        "  Warning: .safe-change/ is not in .gitignore. Consider adding it to avoid committing tool state."
+      )
+    );
+  }
+
+  lines.push("");
+  return lines.join("\n");
+}
+
+export function renderSaveSummary(
+  format: OutputFormat,
+  data: SaveOutputData
+): string {
+  if (format === "json") {
+    return JSON.stringify(data, null, 2);
+  }
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(c(BOLD, "Baseline saved successfully"));
+  lines.push("");
+  lines.push(`  Description:  ${sanitize(data.description)}`);
+
+  if (data.headCommit) {
+    const branchInfo = data.headBranch ? ` (${data.headBranch})` : "";
+    lines.push(
+      `  Git HEAD:     ${data.headCommit.slice(0, 8)}${branchInfo}${
+        data.isClean ? "" : c(YELLOW, " (uncommitted changes present)")
+      }`
+    );
+  } else {
+    lines.push(
+      `  Git HEAD:     ${c(YELLOW, "no commits yet")}${
+        data.isClean ? "" : c(YELLOW, " (uncommitted changes present)")
+      }`
+    );
+  }
+
+  lines.push(
+    `  Files:        ${data.totalFiles} total (${data.trackedFiles} tracked, ${data.untrackedFiles} untracked)`
+  );
+  lines.push(
+    `  Checks passed: ${data.checksPassed}/${data.checksRun}${
+      data.checksPassed < data.checksRun
+        ? c(YELLOW, " (pre-existing failures recorded)")
+        : ""
+    }`
+  );
+  lines.push(`  Stored at:    ${data.baselinePath}`);
+
+  if (data.gitignoreWarning) {
     lines.push("");
     lines.push(
       c(
@@ -155,6 +222,28 @@ export function renderCheckReport(
     lines.push("");
   }
 
+  // Failure output diagnostics
+  const failing = report.results.filter(
+    (r) => (r.now === "fail" || r.now === "timeout") && (r.stdout || r.stderr)
+  );
+  if (failing.length > 0) {
+    lines.push(c(BOLD, "  Failure output:"));
+    for (const f of failing) {
+      lines.push(c(YELLOW, `  --- [${sanitize(f.name)}] (exit: ${f.exitCode ?? "timeout"}) ---`));
+      if (f.stderr && f.stderr.trim().length > 0) {
+        for (const line of sanitize(f.stderr).trim().split("\n").slice(-15)) {
+          lines.push(c(RED, `    ${line}`));
+        }
+      }
+      if (f.stdout && f.stdout.trim().length > 0) {
+        for (const line of sanitize(f.stdout).trim().split("\n").slice(-15)) {
+          lines.push(c(DIM, `    ${line}`));
+        }
+      }
+    }
+    lines.push("");
+  }
+
   // File changes
   lines.push(c(BOLD, "  Files:"));
   const fc = report.files;
@@ -196,6 +285,14 @@ export function renderCheckReport(
   if (s.stillPassing > 0) {
     lines.push(
       c(DIM, `  Still passing: ${s.stillPassing} check(s) continue to pass.`)
+    );
+  }
+  if (s.definitionChanged > 0) {
+    lines.push(
+      c(
+        CYAN,
+        `  Definition changed: ${s.definitionChanged} check(s) had commands modified (not comparable).`
+      )
     );
   }
   if (report.results.length === 0) {
@@ -243,6 +340,7 @@ export function renderDiffSummary(
               description: baseline.description,
             }
           : null,
+        hasBaseline: diff.hasBaseline,
         files: diff.files,
         linesAdded: diff.totalLinesAdded,
         linesRemoved: diff.totalLinesRemoved,
@@ -266,6 +364,15 @@ export function renderDiffSummary(
 
   // File changes
   const fc = diff.files;
+  const hasChanges =
+    fc.added.length > 0 || fc.modified.length > 0 || fc.deleted.length > 0;
+
+  if (!hasChanges) {
+    lines.push(c(DIM, "  No changes detected since baseline."));
+    lines.push("");
+    return lines.join("\n");
+  }
+
   lines.push(c(BOLD, "  Change summary:"));
   if (fc.added.length > 0) {
     lines.push(c(GREEN, `    Added:     ${fc.added.length}`));
@@ -314,12 +421,11 @@ export function renderDiffSummary(
   } else {
     lines.push("");
     lines.push(
-      c(DIM, "  Run 'git diff HEAD' for the complete patch output.")
+      c(DIM, "  Run 'git diff' to inspect full working tree changes.")
     );
   }
 
   lines.push("");
-
   return lines.join("\n");
 }
 
@@ -362,6 +468,8 @@ function formatResultLabel(result: string): string {
       return "removed from config";
     case "config-added":
       return "new check (no baseline)";
+    case "definition-changed":
+      return "definition changed (not comparable)";
     default:
       return result;
   }
@@ -387,6 +495,7 @@ function colorizeResultLine(
       return c(YELLOW, line);
     case "config-removed":
     case "config-added":
+    case "definition-changed":
       return c(CYAN, line);
     default:
       return line;

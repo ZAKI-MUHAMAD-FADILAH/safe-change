@@ -92,10 +92,23 @@ export async function runDiff(options: DiffOptions): Promise<number> {
     fileChanges = { added, modified, deleted, unchangedCount };
   }
 
-  // 5. Get Git diff text
+  // 5. Get Git diff text (only for files changed since baseline, if baseline exists)
   let diffData;
   try {
-    diffData = await getDiffText(repoRoot);
+    if (baseline) {
+      const changedFiles = [
+        ...fileChanges.modified,
+        ...fileChanges.added,
+        ...fileChanges.deleted,
+      ];
+      if (changedFiles.length === 0) {
+        diffData = { text: "", truncated: false, linesAdded: 0, linesRemoved: 0 };
+      } else {
+        diffData = await getDiffText(repoRoot, changedFiles);
+      }
+    } else {
+      diffData = await getDiffText(repoRoot);
+    }
   } catch (err: unknown) {
     process.stderr.write(
       renderError(
@@ -109,6 +122,7 @@ export async function runDiff(options: DiffOptions): Promise<number> {
 
   const summary: DiffSummary = {
     files: fileChanges,
+    hasBaseline: baseline !== null,
     totalLinesAdded: diffData.linesAdded,
     totalLinesRemoved: diffData.linesRemoved,
     truncated: diffData.truncated,
