@@ -30,23 +30,44 @@ No release dates are provided. Milestones are ordered by priority, not by calend
 | GUIDE.md | Implemented |
 | CONTRIBUTING.md | Implemented |
 
-## Milestone B -- Agent Skill and Installer
+## Milestone B -- Agent Skill
 
 | Feature | Status |
 | --- | --- |
 | Canonical Agent Skill (skills/safe-change/SKILL.md) | Implemented |
-| Interactive installer (npx) | Planned |
-| Agent compatibility research | Planned |
-| Install/update/uninstall tests | Planned |
+| Skill unit and integration tests | Implemented |
 
-## Milestone C -- Distribution Channels
+## Milestone C -- Distribution and Installation
+
+### C.1 -- Compatibility Research and Fixture (Implemented)
 
 | Feature | Status |
 | --- | --- |
+| Agent compatibility research (docs/agent-compatibility.md) | Implemented |
+| Antigravity filesystem fixture (tests/integration/antigravity-fixture.test.ts) | Implemented |
+| Antigravity fixture documentation (docs/antigravity-fixture.md) | Implemented |
+| Home-directory boundary protection | Implemented |
+| Platform-aware case-sensitivity detection | Implemented |
+| Symlink, junction, and TOCTOU defense | Implemented |
+
+### C.2 -- Installer Architecture (Next)
+
+| Feature | Status |
+| --- | --- |
+| Installer architecture document (docs/installer-architecture.md) | Planned |
+| Command design and scope model | Planned |
+| Collision, update, uninstall, and rollback strategy | Planned |
+| Security threat model | Planned |
+
+### C.3 and Beyond -- Plugins and Publication
+
+| Feature | Status |
+| --- | --- |
+| Interactive installer (npx) | Planned |
+| Install/update/uninstall tests | Planned |
 | npm package publication | Planned |
-| skills.sh directory listing | Planned |
-| Claude Code plugin | Planned |
 | Antigravity plugin | Planned |
+| Claude Code plugin | Planned |
 | Codex plugin | Planned |
 | Cursor plugin | Planned |
 | Kimi Code plugin | Planned |

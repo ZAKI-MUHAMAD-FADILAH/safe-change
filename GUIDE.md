@@ -18,7 +18,7 @@ It works locally in a Git repository. It does not require a cloud account, AI AP
 
 **Check**: A verification command (build, test, lint) that safe-change runs and tracks. Defined in your configuration with an explicit executable and arguments array.
 
-**Agent Skill**: An instruction file that teaches a coding agent when and how to invoke the safe-change CLI. A skill alone cannot run checks; it needs the CLI installed. (Not yet implemented; planned for Milestone B.)
+**Agent Skill**: An instruction file that teaches a coding agent when and how to invoke the safe-change CLI. A skill alone cannot run checks; it needs the CLI installed. The canonical skill is implemented at [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md).
 
 **Plugin**: An agent-specific package that installs the skill and optionally the CLI. (Not yet implemented; planned for Milestone C.)
 
