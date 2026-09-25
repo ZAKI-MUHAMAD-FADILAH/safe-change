@@ -11,7 +11,8 @@ describe("Canonical Agent Skill (skills/safe-change/SKILL.md)", () => {
   });
 
   it("should have valid YAML frontmatter with required fields", async () => {
-    const content = await readFile(SKILL_PATH, "utf-8");
+    const raw = await readFile(SKILL_PATH, "utf-8");
+    const content = raw.replace(/\r\n/g, "\n");
     expect(content.startsWith("---\n")).toBe(true);
 
     const endOfFrontmatter = content.indexOf("\n---\n", 4);

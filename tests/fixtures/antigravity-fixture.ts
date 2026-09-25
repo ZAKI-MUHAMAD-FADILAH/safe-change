@@ -201,7 +201,8 @@ export function verifyFrontmatterIntact(
   if (!fs.existsSync(filePath)) {
     return { intact: false };
   }
-  const content = fs.readFileSync(filePath, "utf-8");
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const content = raw.replace(/\r\n/g, "\n");
   if (!content.startsWith("---\n")) {
     return { intact: false };
   }
