@@ -62,3 +62,10 @@ Use the GitHub issue tracker. Do not post credentials, private source code, or e
 - Document non-obvious design decisions in comments.
 - Prefer explicit error handling over silent failures.
 - Sanitize untrusted text before terminal output.
+
+## Contribution licensing
+
+By submitting a contribution to safe-change, you represent that you have the right to authorize the contribution and agree that any accepted contribution is licensed under the repository's applicable license: the GNU Affero General Public License version 3 only (SPDX: `AGPL-3.0-only`), as set forth in [LICENSE](LICENSE).
+
+Contributors retain copyright in their own contributions. safe-change does not require copyright assignment or a separate Contributor License Agreement (CLA). Any future consideration of dual licensing or commercial exceptions would require a separate incoming-license policy and review of contributor rights.
+

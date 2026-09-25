@@ -11,6 +11,7 @@
   "files": [
     "dist",
     "LICENSE",
+    "LICENSE_CHANGE.md",
     "README.md"
   ],
   "scripts": {
@@ -31,7 +32,7 @@
     "cli"
   ],
   "author": "ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=18.0.0"
   },

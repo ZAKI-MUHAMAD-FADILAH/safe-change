@@ -121,6 +121,7 @@ See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 | [ROADMAP.md](ROADMAP.md) | Shipped and planned features |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and contribution guidelines |
 | [SECURITY.md](SECURITY.md) | Trust boundaries and vulnerability reporting |
+| [LICENSE_CHANGE.md](LICENSE_CHANGE.md) | Historical licensing transition notice |
 
 ## Roadmap
 
@@ -135,6 +136,8 @@ See [ROADMAP.md](ROADMAP.md) for the full breakdown.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+GNU Affero General Public License v3.0 only (SPDX: `AGPL-3.0-only`). See [LICENSE](LICENSE).
+
+For details on the prospective license transition from MIT, see [LICENSE_CHANGE.md](LICENSE_CHANGE.md).
 
 Copyright (c) 2026 ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)
