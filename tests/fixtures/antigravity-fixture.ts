@@ -54,7 +54,39 @@ export interface CleanupOptions {
 }
 
 export const CLASSIFICATION_LABEL =
-  "Filesystem fixture validated; runtime discovery not independently verified.";
+  "Filesystem fixture validated; Antigravity runtime discovery not independently verified.";
+
+let cachedCaseInsensitive: boolean | undefined;
+
+/**
+ * Dynamically detects whether the filesystem hosting probeDir (defaults to os.tmpdir())
+ * is case-insensitive by writing a temporary probe file and testing alternate casing.
+ */
+export function isFileSystemCaseInsensitive(probeDir = os.tmpdir()): boolean {
+  if (cachedCaseInsensitive !== undefined) {
+    return cachedCaseInsensitive;
+  }
+  try {
+    const probePath = path.join(probeDir, `.safe-change-case-probe-${Date.now()}`);
+    fs.writeFileSync(probePath, "case-probe");
+    try {
+      const upperProbe = probePath.toUpperCase();
+      const lowerProbe = probePath.toLowerCase();
+      const altProbe = upperProbe !== probePath ? upperProbe : lowerProbe;
+      cachedCaseInsensitive = fs.existsSync(altProbe);
+    } finally {
+      try {
+        fs.rmSync(probePath, { force: true });
+      } catch {
+        // ignore probe cleanup error
+      }
+    }
+  } catch {
+    cachedCaseInsensitive =
+      process.platform === "win32" || process.platform === "darwin";
+  }
+  return cachedCaseInsensitive;
+}
 
 /**
  * Creates an isolated temporary directory for test fixtures.
@@ -116,17 +148,19 @@ export function resolveTargetDir(scope: FixtureScope, targetRoot: string): strin
 
 /**
  * Validates that targetRoot is not the user's real home directory or located
- * anywhere inside the home directory, unless it is strictly within the operating
- * system's designated temporary directory (as is standard on Windows platforms
- * where os.tmpdir() is placed under %USERPROFILE%\AppData\Local\Temp).
+ * anywhere inside the home directory, unless it is strictly within an isolated
+ * fixture directory inside the operating system's designated temporary directory
+ * (as is standard on Windows platforms where os.tmpdir() is placed under
+ * %USERPROFILE%\AppData\Local\Temp).
  *
  * Rejects:
  * - targetRoot equal to os.homedir()
  * - targetRoot equal to os.tmpdir() itself
  * - direct children of os.homedir()
  * - nested descendants of os.homedir() outside os.tmpdir()
+ * - arbitrary directories under os.tmpdir() that are not designated fixture directories
  * - path traversals resolving into os.homedir()
- * - case-variant paths on case-insensitive platforms
+ * - case-variant paths on case-insensitive filesystems
  */
 export function assertSafeTargetRoot(
   targetRoot: string,
@@ -163,11 +197,17 @@ export function assertSafeTargetRoot(
     }
   }
 
-  // Case normalization for case-insensitive platforms (Windows)
-  const isWindows = process.platform === "win32";
-  const normTarget = isWindows ? resolvedTarget.toLowerCase() : resolvedTarget;
-  const normHome = isWindows ? resolvedHome.toLowerCase() : resolvedHome;
-  const normTmp = isWindows ? resolvedTmp.toLowerCase() : resolvedTmp;
+  // Dynamic case normalization based on detected filesystem case sensitivity
+  const isCaseInsensitive = isFileSystemCaseInsensitive();
+  const normTarget = isCaseInsensitive
+    ? resolvedTarget.toLowerCase()
+    : resolvedTarget;
+  const normHome = isCaseInsensitive
+    ? resolvedHome.toLowerCase()
+    : resolvedHome;
+  const normTmp = isCaseInsensitive
+    ? resolvedTmp.toLowerCase()
+    : resolvedTmp;
 
   // Condition 1: Target equals home directory itself
   if (normTarget === normHome) {
@@ -192,11 +232,25 @@ export function assertSafeTargetRoot(
   const isInsideHome =
     relHome !== "" && !relHome.startsWith("..") && !path.isAbsolute(relHome);
 
-  // Condition 3: Target is inside home directory, but not within the OS temp dir
-  if (isInsideHome && !isInsideTmp) {
-    throw new Error(
-      "Safety violation: Target root must not be located inside the user home directory."
-    );
+  // Condition 3: Target is inside home directory
+  if (isInsideHome) {
+    // If not inside the OS temp dir, reject completely
+    if (!isInsideTmp) {
+      throw new Error(
+        "Safety violation: Target root must not be located inside the user home directory."
+      );
+    }
+
+    // Even if inside tmp under home (e.g. Windows %USERPROFILE%\AppData\Local\Temp),
+    // it must be an isolated safe-change fixture directory, not arbitrary temp files
+    const baseName = path.basename(resolvedTarget).toLowerCase();
+    const isFixtureDir =
+      baseName.startsWith("safe-change-") || baseName.startsWith("safe change");
+    if (!isFixtureDir) {
+      throw new Error(
+        `Safety violation: Target path '${targetRoot}' is located inside the user home directory tree and is not a designated fixture directory.`
+      );
+    }
   }
 }
 

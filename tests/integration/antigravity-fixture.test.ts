@@ -10,6 +10,8 @@ import {
   resolveTargetDir,
   createFixtureWorkspace,
   cleanupFixtureWorkspace,
+  isFileSystemCaseInsensitive,
+  assertSafeTargetRoot,
   CLASSIFICATION_LABEL,
   FixtureFileSystem,
 } from "../fixtures/antigravity-fixture.js";
@@ -349,21 +351,6 @@ describe("Antigravity Installation Fixture (Simulation)", () => {
       });
     }).toThrow(/Safety violation/);
 
-    // Case variant of home
-    expect(() => {
-      installSkillFixture({
-        scope: "global",
-        targetRoot: os.homedir().toUpperCase(),
-      });
-    }).toThrow(/Safety violation/);
-
-    expect(() => {
-      installSkillFixture({
-        scope: "global",
-        targetRoot: os.homedir().toLowerCase(),
-      });
-    }).toThrow(/Safety violation/);
-
     // System temp directory root itself
     expect(() => {
       installSkillFixture({
@@ -371,6 +358,34 @@ describe("Antigravity Installation Fixture (Simulation)", () => {
         targetRoot: os.tmpdir(),
       });
     }).toThrow(/Safety violation/);
+
+    // Platform-aware case variant handling:
+    // On case-insensitive filesystems (Windows, macOS APFS default), case-variants resolve to the same path and must be rejected.
+    // On case-sensitive filesystems (Linux), case-variants represent distinct filesystem paths and are not falsely aliased.
+    const isInsensitive = isFileSystemCaseInsensitive();
+    if (isInsensitive) {
+      expect(() => {
+        installSkillFixture({
+          scope: "global",
+          targetRoot: os.homedir().toUpperCase(),
+        });
+      }).toThrow(/Safety violation/);
+
+      expect(() => {
+        installSkillFixture({
+          scope: "global",
+          targetRoot: os.homedir().toLowerCase(),
+        });
+      }).toThrow(/Safety violation/);
+    } else {
+      // Document and verify that on case-sensitive filesystems (e.g. Linux ext4/btrfs):
+      // Detection returns false, and an alternate-case path is distinct from real home
+      // and not falsely claimed to be the home directory.
+      expect(isInsensitive).toBe(false);
+      expect(() => {
+        assertSafeTargetRoot(os.homedir().toUpperCase());
+      }).not.toThrow();
+    }
 
     // Real home must remain untouched
     const realHomeSkill = path.join(
