@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "name": "build",
+      "executable": "npm",
+      "args": ["run", "build"],
+      "timeout": 60
+    },
+    {
+      "name": "test",
+      "executable": "npx",
+      "args": ["vitest", "run"],
+      "timeout": 120
+    }
+  ]
+}

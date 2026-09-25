@@ -1,14 +1,16 @@
 # safe-change
 
-**A safety net for AI-assisted code changes.**
+A local-first safety net for AI-assisted coding.
 
-safe-change is a planned local-first CLI for people building software with coding agents. It records what was working before a change, then shows what changed and which previously passing checks now fail. It is designed to help users investigate regressions without silently altering or discarding their work.
+safe-change records what was working before an agent changes a project, detects what changed afterward, distinguishes new failures from pre-existing ones, and helps the user investigate without silently modifying or losing their work.
 
-> **Project status: specification, not a released CLI.** The commands below describe the intended v0.1 interface. There is no verified package or installation command yet. Do not publish this README as if the software already works; update this status only after the commands, tests, and package are implemented and verified.
+## Status
+
+**Milestone A: locally implemented and tested.** The CLI compiles, passes all unit and integration tests (including the dirty-working-tree acceptance test), and is ready for local use from a cloned repository. There is no published npm package yet. Do not run `npx safe-change` until a package is published and verified.
 
 ## The problem
 
-An agent adds a feature. The app looks better, but login breaks. The next prompt fixes login and breaks the dashboard. Without a known baseline, it is hard to tell which change introduced the regression or whether an error already existed. More prompts can consume time and credits without making progress.
+An agent adds a feature. The app looks better, but login breaks. The next prompt fixes login and breaks the dashboard. Without a known baseline, it is hard to tell which change introduced the regression or whether an error already existed.
 
 safe-change answers three questions:
 
@@ -18,86 +20,172 @@ safe-change answers three questions:
 
 It is not another coding agent. It is a small, independent safety layer around one.
 
-## Planned workflow
+## Installation
+
+### From source (currently the only verified route)
+
+```bash
+git clone https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change.git
+cd safe-change
+npm install
+npm run build
+```
+
+After building, run commands with `node dist/cli.js` or link locally with `npm link`.
+
+### npm package (planned)
+
+An `npx safe-change` command will be documented here after the package name is reserved, published, and verified. It does not exist yet.
+
+## Quick start
+
+1. Create a `.safe-change.json` configuration file in your project root:
+
+```json
+{
+  "version": 1,
+  "checks": [
+    {
+      "name": "build",
+      "executable": "npm",
+      "args": ["run", "build"],
+      "timeout": 60
+    },
+    {
+      "name": "test",
+      "executable": "npx",
+      "args": ["vitest", "run"],
+      "timeout": 120
+    }
+  ]
+}
+```
+
+Each check specifies an `executable` and `args` array. The executable is spawned directly without a shell. If you need shell features (pipes, globbing), wrap them in a script.
+
+2. Save a baseline before making changes:
 
 ```bash
 safe-change save "login and dashboard work"
-# Make a change with Cursor, Claude Code, Codex, or another tool.
+```
+
+3. Make changes with Cursor, Claude Code, Codex, Antigravity, or another tool.
+
+4. Check for regressions:
+
+```bash
 safe-change check
+```
+
+5. Review what changed:
+
+```bash
 safe-change diff
 ```
 
-**Illustrative output, not a result from an existing implementation:**
+## Example output
 
-```text
-Checkpoint: login and dashboard work
+```
+Baseline: login and dashboard work
 
-Check             Before     Now        Result
-build             pass       pass       unchanged
-login test        pass       fail       new failure
+Check             Before    Now       Result
+---------------------------------------------
+build             pass      pass      unchanged
+unit-tests        pass      fail      NEW FAILURE
 
-Files: 7 modified, 1 added
-Next: inspect the login failure and review changes to authentication files.
-Note: unchecked behavior remains unverified.
+Files:
+  Added:     1
+  Modified:  3
+  Deleted:   0
+  Unchanged: 42
+
+NEW FAILURES: 1 check(s) that previously passed now fail.
+
+Exit code: 1 (new regressions detected)
+Note: a passing check proves only that its configured command succeeded. Unchecked behavior remains unverified.
 ```
 
-## Planned v0.1 commands
+## Commands
 
-| Command | Intended behavior |
+| Command | Behavior |
 | --- | --- |
-| `safe-change save [description]` | Record a baseline of the repository and the results of explicitly configured verification commands. |
-| `safe-change check` | Compare current files and check results with the baseline. Distinguish new failures from pre-existing failures. Offer human-readable and JSON output. |
-| `safe-change diff` | Summarize changes and show how to inspect the full Git diff. |
+| `safe-change save [description]` | Record a baseline of the repository state and verification results. Works with dirty working trees. Never commits, stashes, resets, or cleans. |
+| `safe-change check` | Compare current state against the baseline. Reports new failures, fixed checks, pre-existing failures, configuration drift, and file changes. |
+| `safe-change diff` | Show a bounded change summary with file additions, modifications, and deletions. |
 
-A baseline must account for a dirty working tree, including staged, modified, and untracked files. No command may silently commit, stash, reset, clean, or overwrite those files. If a trustworthy comparison is not possible, the tool must say so rather than report a false result.
+### Global options
 
-Verification commands must be chosen explicitly by the user. A passing build does not prove that login, payments, authorization, or any other unchecked behavior works. safe-change must label those areas **not verified**.
+| Flag | Effect |
+| --- | --- |
+| `--json` | Output in structured JSON format. |
+| `--help` | Show usage information. |
+| `--version` | Show version. |
 
-### Not in v0.1
+## Exit codes
 
-- Automatic code fixes or AI-generated diagnoses.
-- Automatic rollback. A future `recover` command needs a preview, preservation of current work, and explicit confirmation.
-- Browser-flow, deployment, or security guarantees.
-- Cloud accounts, telemetry, or a dependency on one coding agent.
+| Code | Meaning |
+| --- | --- |
+| 0 | No new regressions. Previously passing checks still pass. |
+| 1 | At least one previously passing check now fails or times out. |
+| 2 | No baseline found or baseline is corrupt. |
+| 3 | Configuration error. |
+| 4 | Not a Git repository. |
+| 5 | Internal error. |
 
-## Who it is for
+Exit code 0 with pre-existing failures means no NEW regressions were introduced. The output clearly lists checks that were already failing.
 
-- Builders who use coding agents and want a readable before-and-after report.
-- Developers who want to catch a newly failing check immediately after an agent edit.
-- Small teams that want a local, agent-agnostic change safety workflow.
+## Check result states
+
+| Result | Meaning |
+| --- | --- |
+| pass-pass | Still passing |
+| pass-fail | NEW FAILURE (regression) |
+| pass-timeout | Was passing, now times out |
+| fail-pass | Previously broken, now fixed |
+| fail-fail | Was broken, still broken |
+| fail-timeout | Was broken, now times out |
+| timeout-pass | Was timing out, now passes |
+| timeout-fail | Was timing out, now fails |
+| timeout-timeout | Still timing out |
+| config-removed | Check was removed from configuration since baseline |
+| config-added | New check added since baseline (no baseline to compare) |
+
+## Configuration drift
+
+If the check configuration changes between `save` and `check`, safe-change detects and reports the drift. Removed checks are flagged as `config-removed`. Added checks are flagged as `config-added` with no baseline comparison available.
 
 ## Safety model
 
-The proposed CLI works locally in a Git repository. It should record only the data required for comparisons, limit diagnostic output, set execution timeouts, and avoid unnecessary storage of secrets or file contents. Check commands run in the user's project and must be treated as trusted configuration; repository files and command output are untrusted data. Any diagnostic redaction is best-effort, not a promise that every secret will be found.
+- All commands are read-only with respect to the Git repository. safe-change never commits, stashes, resets, cleans, or deletes user files.
+- Verification commands are spawned directly (no shell) with configurable timeouts and bounded output capture.
+- `.safe-change/` tool state is excluded from baselines. If it is not in `.gitignore`, a warning is printed. safe-change never modifies `.gitignore`.
+- No telemetry, cloud dependency, AI API key, or account required.
+- Local state writes use atomic temp-file-then-rename where practical.
+- Diagnostic output sanitizes control characters to prevent terminal injection.
 
-The tool is not a backup system. A checkpoint must not be advertised as a restorable backup until recovery behavior and all relevant edge cases have been implemented and tested. See [SECURITY.md](SECURITY.md) for the planned trust boundaries and disclosure process.
+See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 
-## First-release acceptance criteria
+## What safe-change does not guarantee
 
-Given a temporary Git repository with an existing uncommitted change:
+A passing check proves only that the configured command exited successfully. It does not prove that every feature works, that deployment matches local behavior, or that the application is secure. Unchecked behavior remains unverified and is labeled as such.
 
-1. The user creates a baseline without losing that change.
-2. A subsequent edit causes a previously passing verification command to fail.
-3. `safe-change check` identifies the new failure and the files changed since the baseline.
-4. The original uncommitted change remains intact.
-5. safe-change has not silently committed, stashed, reset, cleaned, uploaded, or deleted any user work.
+## Not in v0.1
 
-The release also needs tests for clean and dirty repositories, staged and untracked files, missing baselines, existing failures, timeouts, large output, corrupted state, and filenames with spaces.
+- Automatic code fixes or AI-generated diagnoses.
+- Automatic rollback. A future `recover` command needs a preview of exact effects, preservation of current work, and explicit user confirmation. `git reset --hard` and `git clean` will never be hidden behind a friendly command.
+- Browser-flow, deployment, or security guarantees.
+- Cloud accounts or telemetry.
 
 ## Roadmap
 
-| Milestone | Goal | Status |
-| --- | --- | --- |
-| v0.1 | Local CLI: `save`, `check`, `diff`, and tests | Planned |
-| Next | Reviewed recovery with preview and confirmation | Deferred |
-| Later | Opt-in browser-flow checks and agent or CI integrations | Exploratory |
-
-Roadmap entries are intentions, not shipped features or release dates.
+See [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 
-The most useful early contributions are reproducible examples of an agent edit that broke previously working behavior, especially cases with uncommitted files. Implementation contributions should preserve the safety model and add tests for any Git or filesystem behavior. Once the repository is published, add its issue and pull-request links here. Do not post credentials, private source, or exploitable vulnerability details in a public issue; follow [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The license applies to this repository's contents; it does not mean the proposed CLI has been implemented or security-audited.
+MIT. See [LICENSE](LICENSE).
+
+Copyright (c) 2026 ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)

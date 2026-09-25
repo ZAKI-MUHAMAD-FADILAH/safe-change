@@ -1,46 +1,74 @@
 # Security policy
 
-> **Project status: specification.** safe-change is not yet a released CLI. This document defines intended security boundaries and a disclosure process to finish before public release. It does not claim a completed audit or existing protections.
+## Status
+
+safe-change v0.1 is locally implemented and tested. This document describes the security boundaries as they exist in the current implementation. It will be updated when the CLI is published as a package.
 
 ## Supported versions
 
-No released version is supported yet. Once releases exist, maintainers must list supported versions and their security-update policy here.
+No released package version exists yet. When releases begin, this section will list supported versions and their security-update policy.
 
 ## Reporting a vulnerability
 
-Before accepting public users, enable **GitHub private vulnerability reporting** for the safe-change repository and put its exact reporting link here. This repository and link have not been established in this document.
+Before distributing an executable package, enable **GitHub private vulnerability reporting** for the safe-change repository and verify the reporting link works. The link will be added here once established and tested.
 
 Until a private reporting channel exists, do not disclose exploit details, tokens, private files, or proof-of-concept code in a public issue. Contact the maintainer through a private channel you already trust. Maintainers should acknowledge reports, coordinate a fix and disclosure with the reporter, and avoid promising response times they cannot meet.
 
 **Release blocker:** establish and test a private reporting route before distributing an executable package.
 
-## Intended trust boundaries
+## Trust boundaries
 
-safe-change will run on a developer's machine with access to a Git working tree. It may execute verification commands that the user explicitly configures. Such commands can themselves be destructive or communicate with external services; safe-change cannot make an unsafe user-provided command safe. Users should review configured commands and avoid running untrusted repositories or scripts.
+### What safe-change accesses
 
-Repository content, file paths, Git output, process output, and any agent-produced text must be treated as untrusted data. None of these should become instructions for a shell or another privileged operation without explicit validation and user consent.
+safe-change runs on a developer's machine with access to a Git working tree. It reads repository files, Git metadata, and executes verification commands that the user explicitly configures in `.safe-change.json`.
 
-## Required safety properties for v0.1
+### What safe-change writes
 
-- `save`, `check`, and `diff` must not silently commit, stash, reset, clean, delete, or overwrite user files.
-- Reading a baseline and rendering a report must not execute repository-provided instructions.
-- Verification must use an explicit allowlist of user-configured commands and a documented execution model; no implicit execution of arbitrary package scripts.
-- Process execution must have timeouts, output bounds, and clear cancellation behavior.
-- Local state writes should be atomic where practical; corrupted state must produce an actionable error, not an unsafe recovery attempt.
-- Local state and reports should minimize retained source content and avoid storing secrets unless strictly necessary.
-- Diagnostic redaction may reduce accidental disclosure, but it is best-effort and is not a secret-detection guarantee.
-- No source code, diagnostics, or telemetry may be uploaded without an explicit future opt-in design and disclosure.
-- Generated terminal and Markdown output must safely handle control characters and untrusted text.
+safe-change writes only to the `.safe-change/` directory within the project root. It creates:
+- `baseline.json`: the baseline state file
+- Temporary files during atomic writes (immediately renamed or cleaned up)
 
-A future `recover` command will require a separate threat review. It must preview exact effects, preserve current work, and require explicit confirmation. `git reset --hard` and `git clean` must never be hidden behind an innocuous default action.
+safe-change never writes to `.gitignore`, `.git/`, or any other user file.
+
+### Process execution
+
+Verification commands are spawned directly via `child_process.spawn` without a shell. The executable and arguments are taken from the configuration file's explicit `executable` and `args` fields. No shell interpretation occurs.
+
+Each command runs with:
+- A configurable timeout (default 60 seconds, maximum 3600 seconds)
+- Bounded output capture (default 100 KB per stream)
+- No stdin (stdin is set to `ignore`)
+
+### Data treatment
+
+- Repository content, file paths, Git output, process output, and any agent-produced text are treated as untrusted data.
+- Terminal output sanitizes control characters to prevent injection.
+- JSON output uses standard serialization without executing embedded content.
+- Baseline files store file hashes (sha256), not file contents.
+- Diagnostic output may include fragments of check output. Best-effort redaction reduces accidental secret disclosure but is not a secret-detection guarantee.
+
+## Implemented safety properties
+
+- `save`, `check`, and `diff` do not commit, stash, reset, clean, delete, or overwrite user files. This is verified by the acceptance test suite.
+- Reading a baseline and rendering a report does not execute repository-provided instructions.
+- Verification uses an explicit allowlist of user-configured commands with a documented execution model. No implicit execution of arbitrary package scripts.
+- Process execution has timeouts, output bounds, and clean termination behavior.
+- Local state writes use atomic temp-file-then-rename. Corrupted state produces an actionable error message.
+- No source code, diagnostics, or telemetry is uploaded.
+- No telemetry, cloud dependency, AI API key, or account is required.
 
 ## What safe-change cannot guarantee
 
-A passing check only proves that the configured check completed successfully under its test conditions. It does not prove that every feature works, that deployment matches local behavior, or that the application is secure. A safe-change baseline is not a general-purpose backup or disaster-recovery guarantee.
+A passing check only proves that the configured check completed successfully under its test conditions. It does not prove that every feature works, that deployment matches local behavior, or that the application is secure.
 
-## Before release
+User-configured verification commands can themselves be destructive or communicate with external services. safe-change cannot make an unsafe user-provided command safe. Users should review configured commands and avoid running untrusted repositories or scripts.
 
-- Implement and test the documented behavior, including dirty working trees and interrupted runs.
+A safe-change baseline is not a general-purpose backup. It stores hashes for comparison, not full file contents for restoration.
+
+Best-effort diagnostic redaction may reduce accidental disclosure, but it is not a promise that every secret will be found.
+
+## Before package release
+
+- Implement and test the private vulnerability reporting link.
 - Review the package entry points, dependencies, file access, process execution, and published package contents.
-- Test the private vulnerability reporting link.
-- Replace this planning notice with an accurate supported-versions policy and verified implementation details.
+- Replace the "no released version" notice with an accurate supported-versions policy.

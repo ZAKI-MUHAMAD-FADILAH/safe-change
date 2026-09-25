@@ -1,0 +1,43 @@
+{
+  "name": "safe-change",
+  "version": "0.1.0",
+  "description": "A local-first safety net for AI-assisted coding. Records baselines, detects regressions, and helps investigate changes without silently altering your work.",
+  "type": "module",
+  "bin": {
+    "safe-change": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "safety",
+    "baseline",
+    "regression",
+    "git",
+    "cli"
+  ],
+  "author": "ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
