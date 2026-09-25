@@ -50,16 +50,16 @@ No release dates are provided. Milestones are ordered by priority, not by calend
 | Platform-aware case-sensitivity detection | Implemented |
 | Symlink, junction, and TOCTOU defense | Implemented |
 
-### C.2 -- Installer Architecture (Next)
+### C.2 -- Installer Architecture (Implemented)
 
 | Feature | Status |
 | --- | --- |
-| Installer architecture document (docs/installer-architecture.md) | Planned |
-| Command design and scope model | Planned |
-| Collision, update, uninstall, and rollback strategy | Planned |
-| Security threat model | Planned |
+| Installer architecture document (docs/installer-architecture.md) | Implemented |
+| Command design and scope model | Implemented |
+| Collision, update, uninstall, and rollback strategy | Implemented |
+| Security threat model | Implemented |
 
-### C.3 and Beyond -- Plugins and Publication
+### C.3 and Beyond -- Plugins and Publication (Next)
 
 | Feature | Status |
 | --- | --- |
