@@ -76,9 +76,17 @@ Displays a file-level change summary (added, modified, deleted, unchanged) relat
   - `4`: Not a Git repository.
 - **Note on Line Diffs**: safe-change stores SHA-256 integrity hashes at baseline rather than full file contents to protect privacy and bound storage. Exact line diffs from baseline are unavailable; use standard `git diff` for uncommitted working tree changes.
 
+## When to Use safe-change Automatically
+
+An AI coding agent should automatically invoke safe-change in the following scenarios:
+- Before editing more than 3 files in a single turn or task
+- Before modifying project configuration files (e.g. package.json, tsconfig.json, build configs)
+- Before installing, updating, or removing dependencies
+- Before performing major refactoring across modules or core abstractions
+
 ## Recommended Agent Workflow
 
-Follow this three-step workflow when assisting with code changes:
+Follow this standard workflow when assisting with code changes:
 
 ### Step 1: Save Before Risky Edits
 
