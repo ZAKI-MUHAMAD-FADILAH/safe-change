@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-01-27
+
+### Added
+- Support for 9 additional AI coding agents:
+  Claude Code, Cursor, Codex, Cline, Kimi Code,
+  Amp, OpenCode, Gemini CLI, GitHub Copilot
+- BaseAdapter class for consistent adapter architecture
+- safe-change install all command
+- Auto-detection of installed agents via detectInstalledAgents
+- Collision detection and warning for agents sharing skill paths
+- Runtime verification plan for Antigravity
+- Enhanced SKILL.md with automatic invocation guidance
+- Native binary distribution architecture via @safe-change/* packages
+- GitHub Actions pipeline for automated binary publishing
+
+### Changed
+- AntigravityAdapter refactored to use BaseAdapter
+- CLI help text updated with all supported agents
+
+### Security
+- Path safety enforced for all 10 agent installation paths
+- Ownership manifest tracks which agent installed the skill
+
 ## [0.1.0] - 2026-09-25
 
 ### Added
