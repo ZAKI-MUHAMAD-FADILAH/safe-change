@@ -167,7 +167,10 @@ export class AntigravityAdapter implements AgentAdapter {
         });
       }
     } catch (err: any) {
-      if (err instanceof PathSafetyError && err.code === "SYMLINK_REJECTED") {
+      if (
+        err instanceof PathSafetyError &&
+        (err.code === "SYMLINK_REJECTED" || err.code === "PATH_TRAVERSAL")
+      ) {
         return {
           status: "cancelled",
           targetDir,
@@ -340,7 +343,10 @@ export class AntigravityAdapter implements AgentAdapter {
     try {
       assertNoSymlinkOrJunction(targetDir);
     } catch (err: any) {
-      if (err instanceof PathSafetyError && err.code === "SYMLINK_REJECTED") {
+      if (
+        err instanceof PathSafetyError &&
+        (err.code === "SYMLINK_REJECTED" || err.code === "PATH_TRAVERSAL")
+      ) {
         return {
           status: "cancelled",
           targetDir,
