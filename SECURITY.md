@@ -11,9 +11,9 @@ No released package version exists yet. When releases begin, this section will l
 ## Reporting a vulnerability
 
 To report a vulnerability, use GitHub private vulnerability reporting:
-https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/security/advisories/new
+https://github.com/zackpratamaa/safe-change/security/advisories/new
 This feature must be enabled by the repository owner before this link works.
-See: https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/settings/security_analysis
+See: https://github.com/zackpratamaa/safe-change/settings/security_analysis
 
 Until a private reporting channel exists, do not disclose exploit details, tokens, private files, or proof-of-concept code in a public issue. Contact the maintainer through a private channel you already trust. Maintainers should acknowledge reports, coordinate a fix and disclosure with the reporter, and avoid promising response times they cannot meet.
 

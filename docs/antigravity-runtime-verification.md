@@ -75,7 +75,7 @@ Confirm the physical existence and integrity of installed artifacts:
 ## 4. Reporting Results
 
 Testers who complete all four phases should submit their findings to the public safe-change repository:
-1. Open a GitHub Issue at: `https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/issues`
+1. Open a GitHub Issue at: `https://github.com/zackpratamaa/safe-change/issues`
 2. Add the label: `runtime-verification`.
 3. Include the following information:
    - Antigravity IDE version and model identifier.

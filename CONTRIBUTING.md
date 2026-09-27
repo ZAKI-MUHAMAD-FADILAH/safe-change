@@ -5,7 +5,7 @@
 Prerequisites: Node.js 18 or later, Git.
 
 ```bash
-git clone https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change.git
+git clone https://github.com/zackpratamaa/safe-change.git
 cd safe-change
 npm install
 npm run build

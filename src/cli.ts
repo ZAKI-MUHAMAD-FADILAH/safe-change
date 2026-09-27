@@ -262,7 +262,7 @@ Configuration:
     ]
   }
 
-Documentation: https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change
+Documentation: https://github.com/zackpratamaa/safe-change
 `;
 
 // Entry point

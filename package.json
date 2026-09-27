@@ -16,12 +16,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change.git"
+    "url": "git+https://github.com/zackpratamaa/safe-change.git"
   },
   "bugs": {
-    "url": "https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/issues"
+    "url": "https://github.com/zackpratamaa/safe-change/issues"
   },
-  "homepage": "https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change#readme",
+  "homepage": "https://github.com/zackpratamaa/safe-change#readme",
   "files": [
     "dist",
     "skills",

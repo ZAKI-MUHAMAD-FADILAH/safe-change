@@ -15,18 +15,18 @@ This document records the verification checklist completed for the public releas
   - Check: `https://www.npmjs.com/package/safe-change` or `curl -I https://registry.npmjs.org/safe-change` (status `404` confirms availability prior to publication).
 - [x] **Name Fallback Plan**: If `safe-change` becomes unavailable before publication, decide on an alternative scoped or prefixed name (e.g. `@scope/safe-change`) before publishing.
 - [x] **Private Vulnerability Reporting**: Enable GitHub private vulnerability reporting in repository settings:
-  - Settings: `https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/settings/security_analysis`
+  - Settings: `https://github.com/zackpratamaa/safe-change/settings/security_analysis`
 - [x] **Vulnerability Link Verification**: Verify that the advisory creation form is accessible to security researchers:
-  - Form: `https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/security/advisories/new`
+  - Form: `https://github.com/zackpratamaa/safe-change/security/advisories/new`
 
 ---
 
 ## 2. Package Metadata
 
 - [x] **Repository, Bugs, Homepage**: Confirmed filled in `package.json`:
-  - `repository`: `git+https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change.git`
-  - `bugs`: `https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/issues`
-  - `homepage`: `https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change#readme`
+  - `repository`: `git+https://github.com/zackpratamaa/safe-change.git`
+  - `bugs`: `https://github.com/zackpratamaa/safe-change/issues`
+  - `homepage`: `https://github.com/zackpratamaa/safe-change#readme`
 - [x] **Keywords**: Relevant search terms included (`vibe-coding`, `cursor`, `claude-code`, `codex`, `antigravity`, `developer-tools`, `safe-change`, `agpl-3-0`, `typescript`).
 - [x] **Exports Mapping**: Modern `exports` map configured for ESM consumers (`.` import and types).
 - [x] **Changelog**: `CHANGELOG.md` created, up to date with `v0.1.0`, and included in `files` array.

@@ -4,14 +4,14 @@
 
 <br/>
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=2500&pause=1000&color=58A6FF&center=true&vCenter=true&width=750&lines=Record+a+baseline+before+AI+touches+your+code.;Detect+regressions+the+moment+they+happen.;10+agents.+1+install.+Zero+surprises.)](https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=2500&pause=1000&color=58A6FF&center=true&vCenter=true&width=750&lines=Record+a+baseline+before+AI+touches+your+code.;Detect+regressions+the+moment+they+happen.;10+agents.+1+install.+Zero+surprises.)](https://github.com/zackpratamaa/safe-change)
 
 <br/>
 
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/ZAKI-MUHAMAD-FADILAH?style=for-the-badge&logo=github&color=EA4AAA&labelColor=0d1117)](https://github.com/sponsors/ZAKI-MUHAMAD-FADILAH)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/zackpratamaa?style=for-the-badge&logo=github&color=EA4AAA&labelColor=0d1117)](https://github.com/sponsors/zackpratamaa)
 [![npm version](https://img.shields.io/npm/v/safe-change?style=for-the-badge&logo=npm&color=CB3837&labelColor=0d1117)](https://www.npmjs.com/package/safe-change)
 [![npm downloads](https://img.shields.io/npm/dm/safe-change?style=for-the-badge&logo=npm&color=CB3837&labelColor=0d1117)](https://www.npmjs.com/package/safe-change)
-[![CI](https://img.shields.io/github/actions/workflow/status/ZAKI-MUHAMAD-FADILAH/safe-change/ci.yml?style=for-the-badge&logo=github-actions&label=CI&labelColor=0d1117)](https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/zackpratamaa/safe-change/ci.yml?style=for-the-badge&logo=github-actions&label=CI&labelColor=0d1117)](https://github.com/zackpratamaa/safe-change/actions)
 [![License](https://img.shields.io/badge/AGPL--3.0--only-blue?style=for-the-badge&logo=gnu&label=license&labelColor=0d1117)](LICENSE)
 [![Node](https://img.shields.io/badge/%3E%3D18.0.0-brightgreen?style=for-the-badge&logo=node.js&label=node&labelColor=0d1117)](https://nodejs.org)
 
@@ -355,7 +355,7 @@ See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ZAKI-MUHAMAD-FADILAH/safe-change&type=Date)](https://star-history.com/#ZAKI-MUHAMAD-FADILAH/safe-change&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=zackpratamaa/safe-change&type=Date)](https://star-history.com/#zackpratamaa/safe-change&Date)
 
 </div>
 
@@ -371,11 +371,11 @@ Thanks to everyone who helps make safe-change better.
 
 <div align="center">
 
-[![Contributors](https://contrib.rocks/image?repo=ZAKI-MUHAMAD-FADILAH/safe-change)](https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=zackpratamaa/safe-change)](https://github.com/zackpratamaa/safe-change/graphs/contributors)
 
 </div>
 
-Found a regression pattern safe-change missed? A bug in an adapter? Open an [issue](https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/issues). PRs are welcome for new safety rules, agent adapters, and documentation improvements.
+Found a regression pattern safe-change missed? A bug in an adapter? Open an [issue](https://github.com/zackpratamaa/safe-change/issues). PRs are welcome for new safety rules, agent adapters, and documentation improvements.
 
 <br/>
 
@@ -389,7 +389,7 @@ safe-change is and will always be free and open-source under AGPL-3.0. Sponsorsh
 
 <div align="center">
 
-[![Sponsor safe-change](https://img.shields.io/github/sponsors/ZAKI-MUHAMAD-FADILAH?style=for-the-badge&logo=github&color=EA4AAA&labelColor=0d1117&label=Sponsor%20safe-change)](https://github.com/sponsors/ZAKI-MUHAMAD-FADILAH)
+[![Sponsor safe-change](https://img.shields.io/github/sponsors/zackpratamaa?style=for-the-badge&logo=github&color=EA4AAA&labelColor=0d1117&label=Sponsor%20safe-change)](https://github.com/sponsors/zackpratamaa)
 
 </div>
 

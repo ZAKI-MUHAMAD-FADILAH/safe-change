@@ -35,7 +35,7 @@ It works locally in a Git repository. It does not require a cloud account, AI AP
 ### Install from source
 
 ```bash
-git clone https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change.git
+git clone https://github.com/zackpratamaa/safe-change.git
 cd safe-change
 npm install
 npm run build
