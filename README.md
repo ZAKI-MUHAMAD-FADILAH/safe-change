@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="100%" src="./assets/banner.png" alt="safe-change banner" />
+<img width="100%" src="https://raw.githubusercontent.com/zackpratamaa/safe-change/main/assets/banner.png" alt="safe-change banner" />
 
 <br/>
 
@@ -401,9 +401,16 @@ safe-change is and will always be free and open-source under AGPL-3.0. Sponsorsh
 
 <div align="center">
 
-<video width="100%" controls autoplay loop muted playsinline src="./assets/Animating_SAFE-CHANGE_logo_reveal.mp4"></video>
+<a href="https://github.com/zackpratamaa/safe-change/blob/main/assets/Animating_SAFE-CHANGE_logo_reveal.mp4?raw=true">
+  <img width="100%" src="https://raw.githubusercontent.com/zackpratamaa/safe-change/main/assets/logo-reveal.gif" alt="SAFE-CHANGE animated logo reveal" />
+</a>
 
-<br/>
+<p align="center">
+  <a href="https://github.com/zackpratamaa/safe-change/blob/main/assets/Animating_SAFE-CHANGE_logo_reveal.mp4?raw=true">
+    <strong>Watch / Download Full HD Logo Reveal Video (MP4)</strong>
+  </a>
+</p>
+
 <br/>
 
 *safe-change is a filter, not magic.*
