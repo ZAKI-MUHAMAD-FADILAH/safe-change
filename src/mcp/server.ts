@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- MCP Server implementation
-// ---------------------------------------------------------------------------
-
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -12,8 +8,6 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-
-// -- Version helper ----------------------------------------------------------
 
 function getPackageVersion(): string {
   try {
@@ -26,8 +20,6 @@ function getPackageVersion(): string {
     return "0.0.0";
   }
 }
-
-// -- Tool definitions --------------------------------------------------------
 
 const TOOLS = [
   {
@@ -101,8 +93,6 @@ const TOOLS = [
   },
 ] as const;
 
-// -- Tool name to CLI command mapping ----------------------------------------
-
 function toolToCommand(toolName: string): string[] | null {
   switch (toolName) {
     case "safe_change_save":
@@ -117,8 +107,6 @@ function toolToCommand(toolName: string): string[] | null {
       return null;
   }
 }
-
-// -- CLI execution helper ----------------------------------------------------
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 
@@ -185,8 +173,6 @@ function runCli(
   });
 }
 
-// -- Server factory ----------------------------------------------------------
-
 export function createServer(): Server {
   const version = getPackageVersion();
 
@@ -195,12 +181,10 @@ export function createServer(): Server {
     { capabilities: { tools: {} } }
   );
 
-  // List tools handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return { tools: [...TOOLS] };
   });
 
-  // Call tool handler
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: toolArgs } = request.params;
     const args = (toolArgs ?? {}) as Record<string, unknown>;
@@ -213,19 +197,15 @@ export function createServer(): Server {
       };
     }
 
-    // Build CLI arguments
     const cliArgs = [...commandParts, "--json"];
 
-    // Add description for save command
     if (name === "safe_change_save" && typeof args["description"] === "string") {
       cliArgs.push(args["description"]);
     }
 
-    // Determine working directory
     const cwd =
       typeof args["cwd"] === "string" ? args["cwd"] : process.cwd();
 
-    // Execute CLI
     const result = await runCli(cliArgs, cwd);
 
     if (result.timedOut) {
@@ -260,19 +240,15 @@ export function createServer(): Server {
   return server;
 }
 
-// -- Transport setup ---------------------------------------------------------
-
 export async function startServer(): Promise<void> {
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Log to stderr (stdout is reserved for MCP protocol)
+  // stdout is reserved for MCP protocol
   process.stderr.write(
     `safe-change MCP server started (pid ${process.pid})\n`
   );
 }
-
-// -- Exported for testing ----------------------------------------------------
 
 export { TOOLS, toolToCommand };

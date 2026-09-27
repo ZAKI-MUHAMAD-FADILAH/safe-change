@@ -1,10 +1,6 @@
-// ---------------------------------------------------------------------------
-// Integration test -- Core acceptance test (dirty working tree)
-//
-// This is the REQUIRED acceptance test for the first release.
-// It validates that safe-change correctly detects new failures
-// while preserving the user's existing uncommitted work.
-// ---------------------------------------------------------------------------
+// Required acceptance test for first release. Validates that safe-change
+// correctly detects new failures while preserving uncommitted work.
+
 
 import { describe, it, expect, afterEach } from "vitest";
 import { readFile, access } from "node:fs/promises";

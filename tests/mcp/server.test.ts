@@ -1,6 +1,3 @@
-// ---------------------------------------------------------------------------
-// Tests -- MCP Server
-// ---------------------------------------------------------------------------
 
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -10,7 +7,7 @@ import { createServer, TOOLS, toolToCommand } from "../../src/mcp/server.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
-// -- Helpers -----------------------------------------------------------------
+
 
 let tempDirs: string[] = [];
 
@@ -31,7 +28,7 @@ afterEach(async () => {
   tempDirs = [];
 });
 
-// -- Helper to create connected client/server pair ---------------------------
+
 
 async function createConnectedPair(): Promise<{
   client: Client;

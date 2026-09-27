@@ -1,8 +1,3 @@
-#!/usr/bin/env node
-// ---------------------------------------------------------------------------
-// safe-change -- CLI entry point
-// ---------------------------------------------------------------------------
-
 
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";

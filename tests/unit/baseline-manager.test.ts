@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Unit tests -- Baseline manager
-// ---------------------------------------------------------------------------
-
 import { describe, it, expect, afterEach } from "vitest";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";

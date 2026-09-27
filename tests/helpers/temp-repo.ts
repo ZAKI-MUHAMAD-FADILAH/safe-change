@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Test helper -- Create temporary Git repositories for testing
-// ---------------------------------------------------------------------------
-
 import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { join } from "node:path";

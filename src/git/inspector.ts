@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- Git inspector (read-only operations only)
-// ---------------------------------------------------------------------------
-
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, lstat, readlink } from "node:fs/promises";

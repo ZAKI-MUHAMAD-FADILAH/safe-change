@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- MCP Server entry point
-// ---------------------------------------------------------------------------
-
 import { startServer } from "./server.js";
 
 startServer().catch((err: unknown) => {

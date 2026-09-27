@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Unit tests -- Configuration loader
-// ---------------------------------------------------------------------------
-
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";

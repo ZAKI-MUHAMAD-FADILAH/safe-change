@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- Configuration loader
-// ---------------------------------------------------------------------------
-
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { SafeChangeConfig, CheckDefinition } from "../types/index.js";

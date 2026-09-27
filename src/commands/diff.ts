@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- diff command
-// ---------------------------------------------------------------------------
-
 import type { OutputFormat, DiffSummary } from "../types/index.js";
 import { ExitCodes } from "../types/index.js";
 import {

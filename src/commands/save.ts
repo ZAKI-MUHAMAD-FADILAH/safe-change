@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- save command
-// ---------------------------------------------------------------------------
-
 import type { OutputFormat } from "../types/index.js";
 import { ExitCodes } from "../types/index.js";
 import { loadConfig } from "../config/loader.js";

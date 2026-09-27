@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- Baseline manager (atomic read/write, schema versioning)
-// ---------------------------------------------------------------------------
-
 import { mkdir, readFile, rename, writeFile, unlink } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";

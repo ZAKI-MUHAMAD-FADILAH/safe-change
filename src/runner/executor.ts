@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// safe-change -- Process executor (bounded, timed, no-shell)
-// ---------------------------------------------------------------------------
-
 import { spawn } from "node:child_process";
 import type { CheckDefinition, CheckResult } from "../types/index.js";
 

@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Unit tests -- Git inspector
-// ---------------------------------------------------------------------------
-
 import { describe, it, expect, afterEach } from "vitest";
 import { createTempRepo, type TempRepo } from "../helpers/temp-repo.js";
 import {
