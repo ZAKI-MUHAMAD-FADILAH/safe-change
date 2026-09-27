@@ -7,42 +7,31 @@ export function renderDashboardHtml(): string {
   <title>safe-change Dashboard</title>
   <style>
     :root {
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --font-sf: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", -apple-system, system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --font-sf-mono: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
 
-      --bg-base: #f8fafc;
-      --glass-surface: rgba(255, 255, 255, 0.75);
-      --glass-surface-hover: rgba(255, 255, 255, 0.9);
-      --glass-border: rgba(255, 255, 255, 0.85);
-      --glass-border-subtle: rgba(226, 232, 240, 0.7);
-      --glass-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(226, 232, 240, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.9);
-      --glass-shadow-hover: 0 20px 40px -10px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(203, 213, 225, 0.7), inset 0 1px 2px #ffffff;
+      --bg-page: #f5f6fa;
+      --glass-bg: rgba(255, 255, 255, 0.88);
+      --glass-border: rgba(255, 255, 255, 0.95);
+      --glass-outline: rgba(0, 0, 0, 0.06);
+      --glass-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+      --glass-shadow-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.08), 0 2px 6px 0 rgba(0, 0, 0, 0.03);
 
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-tertiary: #94a3b8;
+      --text-main: #1d1d1f;
+      --text-sub: #515154;
+      --text-caption: #86868b;
+      --divider: rgba(0, 0, 0, 0.06);
 
-      --status-clean: #059669;
-      --status-clean-bg: rgba(16, 185, 129, 0.1);
-      --status-clean-border: rgba(16, 185, 129, 0.25);
-      --status-clean-glow: rgba(16, 185, 129, 0.25);
-
-      --status-regression: #e11d48;
-      --status-regression-bg: rgba(244, 63, 94, 0.1);
-      --status-regression-border: rgba(244, 63, 94, 0.25);
-      --status-regression-glow: rgba(244, 63, 94, 0.25);
-
-      --status-warn: #d97706;
-      --status-warn-bg: rgba(245, 158, 11, 0.1);
-      --status-warn-border: rgba(245, 158, 11, 0.25);
-
-      --status-info: #0284c7;
-      --status-info-bg: rgba(14, 165, 233, 0.1);
-      --status-info-border: rgba(14, 165, 233, 0.25);
-
-      --accent-indigo: #4f46e5;
-      --accent-indigo-bg: rgba(79, 70, 229, 0.08);
-      --accent-indigo-border: rgba(79, 70, 229, 0.2);
+      --apple-blue: #0071e3;
+      --apple-blue-bg: rgba(0, 113, 227, 0.09);
+      --apple-green: #34c759;
+      --apple-green-bg: rgba(52, 199, 89, 0.12);
+      --apple-red: #ff3b30;
+      --apple-red-bg: rgba(255, 59, 48, 0.11);
+      --apple-orange: #ff9500;
+      --apple-orange-bg: rgba(255, 149, 0, 0.12);
+      --apple-purple: #af52de;
+      --apple-purple-bg: rgba(175, 82, 222, 0.1);
     }
 
     * {
@@ -52,84 +41,80 @@ export function renderDashboardHtml(): string {
     }
 
     body {
-      font-family: var(--font-sans);
+      font-family: var(--font-sf);
       font-size: 13px;
-      line-height: 1.5;
-      color: var(--text-primary);
-      background-color: var(--bg-base);
-      background-image:
-        radial-gradient(ellipse at 10% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 45%),
-        radial-gradient(ellipse at 90% 15%, rgba(56, 189, 248, 0.15) 0%, transparent 45%),
-        radial-gradient(ellipse at 80% 85%, rgba(244, 63, 94, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 15% 85%, rgba(16, 185, 129, 0.1) 0%, transparent 45%),
-        radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
-      background-attachment: fixed;
-      background-size: cover;
+      line-height: 1.45;
+      color: var(--text-main);
+      background: var(--bg-page);
+      background: linear-gradient(180deg, #f8f9fc 0%, #edf1f7 100%);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      letter-spacing: -0.01em;
     }
 
     .mono {
-      font-family: var(--font-mono);
+      font-family: var(--font-sf-mono);
+      letter-spacing: -0.02em;
     }
 
     .container {
       width: 100%;
-      max-width: 1720px;
+      max-width: 1360px;
       margin: 0 auto;
-      padding: clamp(16px, 2.5vw, 36px);
+      padding: 28px 24px 48px;
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
 
-    .glass {
-      position: relative;
-      background: var(--glass-surface);
-      backdrop-filter: blur(24px) saturate(190%);
-      -webkit-backdrop-filter: blur(24px) saturate(190%);
+    .liquid-glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border: 1px solid var(--glass-border);
-      border-radius: 18px;
       box-shadow: var(--glass-shadow);
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+      outline: 1px solid var(--glass-outline);
+      border-radius: 16px;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
 
-    .glass:hover {
+    .liquid-glass:hover {
       box-shadow: var(--glass-shadow-hover);
     }
 
-    header.glass {
+    header.liquid-glass {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 16px 22px;
       flex-wrap: wrap;
       gap: 16px;
-      padding: 16px 24px;
     }
 
-    .brand-section {
+    .brand-wrap {
       display: flex;
       align-items: center;
       gap: 14px;
     }
 
     .brand-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0071e3 0%, #5856d6 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #ffffff;
-      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 113, 227, 0.28);
       flex-shrink: 0;
     }
 
     .brand-icon svg {
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       fill: none;
       stroke: currentColor;
       stroke-width: 2;
@@ -138,71 +123,69 @@ export function renderDashboardHtml(): string {
     }
 
     .brand-title {
-      font-size: 17px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      color: var(--text-primary);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
     }
 
-    .brand-subtitle {
+    .brand-desc {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--text-caption);
       margin-top: 1px;
     }
 
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 10px;
     }
 
-    .connection-badge {
+    .live-chip {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(255, 255, 255, 0.85);
-      border: 1px solid var(--glass-border-subtle);
-      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--divider);
+      padding: 6px 13px;
       border-radius: 20px;
       font-size: 11px;
       font-weight: 600;
-      color: var(--text-secondary);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      color: var(--text-sub);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
 
-    .live-pulse {
+    .live-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--status-clean);
-      box-shadow: 0 0 10px var(--status-clean);
-      animation: pulse 2.2s infinite ease-in-out;
+      background: var(--apple-green);
+      box-shadow: 0 0 8px var(--apple-green);
+      animation: pulse 2.4s infinite ease-in-out;
     }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
+      50% { opacity: 0.35; transform: scale(0.85); }
     }
 
-    .stats-row {
+    .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 16px;
     }
 
-    .stat-tile {
-      padding: 18px 22px;
+    .stat-card {
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
 
-    .stat-label-wrap {
+    .stat-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -210,366 +193,347 @@ export function renderDashboardHtml(): string {
 
     .stat-label {
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      color: var(--text-caption);
     }
 
     .stat-icon {
-      color: var(--text-tertiary);
+      color: var(--text-caption);
     }
 
     .stat-icon svg {
-      width: 16px;
-      height: 16px;
+      width: 15px;
+      height: 15px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
     }
 
-    .stat-metric {
+    .stat-value {
       font-size: 26px;
-      font-weight: 800;
-      letter-spacing: -0.6px;
-      color: var(--text-primary);
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      line-height: 1.1;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text-main);
+      line-height: 1.15;
+      margin: 2px 0;
     }
 
-    .stat-subtext {
+    .stat-sub {
       font-size: 12px;
-      color: var(--text-tertiary);
-      font-weight: 500;
+      color: var(--text-caption);
     }
 
-    .main-grid {
+    .panels-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+      grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
 
-    .panel {
-      padding: 22px;
+    .panel-box {
+      padding: 20px 22px;
       display: flex;
       flex-direction: column;
     }
 
-    .panel-header {
+    .panel-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      margin-bottom: 16px;
       padding-bottom: 14px;
-      border-bottom: 1px solid var(--glass-border-subtle);
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--divider);
     }
 
     .panel-heading {
       font-size: 14px;
-      font-weight: 700;
-      color: var(--text-primary);
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
-      letter-spacing: -0.2px;
     }
 
-    .panel-pill {
+    .panel-tag {
       font-size: 11px;
-      color: var(--text-tertiary);
-      font-weight: 500;
+      color: var(--text-caption);
+      font-weight: 400;
     }
 
-    .meta-table {
-      width: 100%;
-      border-collapse: collapse;
+    .meta-list {
+      display: flex;
+      flex-direction: column;
     }
 
-    .meta-table tr {
-      border-bottom: 1px solid var(--glass-border-subtle);
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--divider);
+      font-size: 13px;
     }
 
-    .meta-table tr:last-child {
+    .meta-row:last-child {
       border-bottom: none;
     }
 
-    .meta-table td {
-      padding: 10px 0;
-      vertical-align: middle;
-      font-size: 12px;
+    .meta-k {
+      color: var(--text-caption);
+      font-weight: 400;
     }
 
-    .meta-table td.col-label {
-      color: var(--text-secondary);
-      font-weight: 500;
-      width: 40%;
-    }
-
-    .meta-table td.col-value {
-      color: var(--text-primary);
+    .meta-v {
+      color: var(--text-main);
       font-weight: 600;
       text-align: right;
     }
 
-    .checks-list {
+    .check-container {
       display: flex;
       flex-direction: column;
       gap: 8px;
       margin-top: 14px;
     }
 
-    .check-row {
+    .check-pill {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(255, 255, 255, 0.6);
-      border: 1px solid var(--glass-border-subtle);
+      background: rgba(0, 0, 0, 0.02);
+      border: 1px solid var(--divider);
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: 10px;
       font-size: 12px;
     }
 
-    .check-title {
+    .check-name {
       font-weight: 600;
-      color: var(--text-primary);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+      color: var(--text-main);
     }
 
-    .check-meta {
-      color: var(--text-tertiary);
+    .check-ms {
+      color: var(--text-caption);
       font-size: 11px;
+      margin-left: 6px;
     }
 
-    .rules-list {
+    .rules-container {
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
     .rule-card {
-      background: rgba(255, 255, 255, 0.65);
-      border: 1px solid var(--glass-border-subtle);
-      border-left: 4px solid var(--status-info);
-      border-radius: 12px;
-      padding: 14px 16px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
-      transition: background 0.15s ease;
+      background: rgba(0, 0, 0, 0.02);
+      border: 1px solid var(--divider);
+      border-left: 3px solid var(--apple-blue);
+      border-radius: 10px;
+      padding: 12px 14px;
     }
 
     .rule-card.rule-error {
-      border-left-color: var(--status-regression);
+      border-left-color: var(--apple-red);
     }
 
     .rule-card.rule-warn {
-      border-left-color: var(--status-warn);
+      border-left-color: var(--apple-orange);
     }
 
-    .rule-card:hover {
-      background: rgba(255, 255, 255, 0.9);
-    }
-
-    .rule-head {
+    .rule-row-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
     .rule-name {
-      font-weight: 700;
-      color: var(--text-primary);
+      font-weight: 600;
       font-size: 13px;
+      color: var(--text-main);
     }
 
     .rule-desc {
-      color: var(--text-secondary);
       font-size: 11px;
-      margin-bottom: 8px;
-      line-height: 1.4;
+      color: var(--text-caption);
+      margin-bottom: 6px;
+      line-height: 1.35;
     }
 
     .rule-code {
       background: #ffffff;
-      border: 1px solid var(--glass-border-subtle);
-      padding: 3px 8px;
-      border-radius: 6px;
+      border: 1px solid var(--divider);
+      padding: 2px 7px;
+      border-radius: 5px;
       font-size: 11px;
-      color: var(--accent-indigo);
+      color: var(--apple-blue);
       font-weight: 600;
       display: inline-block;
     }
 
     .timeline-card {
-      padding: 22px;
+      padding: 20px 22px;
     }
 
-    .timeline-container {
+    .timeline-scroll {
       position: relative;
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 24px;
       overflow-x: auto;
-      padding: 24px 12px;
+      padding: 20px 8px 10px;
       scrollbar-width: thin;
-      scrollbar-color: var(--glass-border-subtle) transparent;
+      scrollbar-color: var(--divider) transparent;
     }
 
-    .timeline-container::-webkit-scrollbar {
-      height: 6px;
+    .timeline-scroll::-webkit-scrollbar {
+      height: 5px;
     }
 
-    .timeline-container::-webkit-scrollbar-thumb {
-      background: var(--glass-border-subtle);
+    .timeline-scroll::-webkit-scrollbar-thumb {
+      background: var(--divider);
       border-radius: 4px;
     }
 
-    .timeline-container::before {
+    .timeline-scroll::before {
       content: "";
       position: absolute;
-      top: 50%;
-      left: 16px;
-      right: 16px;
-      height: 3px;
-      background: rgba(203, 213, 225, 0.7);
-      border-radius: 2px;
+      top: 36px;
+      left: 12px;
+      right: 12px;
+      height: 2px;
+      background: rgba(0, 0, 0, 0.08);
       z-index: 1;
-      transform: translateY(-50%);
     }
 
-    .timeline-step {
+    .timeline-item {
       position: relative;
       z-index: 2;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-shrink: 0;
       cursor: pointer;
-      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.16s ease;
     }
 
-    .timeline-step:hover {
-      transform: translateY(-3px);
+    .timeline-item:hover {
+      transform: translateY(-2px);
     }
 
-    .timeline-marker {
-      width: 30px;
-      height: 30px;
+    .timeline-circle {
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 11px;
-      font-weight: 800;
-      border: 3px solid #ffffff;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      font-weight: 700;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .timeline-marker.clean {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    .timeline-circle.clean {
+      background: var(--apple-green);
       color: #ffffff;
-      box-shadow: 0 4px 12px var(--status-clean-glow);
     }
 
-    .timeline-marker.regression {
-      background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+    .timeline-circle.regression {
+      background: var(--apple-red);
       color: #ffffff;
-      box-shadow: 0 4px 12px var(--status-regression-glow);
     }
 
-    .timeline-time {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-tertiary);
-    }
-
-    .timeline-label {
+    .timeline-txt {
       font-size: 11px;
       font-weight: 600;
-      color: var(--text-secondary);
-      max-width: 140px;
+      color: var(--text-sub);
+      max-width: 130px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .table-card {
-      padding: 22px;
+    .timeline-date {
+      font-size: 10px;
+      color: var(--text-caption);
     }
 
-    .table-topbar {
+    .table-card {
+      padding: 20px 22px;
+    }
+
+    .table-header-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
-    .filter-pills {
-      display: flex;
-      gap: 6px;
-      background: rgba(241, 245, 249, 0.8);
-      padding: 3px;
+    .segmented-control {
+      display: inline-flex;
+      background: rgba(118, 118, 128, 0.12);
+      padding: 2px;
       border-radius: 8px;
-      border: 1px solid var(--glass-border-subtle);
+      gap: 2px;
     }
 
-    .filter-btn {
+    .segment-btn {
       background: transparent;
       border: none;
-      color: var(--text-secondary);
-      padding: 5px 12px;
+      color: var(--text-sub);
+      padding: 4px 12px;
       border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
+      font-size: 12px;
+      font-family: var(--font-sf);
+      font-weight: 500;
       cursor: pointer;
       transition: all 0.15s ease;
     }
 
-    .filter-btn.active, .filter-btn:hover {
+    .segment-btn.active {
       background: #ffffff;
-      color: var(--text-primary);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      color: var(--text-main);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      font-weight: 600;
     }
 
-    .responsive-table-wrapper {
+    .table-wrapper {
       width: 100%;
       overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      border-radius: 12px;
-      border: 1px solid var(--glass-border-subtle);
-      background: rgba(255, 255, 255, 0.5);
+      border-radius: 10px;
+      border: 1px solid var(--divider);
+      background: #ffffff;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
-      min-width: 720px;
+      min-width: 700px;
     }
 
     th {
-      color: var(--text-secondary);
-      background: rgba(248, 250, 252, 0.85);
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--glass-border-subtle);
+      color: var(--text-caption);
+      background: rgba(0, 0, 0, 0.02);
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--divider);
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.4px;
       white-space: nowrap;
     }
 
     td {
-      padding: 13px 16px;
-      border-bottom: 1px solid var(--glass-border-subtle);
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--divider);
       font-size: 12px;
       vertical-align: middle;
     }
@@ -579,89 +543,96 @@ export function renderDashboardHtml(): string {
     }
 
     tr:hover td {
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 113, 227, 0.02);
     }
 
     tr.row-regression td {
-      background: rgba(244, 63, 94, 0.03);
+      background: rgba(255, 59, 48, 0.03);
     }
 
     tr.row-regression:hover td {
-      background: rgba(244, 63, 94, 0.08);
+      background: rgba(255, 59, 48, 0.06);
     }
 
     .badge {
       display: inline-flex;
       align-items: center;
-      padding: 3px 9px;
+      padding: 2px 8px;
       border-radius: 6px;
       font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       white-space: nowrap;
     }
 
     .badge-clean {
-      background: var(--status-clean-bg);
-      color: var(--status-clean);
-      border: 1px solid var(--status-clean-border);
+      background: var(--apple-green-bg);
+      color: #1f8b3c;
     }
 
     .badge-regression {
-      background: var(--status-regression-bg);
-      color: var(--status-regression);
-      border: 1px solid var(--status-regression-border);
+      background: var(--apple-red-bg);
+      color: #d70015;
     }
 
     .badge-info {
-      background: var(--status-info-bg);
-      color: var(--status-info);
-      border: 1px solid var(--status-info-border);
+      background: var(--apple-blue-bg);
+      color: var(--apple-blue);
     }
 
     .badge-warn {
-      background: var(--status-warn-bg);
-      color: var(--status-warn);
-      border: 1px solid var(--status-warn-border);
+      background: var(--apple-orange-bg);
+      color: #c93400;
     }
 
-    .diff-badge {
+    .diff-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       font-size: 11px;
-      font-family: var(--font-mono);
+      font-family: var(--font-sf-mono);
       font-weight: 600;
-      background: rgba(255, 255, 255, 0.85);
-      padding: 2px 8px;
-      border-radius: 6px;
-      border: 1px solid var(--glass-border-subtle);
+      background: rgba(0, 0, 0, 0.04);
+      padding: 2px 7px;
+      border-radius: 5px;
       white-space: nowrap;
     }
 
-    .diff-add { color: var(--status-clean); }
-    .diff-mod { color: var(--status-warn); }
-    .diff-del { color: var(--status-regression); }
+    .diff-add { color: #1f8b3c; }
+    .diff-mod { color: #c93400; }
+    .diff-del { color: #d70015; }
 
     .empty-state {
-      padding: 36px 16px;
+      padding: 30px 16px;
       text-align: center;
-      color: var(--text-tertiary);
-      font-style: italic;
+      color: var(--text-caption);
+      font-size: 12px;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 992px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .panels-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
       .container {
-        padding: 12px;
+        padding: 16px 12px;
         gap: 14px;
       }
-      header.glass {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      header.liquid-glass {
+        padding: 12px 14px;
+      }
+      .panel-box, .timeline-card, .table-card {
         padding: 14px 16px;
       }
-      .panel, .timeline-card, .table-card {
-        padding: 16px;
-      }
-      .stat-metric {
+      .stat-value {
         font-size: 22px;
       }
     }
@@ -669,8 +640,8 @@ export function renderDashboardHtml(): string {
 </head>
 <body>
   <div class="container">
-    <header class="glass">
-      <div class="brand-section">
+    <header class="liquid-glass">
+      <div class="brand-wrap">
         <div class="brand-icon">
           <svg viewBox="0 0 24 24">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -681,69 +652,69 @@ export function renderDashboardHtml(): string {
             safe-change dashboard
             <span class="badge badge-info" style="font-size: 10px; padding: 1px 6px;">v0.2.0</span>
           </div>
-          <div class="brand-subtitle">Autonomous verification telemetry and safety sentinel</div>
+          <div class="brand-desc">Autonomous verification telemetry and safety sentinel</div>
         </div>
       </div>
       <div class="header-actions">
-        <div class="connection-badge">
-          <div class="live-pulse"></div>
-          <span>127.0.0.1:4242</span>
+        <div class="live-chip">
+          <div class="live-dot"></div>
+          <span class="mono">127.0.0.1:4242</span>
         </div>
       </div>
     </header>
 
-    <div class="stats-row">
-      <div class="stat-tile glass">
-        <div class="stat-label-wrap">
+    <div class="stats-grid">
+      <div class="stat-card liquid-glass">
+        <div class="stat-header">
           <span class="stat-label">System State</span>
           <span class="stat-icon">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
           </span>
         </div>
-        <div class="stat-metric" id="stat-system-state">Scanning...</div>
-        <span class="stat-subtext" id="stat-system-sub">Verification guardrail</span>
+        <div class="stat-value" id="stat-system-state">Scanning...</div>
+        <span class="stat-sub" id="stat-system-sub">Verification guardrail</span>
       </div>
 
-      <div class="stat-tile glass">
-        <div class="stat-label-wrap">
+      <div class="stat-card liquid-glass">
+        <div class="stat-header">
           <span class="stat-label">Monitored Baseline</span>
           <span class="stat-icon">
             <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </span>
         </div>
-        <div class="stat-metric" id="stat-baseline-files">--</div>
-        <span class="stat-subtext" id="stat-baseline-desc">Active repository scope</span>
+        <div class="stat-value mono" id="stat-baseline-files">--</div>
+        <span class="stat-sub" id="stat-baseline-desc">Active repository scope</span>
       </div>
 
-      <div class="stat-tile glass">
-        <div class="stat-label-wrap">
+      <div class="stat-card liquid-glass">
+        <div class="stat-header">
           <span class="stat-label">Safety History</span>
           <span class="stat-icon">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </span>
         </div>
-        <div class="stat-metric" id="stat-runs-count">--</div>
-        <span class="stat-subtext" id="stat-runs-sub">Persistent safety log entries</span>
+        <div class="stat-value mono" id="stat-runs-count">--</div>
+        <span class="stat-sub" id="stat-runs-sub">Persistent safety log entries</span>
       </div>
 
-      <div class="stat-tile glass">
-        <div class="stat-label-wrap">
+      <div class="stat-card liquid-glass">
+        <div class="stat-header">
           <span class="stat-label">Active Guardrails</span>
           <span class="stat-icon">
             <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </span>
         </div>
-        <div class="stat-metric" id="stat-rules-count">--</div>
-        <span class="stat-subtext" id="stat-rules-sub">Configured safety policies</span>
+        <div class="stat-value mono" id="stat-rules-count">--</div>
+        <span class="stat-sub" id="stat-rules-sub">Configured safety policies</span>
       </div>
     </div>
 
-    <div class="main-grid">
-      <div class="panel glass" id="panel-status">
-        <div class="panel-header">
+    <div class="panels-grid">
+      <div class="panel-box liquid-glass" id="panel-status">
+        <div class="panel-top">
           <div class="panel-heading">
             Panel 1 &mdash; Current Status
-            <span class="panel-pill">Baseline Reference</span>
+            <span class="panel-tag">Baseline Reference</span>
           </div>
           <span id="baseline-status-badge" class="badge badge-info">Checking</span>
         </div>
@@ -752,11 +723,11 @@ export function renderDashboardHtml(): string {
         </div>
       </div>
 
-      <div class="panel glass" id="panel-rules">
-        <div class="panel-header">
+      <div class="panel-box liquid-glass" id="panel-rules">
+        <div class="panel-top">
           <div class="panel-heading">
             Panel 4 &mdash; Active Rules
-            <span class="panel-pill">Policy Registry</span>
+            <span class="panel-tag">Policy Registry</span>
           </div>
           <span id="rules-count-badge" class="badge badge-info">0 Rules</span>
         </div>
@@ -766,32 +737,32 @@ export function renderDashboardHtml(): string {
       </div>
     </div>
 
-    <div class="timeline-card glass">
-      <div class="panel-header" style="margin-bottom: 4px;">
+    <div class="timeline-card liquid-glass">
+      <div class="panel-top" style="margin-bottom: 2px;">
         <div class="panel-heading">
           Panel 3 &mdash; Regression Timeline
-          <span class="panel-pill">Historical Verification Stream</span>
+          <span class="panel-tag">Historical Verification Stream</span>
         </div>
-        <span id="timeline-stats" style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">0 runs tracked</span>
+        <span id="timeline-stats" class="mono" style="font-size: 11px; color: var(--text-caption);">0 runs tracked</span>
       </div>
-      <div id="timeline-content" class="timeline-container">
+      <div id="timeline-content" class="timeline-scroll">
         <div class="empty-state">Loading timeline...</div>
       </div>
     </div>
 
-    <div class="table-card glass">
-      <div class="table-topbar">
+    <div class="table-card liquid-glass">
+      <div class="table-header-row">
         <div class="panel-heading">
           Panel 2 &mdash; Log History
-          <span class="panel-pill">Audit Trail</span>
+          <span class="panel-tag">Audit Trail</span>
         </div>
-        <div class="filter-pills">
-          <button class="filter-btn active" onclick="setFilter('all')">All</button>
-          <button class="filter-btn" onclick="setFilter('clean')">Clean</button>
-          <button class="filter-btn" onclick="setFilter('regression')">Regressions</button>
+        <div class="segmented-control">
+          <button class="segment-btn active" onclick="setFilter('all')">All</button>
+          <button class="segment-btn" onclick="setFilter('clean')">Clean</button>
+          <button class="segment-btn" onclick="setFilter('regression')">Regressions</button>
         </div>
       </div>
-      <div class="responsive-table-wrapper">
+      <div class="table-wrapper">
         <table id="log-table">
           <thead>
             <tr>
@@ -818,7 +789,7 @@ export function renderDashboardHtml(): string {
 
     function setFilter(filter) {
       currentFilter = filter;
-      document.querySelectorAll('.filter-btn').forEach(btn => {
+      document.querySelectorAll('.segment-btn').forEach(btn => {
         btn.classList.toggle('active', btn.textContent.toLowerCase() === filter);
       });
       renderLogTable();
@@ -854,13 +825,13 @@ export function renderDashboardHtml(): string {
 
       const hasRegression = logs.some(e => e.regressionDetected);
       if (hasRegression) {
-        stateEl.innerHTML = '<span style="color: var(--status-regression);">Regression</span>';
+        stateEl.innerHTML = '<span style="color: var(--apple-red);">Regression</span>';
         stateSub.textContent = 'Active regression flagged';
       } else if (status && status.hasBaseline) {
-        stateEl.innerHTML = '<span style="color: var(--status-clean);">Nominal</span>';
+        stateEl.innerHTML = '<span style="color: var(--apple-green);">Nominal</span>';
         stateSub.textContent = 'All passing, zero regressions';
       } else {
-        stateEl.innerHTML = '<span style="color: var(--status-warn);">No Baseline</span>';
+        stateEl.innerHTML = '<span style="color: var(--apple-orange);">No Baseline</span>';
         stateSub.textContent = 'Execute safe-change save';
       }
 
@@ -894,36 +865,34 @@ export function renderDashboardHtml(): string {
       const passedCount = checks.filter(c => c.passed).length;
 
       container.innerHTML = \`
-        <table class="meta-table">
-          <tbody>
-            <tr>
-              <td class="col-label">Recorded At</td>
-              <td class="col-value mono">\${status.createdAt}</td>
-            </tr>
-            <tr>
-              <td class="col-label">Description</td>
-              <td class="col-value">\${status.description || '(no description)'}</td>
-            </tr>
-            <tr>
-              <td class="col-label">Monitored Files</td>
-              <td class="col-value mono">\${status.fileCount} files</td>
-            </tr>
-            <tr>
-              <td class="col-label">Git Commit</td>
-              <td class="col-value mono">\${status.git && status.git.headCommit ? status.git.headCommit.slice(0, 10) : 'n/a'}</td>
-            </tr>
-            <tr>
-              <td class="col-label">Verification Rate</td>
-              <td class="col-value" style="color: var(--status-clean);">\${passedCount} / \${checks.length} checks passing</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="checks-list">
+        <div class="meta-list">
+          <div class="meta-row">
+            <span class="meta-k">Recorded At</span>
+            <span class="meta-v mono">\${status.createdAt}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-k">Description</span>
+            <span class="meta-v">\${status.description || '(no description)'}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-k">Monitored Files</span>
+            <span class="meta-v mono">\${status.fileCount} files</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-k">Git Commit</span>
+            <span class="meta-v mono">\${status.git && status.git.headCommit ? status.git.headCommit.slice(0, 10) : 'n/a'}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-k">Verification Rate</span>
+            <span class="meta-v" style="color: var(--apple-green);">\${passedCount} / \${checks.length} checks passing</span>
+          </div>
+        </div>
+        <div class="check-container">
           \${checks.map(c => \`
-            <div class="check-row">
+            <div class="check-pill">
               <div>
-                <span class="check-title mono">\${c.name}</span>
-                <span class="check-meta">\${c.durationMs ? c.durationMs + 'ms' : ''}</span>
+                <span class="check-name mono">\${c.name}</span>
+                <span class="check-ms mono">\${c.durationMs ? c.durationMs + 'ms' : ''}</span>
               </div>
               <span class="badge \${c.passed ? 'badge-clean' : 'badge-regression'}">
                 \${c.passed ? 'PASSED' : 'FAILED'}
@@ -955,10 +924,10 @@ export function renderDashboardHtml(): string {
         const title = \`Run #\${num} [\${e.timestamp}]\nID: \${shortId}\nStatus: \${isReg ? 'REGRESSION' : 'CLEAN'}\nDescription: \${e.description || '(none)'}\`;
 
         return \`
-          <div class="timeline-step" title="\${title}">
-            <div class="timeline-marker \${cls}">\${num}</div>
-            <span class="timeline-label">\${e.description || shortId}</span>
-            <span class="timeline-time mono">\${dateStr}</span>
+          <div class="timeline-item" title="\${title}">
+            <div class="timeline-circle \${cls}">\${num}</div>
+            <span class="timeline-txt">\${e.description || shortId}</span>
+            <span class="timeline-date mono">\${dateStr}</span>
           </div>
         \`;
       }).join('');
@@ -986,11 +955,11 @@ export function renderDashboardHtml(): string {
 
         const triggerBadge = e.trigger === 'mcp'
           ? '<span class="badge badge-info">MCP</span>'
-          : '<span class="badge" style="background: rgba(241,245,249,0.9); color: var(--text-secondary); border: 1px solid var(--glass-border-subtle);">CLI</span>';
+          : '<span class="badge" style="background: rgba(0,0,0,0.04); color: var(--text-sub);">CLI</span>';
 
         const fs = e.fileSummary || { added: 0, modified: 0, deleted: 0 };
         const diffPill = \`
-          <div class="diff-badge mono">
+          <div class="diff-pill mono">
             <span class="diff-add">+\${fs.added}</span>
             <span class="diff-mod">~\${fs.modified}</span>
             <span class="diff-del">-\${fs.deleted}</span>
@@ -999,16 +968,16 @@ export function renderDashboardHtml(): string {
 
         const checksList = (e.checkResults || []).map(c => {
           const pass = c.result === 'pass-pass' || c.result === 'fail-pass';
-          const color = pass ? 'var(--status-clean)' : 'var(--status-regression)';
+          const color = pass ? 'var(--apple-green)' : 'var(--apple-red)';
           return \`<span style="color: \${color}; font-size: 11px;" class="mono">\${c.name}</span>\`;
-        }).join('<span style="color: var(--text-tertiary);">, </span>') || '<span style="color: var(--text-tertiary);">-</span>';
+        }).join('<span style="color: var(--text-caption);">, </span>') || '<span style="color: var(--text-caption);">-</span>';
 
         return \`
           <tr class="\${rowCls}">
-            <td class="mono" style="color: var(--text-secondary); font-size: 11px;">\${e.timestamp}</td>
-            <td><code class="mono" style="color: var(--status-info); font-weight: 600;">\${e.id.slice(0, 8)}</code></td>
+            <td class="mono" style="color: var(--text-caption); font-size: 11px;">\${e.timestamp}</td>
+            <td><code class="mono" style="color: var(--apple-blue); font-weight: 600;">\${e.id.slice(0, 8)}</code></td>
             <td>\${triggerBadge}</td>
-            <td style="font-weight: 600; color: var(--text-primary);">\${e.description || '(no description)'}</td>
+            <td style="font-weight: 600; color: var(--text-main);">\${e.description || '(no description)'}</td>
             <td>\${diffPill}</td>
             <td>\${checksList}</td>
             <td>\${statusBadge}</td>
@@ -1023,8 +992,8 @@ export function renderDashboardHtml(): string {
 
       if (!rules || rules.length === 0) {
         badge.className = 'badge';
-        badge.style.background = 'rgba(241, 245, 249, 0.9)';
-        badge.style.color = 'var(--text-secondary)';
+        badge.style.background = 'rgba(0,0,0,0.04)';
+        badge.style.color = 'var(--text-caption)';
         badge.textContent = '0 Rules';
         container.innerHTML = '<div class="empty-state">No rules configured. Run <code>safe-change rules add &lt;id&gt;</code> to activate guardrails.</div>';
         return;
@@ -1041,7 +1010,7 @@ export function renderDashboardHtml(): string {
 
         return \`
           <div class="\${cardCls}">
-            <div class="rule-head">
+            <div class="rule-row-head">
               <span class="rule-name">\${r.name || r.id}</span>
               <span class="badge \${badgeCls}">\${r.severity.toUpperCase()}</span>
             </div>
