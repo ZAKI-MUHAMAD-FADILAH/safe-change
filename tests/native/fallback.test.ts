@@ -5,8 +5,10 @@ import * as os from "node:os";
 import {
   assertWithinBoundary,
   assertSafeScopePath,
+  assertNoSymlinkOrJunction,
   PathSafetyError,
 } from "../../src/installer/core/path-safety.js";
+import { InstallationTransaction } from "../../src/installer/core/transaction.js";
 import { _setNativeInstanceForTesting } from "../../src/native/index.js";
 
 describe("graceful fallback between native and typescript implementations", () => {
@@ -58,11 +60,47 @@ describe("graceful fallback between native and typescript implementations", () =
     expect(validated.resolvedBoundary).toBe(path.resolve(workspaceRoot));
   });
 
-  it("delegates to native when native is active and respects negative verdict", () => {
-    // Mock native that blocks everything
+  it("assertNoSymlinkOrJunction rejects symlinks via native when native is active", () => {
     _setNativeInstanceForTesting({
-      version: () => "0.1.0-mock",
+      version: () => "0.2.0-mock",
+      checkPathBoundary: () => true,
+      resolveAndCheckBoundary: () => true,
+      isSymlinkOrJunction: (target: string) => target.includes("bad-symlink"),
+      atomicWriteFile: () => true,
+      lockFile: () => 1,
+      unlockFile: () => true,
+    });
+
+    const goodPath = path.join(workspaceRoot, "good-file.txt");
+    const badPath = path.join(workspaceRoot, "bad-symlink.txt");
+
+    expect(() => assertNoSymlinkOrJunction(goodPath)).not.toThrow();
+    expect(() => assertNoSymlinkOrJunction(badPath)).toThrow(PathSafetyError);
+  });
+
+  it("InstallationTransaction commits successfully with fallback or native atomic rename", () => {
+    const targetDir = path.join(workspaceRoot, "installed-target");
+
+    const tx = new InstallationTransaction({
+      targetDir,
+    });
+
+    tx.stageFile("SKILL.md", "# Test Skill");
+    tx.commit();
+
+    expect(fs.existsSync(path.join(targetDir, "SKILL.md"))).toBe(true);
+    expect(fs.readFileSync(path.join(targetDir, "SKILL.md"), "utf8")).toBe("# Test Skill");
+  });
+
+  it("delegates to native when native is active and respects negative verdict", () => {
+    _setNativeInstanceForTesting({
+      version: () => "0.2.0-mock",
       checkPathBoundary: () => false,
+      resolveAndCheckBoundary: () => false,
+      isSymlinkOrJunction: () => false,
+      atomicWriteFile: () => true,
+      lockFile: () => 1,
+      unlockFile: () => true,
     });
 
     const target = path.join(workspaceRoot, "file.txt");
@@ -79,10 +117,14 @@ describe("graceful fallback between native and typescript implementations", () =
   });
 
   it("delegates to native when native is active and accepts positive verdict", () => {
-    // Mock native that allows valid target
     _setNativeInstanceForTesting({
-      version: () => "0.1.0-mock",
+      version: () => "0.2.0-mock",
       checkPathBoundary: () => true,
+      resolveAndCheckBoundary: () => true,
+      isSymlinkOrJunction: () => false,
+      atomicWriteFile: () => true,
+      lockFile: () => 1,
+      unlockFile: () => true,
     });
 
     const target = path.join(workspaceRoot, "file.txt");

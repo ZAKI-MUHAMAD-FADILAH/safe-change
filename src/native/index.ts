@@ -5,6 +5,11 @@ let native: NativeModule | null = null;
 export interface NativeModule {
   version(): string;
   checkPathBoundary(path: string, root: string): boolean;
+  resolveAndCheckBoundary(path: string, root: string): boolean | null;
+  isSymlinkOrJunction(path: string): boolean | null;
+  atomicWriteFile(stagingPath: string, targetPath: string): boolean;
+  lockFile(path: string): number | null;
+  unlockFile(handle: number): boolean;
 }
 
 function loadNative(): NativeModule | null {
@@ -34,6 +39,48 @@ export function checkPathBoundaryNative(
   if (!native) native = loadNative();
   if (!native) return null;
   return native.checkPathBoundary(path, root);
+}
+
+export function resolveAndCheckBoundaryNative(
+  path: string,
+  root: string
+): boolean | null {
+  if (!native) native = loadNative();
+  if (!native) return null;
+  return native.resolveAndCheckBoundary(path, root);
+}
+
+export function isSymlinkOrJunctionNative(
+  path: string
+): boolean | null {
+  if (!native) native = loadNative();
+  if (!native) return null;
+  return native.isSymlinkOrJunction(path);
+}
+
+export function atomicWriteFileNative(
+  stagingPath: string,
+  targetPath: string
+): boolean | null {
+  if (!native) native = loadNative();
+  if (!native) return null;
+  return native.atomicWriteFile(stagingPath, targetPath);
+}
+
+export function lockFileNative(
+  path: string
+): number | null {
+  if (!native) native = loadNative();
+  if (!native) return null;
+  return native.lockFile(path);
+}
+
+export function unlockFileNative(
+  handle: number
+): boolean | null {
+  if (!native) native = loadNative();
+  if (!native) return null;
+  return native.unlockFile(handle);
 }
 
 /**

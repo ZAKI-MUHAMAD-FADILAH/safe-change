@@ -1,7 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { checkPathBoundaryNative } from "../../native/index.js";
+import {
+  checkPathBoundaryNative,
+  resolveAndCheckBoundaryNative,
+  isSymlinkOrJunctionNative,
+} from "../../native/index.js";
 
 export type InstallerScope = "project" | "global";
 
@@ -102,8 +106,34 @@ export function assertWithinBoundary(
   const resolvedBoundary = path.resolve(boundaryRoot);
   const resolvedTarget = path.resolve(targetPath);
 
+  // If target exists on disk, attempt canonical boundary resolution first
+  if (fs.existsSync(resolvedTarget) && fs.existsSync(resolvedBoundary)) {
+    const canonicalResult = resolveAndCheckBoundaryNative(resolvedTarget, resolvedBoundary);
+    if (canonicalResult !== null) {
+      if (process.argv.includes("--verbose")) {
+        console.error("[native] path boundary check");
+      }
+      if (!canonicalResult) {
+        throw new PathSafetyError(
+          `Path traversal rejected: '${targetPath}' escapes root boundary '${boundaryRoot}'.`,
+          "PATH_TRAVERSAL",
+          resolvedTarget
+        );
+      }
+      return {
+        resolvedTarget,
+        resolvedBoundary,
+        relativePath: path.relative(resolvedBoundary, resolvedTarget),
+      };
+    }
+  }
+
+  // Attempt standard native boundary check
   const nativeResult = checkPathBoundaryNative(resolvedTarget, resolvedBoundary);
   if (nativeResult !== null) {
+    if (process.argv.includes("--verbose")) {
+      console.error("[native] path boundary check");
+    }
     if (!nativeResult) {
       throw new PathSafetyError(
         `Path traversal rejected: '${targetPath}' escapes root boundary '${boundaryRoot}'.`,
@@ -116,6 +146,10 @@ export function assertWithinBoundary(
       resolvedBoundary,
       relativePath: path.relative(resolvedBoundary, resolvedTarget),
     };
+  }
+
+  if (process.argv.includes("--verbose")) {
+    console.error("[typescript] path boundary check");
   }
 
   // Graceful fallback to pure TypeScript implementation
@@ -132,14 +166,27 @@ export function assertNoSymlinkOrJunction(
 ): void {
   const resolvedTarget = path.resolve(targetPath);
 
-  if (fs.existsSync(resolvedTarget)) {
-    const stat = fs.lstatSync(resolvedTarget);
-    if (stat.isSymbolicLink()) {
+  // Check target path via native if available
+  const nativeSymlink = isSymlinkOrJunctionNative(resolvedTarget);
+  if (nativeSymlink !== null) {
+    if (nativeSymlink) {
       throw new PathSafetyError(
         `Safety violation: Path '${targetPath}' is a symbolic link or junction point.`,
         "SYMLINK_REJECTED",
         resolvedTarget
       );
+    }
+  } else {
+    // Pure TypeScript fallback via fs.lstatSync
+    if (fs.existsSync(resolvedTarget)) {
+      const stat = fs.lstatSync(resolvedTarget);
+      if (stat.isSymbolicLink()) {
+        throw new PathSafetyError(
+          `Safety violation: Path '${targetPath}' is a symbolic link or junction point.`,
+          "SYMLINK_REJECTED",
+          resolvedTarget
+        );
+      }
     }
   }
 
@@ -148,14 +195,25 @@ export function assertNoSymlinkOrJunction(
     let current = path.dirname(resolvedTarget);
 
     while (current.length >= resolvedBoundary.length) {
-      if (fs.existsSync(current)) {
-        const stat = fs.lstatSync(current);
-        if (stat.isSymbolicLink()) {
+      const nativeAncestorSymlink = isSymlinkOrJunctionNative(current);
+      if (nativeAncestorSymlink !== null) {
+        if (nativeAncestorSymlink) {
           throw new PathSafetyError(
             `Safety violation: Ancestor directory '${current}' is a symbolic link or junction point.`,
             "SYMLINK_REJECTED",
             current
           );
+        }
+      } else {
+        if (fs.existsSync(current)) {
+          const stat = fs.lstatSync(current);
+          if (stat.isSymbolicLink()) {
+            throw new PathSafetyError(
+              `Safety violation: Ancestor directory '${current}' is a symbolic link or junction point.`,
+              "SYMLINK_REJECTED",
+              current
+            );
+          }
         }
       }
 

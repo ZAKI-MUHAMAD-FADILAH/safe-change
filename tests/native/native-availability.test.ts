@@ -3,6 +3,11 @@ import {
   isNativeAvailable,
   getNativeVersion,
   checkPathBoundaryNative,
+  resolveAndCheckBoundaryNative,
+  isSymlinkOrJunctionNative,
+  atomicWriteFileNative,
+  lockFileNative,
+  unlockFileNative,
 } from "../../src/native/index.js";
 
 describe("native module availability", () => {
@@ -23,10 +28,14 @@ describe("native module availability", () => {
     }
   });
 
-  it("should return null for checkPathBoundaryNative when native is unavailable", () => {
+  it("should return null for native operations when native is unavailable", () => {
     if (!isNativeAvailable()) {
-      const result = checkPathBoundaryNative("/some/path", "/some");
-      expect(result).toBeNull();
+      expect(checkPathBoundaryNative("/some/path", "/some")).toBeNull();
+      expect(resolveAndCheckBoundaryNative("/some/path", "/some")).toBeNull();
+      expect(isSymlinkOrJunctionNative("/some/path")).toBeNull();
+      expect(atomicWriteFileNative("/some/staging", "/some/target")).toBeNull();
+      expect(lockFileNative("/some/path")).toBeNull();
+      expect(unlockFileNative(1234)).toBeNull();
     }
   });
 });

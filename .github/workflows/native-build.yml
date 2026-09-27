@@ -35,6 +35,15 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
+      - name: Verify TypeScript fallback without native binary
+        run: npm test
+
+      - name: Run Rust unit tests
+        run: |
+          cd crates/safe-change-native
+          cargo test
+        shell: bash
+
       - name: Build Native Module
         run: |
           cd crates/safe-change-native
@@ -55,5 +64,5 @@ jobs:
           path: crates/safe-change-native/*.node
           if-no-files-found: warn
 
-      - name: Run tests
+      - name: Run tests with native module active
         run: npm test

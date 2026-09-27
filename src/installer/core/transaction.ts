@@ -2,6 +2,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { assertNoSymlinkOrJunction } from "./path-safety.js";
+import {
+  atomicWriteFileNative,
+  lockFileNative,
+  unlockFileNative,
+} from "../../native/index.js";
 
 export class TransactionError extends Error {
   public readonly code: string;
@@ -64,9 +69,18 @@ export class InstallationTransaction {
   private stagedFiles: Set<string> = new Set();
   private committed = false;
   private aborted = false;
+  private lockHandle: number | null = null;
 
   constructor(options: TransactionOptions) {
     this.targetDir = path.resolve(options.targetDir);
+
+    // Attempt kernel file locking via native module if available
+    const lock = lockFileNative(this.targetDir);
+    if (lock !== null) {
+      this.lockHandle = lock;
+    }
+    // Fallback: If lockFileNative is unavailable (null), filesystem locking is omitted in pure TypeScript mode.
+    // Limitation: Concurrent processes modifying the same target directory must be managed via process orchestration.
 
     // Staging directory should preferably be in the same filesystem/parent to allow atomic rename
     const parentDir = options.stagingParentDir ?? path.dirname(this.targetDir);
@@ -158,8 +172,11 @@ export class InstallationTransaction {
         fs.renameSync(this.targetDir, tempBackupDir);
       }
 
-      // Rename stagingDir to targetDir
-      fs.renameSync(this.stagingDir, this.targetDir);
+      // Rename stagingDir to targetDir (attempt native atomic write first, fallback to fs.renameSync)
+      const nativeRenamed = atomicWriteFileNative(this.stagingDir, this.targetDir);
+      if (nativeRenamed !== true) {
+        fs.renameSync(this.stagingDir, this.targetDir);
+      }
 
       // Verify post-commit state
       if (!fs.existsSync(this.targetDir)) {
@@ -195,6 +212,10 @@ export class InstallationTransaction {
 
       this.committed = true;
       activeStagingDirs.delete(this.stagingDir);
+      if (this.lockHandle !== null) {
+        unlockFileNative(this.lockHandle);
+        this.lockHandle = null;
+      }
     } catch (err: any) {
       // Rollback target from tempBackupDir if it was moved aside
       if (tempBackupDir && fs.existsSync(tempBackupDir)) {
@@ -230,6 +251,10 @@ export class InstallationTransaction {
       // Best-effort cleanup
     } finally {
       activeStagingDirs.delete(this.stagingDir);
+      if (this.lockHandle !== null) {
+        unlockFileNative(this.lockHandle);
+        this.lockHandle = null;
+      }
     }
   }
 
