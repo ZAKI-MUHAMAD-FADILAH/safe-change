@@ -37,3 +37,10 @@ export {
   createLogEntry,
   updateLastEntry,
 } from "./log/log-manager.js";
+export {
+  startDashboardServer,
+  createDashboardServer,
+  openBrowser,
+  type DashboardServerOptions,
+  type DashboardServerInstance,
+} from "./dashboard/server.js";

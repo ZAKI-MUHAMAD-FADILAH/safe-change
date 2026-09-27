@@ -48,6 +48,10 @@ interface ParsedArgs {
     exportPath?: string;
     clear?: boolean;
   };
+  dashboardOptions: {
+    port?: number;
+    noOpen?: boolean;
+  };
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -66,6 +70,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       nonInteractive: false,
     },
     logOptions: {},
+    dashboardOptions: {},
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -153,6 +158,24 @@ function parseArgs(argv: string[]): ParsedArgs {
       }
     } else if (arg.startsWith("--export=")) {
       result.logOptions.exportPath = arg.slice("--export=".length);
+    } else if (arg === "--port") {
+      const nextArg = args[++i];
+      if (nextArg !== undefined && /^\d+$/.test(nextArg)) {
+        result.dashboardOptions.port = parseInt(nextArg, 10);
+      } else {
+        process.stderr.write("Option --port requires a valid port number.\\n");
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+    } else if (arg.startsWith("--port=")) {
+      const val = arg.slice("--port=".length);
+      if (/^\d+$/.test(val)) {
+        result.dashboardOptions.port = parseInt(val, 10);
+      } else {
+        process.stderr.write("Option --port requires a valid port number.\\n");
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+    } else if (arg === "--no-open") {
+      result.dashboardOptions.noOpen = true;
     } else if (arg.startsWith("-")) {
       process.stderr.write(`Unknown flag: ${arg}\n`);
       process.stderr.write('Run "safe-change --help" for usage.\n');
@@ -177,6 +200,7 @@ Usage:
   safe-change check                Compare current state against the baseline.
   safe-change diff                 Show a summary of changes since the baseline.
   safe-change log [options]        Show or export persistent safety log.
+  safe-change dashboard [options]  Start local web dashboard at localhost:4242.
   safe-change install <agent|all>  Install agent skill (or 'all' for all detected/supported agents).
   safe-change update <agent|all>   Update agent skill with latest canonical version.
   safe-change uninstall <agent|all> Remove agent skill from target directory.
@@ -204,6 +228,8 @@ Options:
   --all                     Show all log entries.
   --export <file>           Export full log to a JSON file.
   --clear                   Clear all log entries.
+  --port <n>                Override dashboard port (default: 4242).
+  --no-open                 Do not open browser automatically.
   --overwrite               Overwrite existing files or confirm destructive action.
   --dry-run                 Preview without writing to disk.
   --non-interactive, -y     Run without interactive confirmation prompts.
@@ -281,6 +307,16 @@ async function main(): Promise<void> {
         exportPath: parsed.logOptions.exportPath,
         clear: parsed.logOptions.clear,
         nonInteractive: parsed.flags.nonInteractive,
+      });
+      break;
+    }
+
+    case "dashboard": {
+      const { runDashboard } = await import("./commands/dashboard.js");
+      exitCode = await runDashboard({
+        port: parsed.dashboardOptions.port,
+        noOpen: parsed.dashboardOptions.noOpen,
+        format,
       });
       break;
     }
