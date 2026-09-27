@@ -263,7 +263,7 @@ export function buildReport(
   };
 }
 
-// -- Helpers -----------------------------------------------------------------
+// Helpers
 
 function classifyResult(
   before: CheckState,

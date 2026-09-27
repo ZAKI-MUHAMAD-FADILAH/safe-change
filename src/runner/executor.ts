@@ -171,7 +171,7 @@ export async function executeAllChecks(
   return results;
 }
 
-// -- Helpers -----------------------------------------------------------------
+// Helpers
 
 /**
  * Return the last `limit` bytes of a buffer as a UTF-8 string.

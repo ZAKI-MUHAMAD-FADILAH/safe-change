@@ -1,7 +1,3 @@
-// Required acceptance test for first release. Validates that safe-change
-// correctly detects new failures while preserving uncommitted work.
-
-
 import { describe, it, expect, afterEach } from "vitest";
 import { readFile, access } from "node:fs/promises";
 import { join } from "node:path";
@@ -26,7 +22,7 @@ describe("Acceptance: dirty working tree", () => {
   });
 
   it("should detect new failure while preserving uncommitted changes", async () => {
-    // -- Setup: Create a repo with a committed file and an uncommitted change --
+    // Setup: Create a repo with a committed file and an uncommitted change
 
     repo = await createTempRepo();
 
@@ -60,7 +56,7 @@ describe("Acceptance: dirty working tree", () => {
       },
     ]);
 
-    // -- Step 1: Save baseline --
+    // Step 1: Save baseline
 
     const repoRoot = await getRepositoryRoot(repo.path);
     const config = await loadConfig(repoRoot);
@@ -86,11 +82,11 @@ describe("Acceptance: dirty working tree", () => {
     );
     expect(afterSave).toBe("important work in progress");
 
-    // -- Step 2: Break the check --
+    // Step 2: Break the check
 
     await repo.writeFile("status.txt", "fail");
 
-    // -- Step 3: Run check --
+    // Step 3: Run check
 
     const baseline = await loadBaseline(repoRoot);
     expect(baseline).not.toBeNull();
@@ -104,7 +100,7 @@ describe("Acceptance: dirty working tree", () => {
     // Build report
     const report = buildReport(baseline!, currentResults, currentFiles, config);
 
-    // -- Assertions --
+    // Assertions
 
     // The report must show a new failure
     expect(report.exitCode).toBe(1);
@@ -115,7 +111,7 @@ describe("Acceptance: dirty working tree", () => {
     // status.txt must be in the modified files list
     expect(report.files.modified).toContain("status.txt");
 
-    // -- Critical: the uncommitted file must still exist and be unchanged --
+    // Critical: the uncommitted file must still exist and be unchanged
 
     const afterCheck = await readFile(
       join(repo.path, "uncommitted-work.txt"),

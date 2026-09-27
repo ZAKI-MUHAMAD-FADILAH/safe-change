@@ -1,4 +1,3 @@
-
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -6,8 +5,6 @@ import { tmpdir } from "node:os";
 import { createServer, TOOLS, toolToCommand } from "../../src/mcp/server.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-
-
 
 let tempDirs: string[] = [];
 
@@ -27,8 +24,6 @@ afterEach(async () => {
   }
   tempDirs = [];
 });
-
-
 
 async function createConnectedPair(): Promise<{
   client: Client;
@@ -54,8 +49,6 @@ async function createConnectedPair(): Promise<{
     },
   };
 }
-
-// -- Test: Server initialization ---------------------------------------------
 
 describe("MCP Server", () => {
   it("can be initialized without error", () => {
@@ -108,8 +101,6 @@ describe("MCP Server", () => {
     }
   });
 });
-
-// -- Test: Tool schemas ------------------------------------------------------
 
 describe("MCP Tool schemas", () => {
   it("safe_change_save accepts optional description and cwd", async () => {
@@ -173,8 +164,6 @@ describe("MCP Tool schemas", () => {
   });
 });
 
-// -- Test: Tool execution ----------------------------------------------------
-
 describe("MCP Tool execution", () => {
   it("tool call with non-existent cwd returns isError: true", async () => {
     const { client, close } = await createConnectedPair();
@@ -213,8 +202,6 @@ describe("MCP Tool execution", () => {
     }
   });
 });
-
-// -- Test: Internal helpers --------------------------------------------------
 
 describe("MCP internal helpers", () => {
   it("TOOLS array contains exactly 4 entries", () => {

@@ -1,4 +1,3 @@
-
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +12,7 @@ import { runUpdate } from "./installer/commands/update.js";
 import { runUninstall } from "./installer/commands/uninstall.js";
 import { runStatus } from "./installer/commands/status.js";
 
-// -- Version -----------------------------------------------------------------
+// Version
 
 function getVersion(): string {
   try {
@@ -27,7 +26,7 @@ function getVersion(): string {
   }
 }
 
-// -- Argument parsing --------------------------------------------------------
+// Argument parsing
 
 interface ParsedArgs {
   command: string | null;
@@ -130,7 +129,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   return result;
 }
 
-// -- Help text ---------------------------------------------------------------
+// Help text
 
 const HELP_TEXT = `
 safe-change -- A safety net for AI-assisted coding.
@@ -196,7 +195,7 @@ Configuration:
 Documentation: https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change
 `;
 
-// -- Main --------------------------------------------------------------------
+// Entry point
 
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv);

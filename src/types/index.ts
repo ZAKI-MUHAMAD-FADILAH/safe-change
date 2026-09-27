@@ -1,5 +1,3 @@
-// -- Configuration -----------------------------------------------------------
-
 export interface CheckDefinition {
   readonly name: string;
   readonly executable: string;
@@ -12,7 +10,7 @@ export interface SafeChangeConfig {
   readonly checks: readonly CheckDefinition[];
 }
 
-// -- Git state ---------------------------------------------------------------
+// Git state
 
 export type FileStatus =
   | "clean"
@@ -35,7 +33,7 @@ export interface GitState {
   readonly isClean: boolean;
 }
 
-// -- Check execution result --------------------------------------------------
+// Check execution result
 
 export interface CheckResult {
   readonly name: string;
@@ -52,7 +50,7 @@ export interface CheckResult {
   readonly stderr: string; // bounded capture for diagnostic display
 }
 
-// -- Baseline ----------------------------------------------------------------
+// Baseline
 
 export interface Baseline {
   readonly schemaVersion: 2;
@@ -65,7 +63,7 @@ export interface Baseline {
   readonly checksConfigHash: string;
 }
 
-// -- Comparison results ------------------------------------------------------
+// Comparison results
 
 export type CheckComparisonResult =
   | "pass-pass"
@@ -131,7 +129,7 @@ export interface CheckReport {
   readonly exitCode: number;
 }
 
-// -- Diff output -------------------------------------------------------------
+// Diff output
 
 export interface DiffSummary {
   readonly files: FileChanges;
@@ -140,7 +138,7 @@ export interface DiffSummary {
   readonly note: string;
 }
 
-// -- Exit codes --------------------------------------------------------------
+// Exit codes
 
 export const ExitCodes = {
   OK: 0,
@@ -157,6 +155,6 @@ export const ExitCodes = {
 
 export type ExitCode = (typeof ExitCodes)[keyof typeof ExitCodes];
 
-// -- Output format -----------------------------------------------------------
+// Output format
 
 export type OutputFormat = "terminal" | "json";

@@ -8,7 +8,7 @@ import type {
   OutputFormat,
 } from "../types/index.js";
 
-// -- Terminal color helpers (ANSI) -------------------------------------------
+// ANSI color helpers
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
@@ -29,8 +29,6 @@ function c(code: string, text: string): string {
   return useColor() ? `${code}${text}${RESET}` : text;
 }
 
-// -- Safe text ---------------------------------------------------------------
-
 /**
  * Strip control characters from untrusted text to prevent terminal injection.
  */
@@ -39,7 +37,7 @@ export function sanitize(text: string): string {
   return text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
 }
 
-// -- Render save output ------------------------------------------------------
+// Save output
 
 export interface SaveOutputData {
   readonly description: string;
@@ -163,7 +161,7 @@ export function renderSaveSummary(
   return lines.join("\n");
 }
 
-// -- Render check report -----------------------------------------------------
+// Check report
 
 export function renderCheckReport(
   format: OutputFormat,
@@ -320,7 +318,7 @@ export function renderCheckReport(
   return lines.join("\n");
 }
 
-// -- Render diff output ------------------------------------------------------
+// Diff output
 
 export function renderDiffSummary(
   format: OutputFormat,
@@ -416,7 +414,7 @@ export function renderDiffSummary(
   return lines.join("\n");
 }
 
-// -- Render errors -----------------------------------------------------------
+// Errors
 
 export function renderError(
   format: OutputFormat,
@@ -429,7 +427,7 @@ export function renderError(
   return `\n${c(RED, `  Error: ${sanitize(message)}`)}\n`;
 }
 
-// -- Helpers -----------------------------------------------------------------
+// Helpers
 
 function formatResultLabel(result: string): string {
   switch (result) {

@@ -13,8 +13,6 @@ export class GitError extends Error {
   }
 }
 
-// -- Public API --------------------------------------------------------------
-
 /**
  * Verify that the given directory is inside a Git repository and return
  * the repository root path.
@@ -262,7 +260,7 @@ export async function getDiffText(
   return { text, truncated, linesAdded, linesRemoved };
 }
 
-// -- Internal helpers --------------------------------------------------------
+// Internal helpers
 
 function classifyStatus(
   indexStatus: string,

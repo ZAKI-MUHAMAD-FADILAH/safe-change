@@ -153,7 +153,7 @@ export function getStateDirPath(repoRoot: string): string {
   return join(repoRoot, STATE_DIR);
 }
 
-// -- Deep Validation ---------------------------------------------------------
+// Validation
 
 function validateBaseline(data: unknown, filePath: string): Baseline {
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
