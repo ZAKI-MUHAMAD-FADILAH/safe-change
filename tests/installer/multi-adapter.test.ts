@@ -74,7 +74,7 @@ describe("Multi-Agent Adapters (v0.2.0)", () => {
       expect(adapter.canonicalSkillPath).toBe(path.resolve(canonicalSkillPath));
       expect(adapter.verificationStatus).toBe("filesystem-validated");
       expect(typeof adapter.notes).toBe("string");
-      expect(adapter.notes.length).toBeGreaterThan(0);
+      expect(adapter.notes!.length).toBeGreaterThan(0);
     }
   });
 
