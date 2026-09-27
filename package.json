@@ -63,6 +63,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
   "devDependencies": {
     "@napi-rs/cli": "^3.10.5",
     "@types/node": "^20.0.0",

@@ -148,6 +148,7 @@ Usage:
   safe-change update <agent|all>   Update agent skill with latest canonical version.
   safe-change uninstall <agent|all> Remove agent skill from target directory.
   safe-change status [agent]       Show installation, auto-detection, and drift status.
+  safe-change mcp                  Start MCP server (stdio transport).
 
 Supported agents:
   all             Install for all detected agents
@@ -282,6 +283,14 @@ async function main(): Promise<void> {
         format,
       });
       break;
+    }
+
+    case "mcp": {
+      // Dynamic import to avoid loading MCP SDK for non-mcp commands
+      const { startServer } = await import("./mcp/server.js");
+      await startServer();
+      // MCP server runs until stdin closes; do not exit
+      return;
     }
 
     default:
