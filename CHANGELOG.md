@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-28
+
+### Added
+- Persistent safety log: full baseline and check history
+  stored in .safe-change/log.json
+- safe-change log command with --last, --all, --json,
+  --export, --clear options
+- safe_change_log MCP tool for agent access to history
+- Local dashboard at localhost:4242 via safe-change dashboard
+- Dashboard panels: current status, log history,
+  regression timeline, active rules
+- Safety rules registry: safe-change rules list/add/remove/validate
+- Rule engine with zero external dependencies
+- 6 built-in rules: no-delete-migrations, no-delete-env,
+  no-modify-lockfile, max-files-changed,
+  max-deleted-files, require-tests-pass
+- Rule violations with severity error set exit code 1
+- Rule violations integrated into safe-change check output
+
+### Changed
+- safe-change check now evaluates active rules after checks
+- safe-change save now appends to persistent log
+- Repository URLs updated to github.com/zackpratamaa/safe-change
+
 ## [0.1.2] - 2026-09-28
 
 ### Added
