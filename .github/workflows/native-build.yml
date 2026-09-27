@@ -60,15 +60,17 @@ jobs:
       - name: Copy native binary to dist and src
         run: |
           mkdir -p dist/native src/native
-          find crates/safe-change-native -name "*.node" -exec cp {} src/native/safe-change-native.node \; || true
-          find crates/safe-change-native -name "*.node" -exec cp {} dist/native/safe-change-native.node \; || true
+          find . -name "*.node" -not -path "*/node_modules/*" -exec cp {} src/native/safe-change-native.node \; || true
+          find . -name "*.node" -not -path "*/node_modules/*" -exec cp {} dist/native/safe-change-native.node \; || true
         shell: bash
 
       - name: Upload native artifact
         uses: actions/upload-artifact@v4
         with:
           name: native-binary-${{ matrix.os }}
-          path: crates/safe-change-native/*.node
+          path: |
+            crates/safe-change-native/*.node
+            *.node
           if-no-files-found: warn
 
       - name: Run tests with native module active

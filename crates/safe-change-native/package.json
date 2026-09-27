@@ -1,0 +1,11 @@
+{
+  "name": "safe-change-native",
+  "version": "0.1.0",
+  "private": true,
+  "napi": {
+    "name": "safe-change-native",
+    "package": {
+      "name": "safe-change-native"
+    }
+  }
+}
