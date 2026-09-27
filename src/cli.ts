@@ -200,6 +200,7 @@ Usage:
   safe-change check                Compare current state against the baseline.
   safe-change diff                 Show a summary of changes since the baseline.
   safe-change log [options]        Show or export persistent safety log.
+  safe-change rules [action]       Manage safety rules (list, add, remove, validate).
   safe-change dashboard [options]  Start local web dashboard at localhost:4242.
   safe-change install <agent|all>  Install agent skill (or 'all' for all detected/supported agents).
   safe-change update <agent|all>   Update agent skill with latest canonical version.
@@ -316,6 +317,18 @@ async function main(): Promise<void> {
       exitCode = await runDashboard({
         port: parsed.dashboardOptions.port,
         noOpen: parsed.dashboardOptions.noOpen,
+        format,
+      });
+      break;
+    }
+
+    case "rules": {
+      const { runRules } = await import("./commands/rules.js");
+      const action = (parsed.positional[0] || "list") as "list" | "add" | "remove" | "validate";
+      const target = parsed.positional[1];
+      exitCode = await runRules({
+        action,
+        target,
         format,
       });
       break;

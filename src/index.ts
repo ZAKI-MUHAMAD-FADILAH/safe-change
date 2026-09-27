@@ -20,6 +20,13 @@ export type {
   LogFileSummary,
   CheckLogResult,
   CheckLogState,
+  SafeChangeRule,
+  RuleSeverity,
+  RuleCondition,
+  RuleConditionType,
+  RulesConfigFile,
+  RuleViolation,
+  RuleEvaluationResult,
 } from "./types/index.js";
 
 export { ExitCodes } from "./types/index.js";
@@ -44,3 +51,20 @@ export {
   type DashboardServerOptions,
   type DashboardServerInstance,
 } from "./dashboard/server.js";
+export {
+  BUILT_IN_RULES,
+  getBuiltInRule,
+  getAllBuiltInRules,
+} from "./rules/built-in.js";
+export {
+  loadRules,
+  saveRules,
+  addRule,
+  removeRule,
+  validateRule,
+} from "./rules/manager.js";
+export {
+  matchGlob,
+  globToRegex,
+  evaluateRules,
+} from "./rules/engine.js";

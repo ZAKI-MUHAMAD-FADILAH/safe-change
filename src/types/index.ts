@@ -174,6 +174,55 @@ export interface CheckReport {
   readonly files: FileChanges;
   readonly summary: CheckReportSummary;
   readonly exitCode: number;
+  readonly ruleViolations?: readonly RuleViolation[];
+}
+
+// Safety rules
+
+export type RuleSeverity = "error" | "warn";
+
+export type RuleConditionType =
+  | "file-not-deleted"
+  | "file-not-modified"
+  | "max-files-changed"
+  | "max-deleted-files"
+  | "require-check-pass";
+
+export interface RuleCondition {
+  readonly type: RuleConditionType;
+  readonly pattern?: string;
+  readonly patterns?: readonly string[];
+  readonly threshold?: number;
+  readonly checkName?: string;
+}
+
+export interface SafeChangeRule {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly severity: RuleSeverity;
+  readonly condition: RuleCondition;
+  readonly builtIn?: boolean;
+}
+
+export interface RulesConfigFile {
+  readonly version: 1;
+  readonly rules: readonly SafeChangeRule[];
+}
+
+export interface RuleViolation {
+  readonly ruleId: string;
+  readonly ruleName: string;
+  readonly severity: RuleSeverity;
+  readonly message: string;
+  readonly details?: readonly string[];
+}
+
+export interface RuleEvaluationResult {
+  readonly passed: boolean;
+  readonly violations: readonly RuleViolation[];
+  readonly errorCount: number;
+  readonly warningCount: number;
 }
 
 // Diff output

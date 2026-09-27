@@ -253,8 +253,27 @@ export function renderCheckReport(
   lines.push(c(DIM, `    Unchanged: ${fc.unchangedCount}`));
   lines.push("");
 
+  // Safety rules violations
+  if (report.ruleViolations && report.ruleViolations.length > 0) {
+    lines.push(c(BOLD, "  Safety Rules:"));
+    for (const v of report.ruleViolations) {
+      const tag = v.severity === "error" ? c(RED, "    [ERROR]") : c(YELLOW, "    [WARN] ");
+      lines.push(`${tag} ${c(BOLD, v.ruleName)} (${v.ruleId}): ${v.message}`);
+    }
+    lines.push("");
+  }
+
   // Summary
   const s = report.summary;
+  const errorViolations = report.ruleViolations?.filter((v) => v.severity === "error").length ?? 0;
+  if (errorViolations > 0) {
+    lines.push(
+      c(
+        RED,
+        `  SAFETY VIOLATIONS: ${errorViolations} blocking safety rule violation(s) detected.`
+      )
+    );
+  }
   if (s.newFailures > 0) {
     lines.push(
       c(

@@ -10,6 +10,8 @@ import { executeAllChecks } from "../runner/executor.js";
 import { buildReport } from "../comparator/engine.js";
 import { renderCheckReport, renderError } from "../output/renderer.js";
 import { updateLastEntry } from "../log/log-manager.js";
+import { loadRules } from "../rules/manager.js";
+import { evaluateRules } from "../rules/engine.js";
 
 export interface CheckOptions {
   readonly format: OutputFormat;
@@ -106,7 +108,26 @@ export async function runCheck(options: CheckOptions): Promise<number> {
   }
 
   // 6. Build and render report
-  const report = buildReport(baseline, currentResults, currentFiles, config);
+  let report = buildReport(baseline, currentResults, currentFiles, config);
+
+  // Evaluate safety rules
+  try {
+    const rules = await loadRules(repoRoot);
+    if (rules.length > 0) {
+      const ruleEvaluation = evaluateRules(rules, report.files, report.results);
+      if (ruleEvaluation.violations.length > 0) {
+        const exitCode =
+          ruleEvaluation.errorCount > 0 ? ExitCodes.NEW_FAILURE : report.exitCode;
+        report = {
+          ...report,
+          exitCode,
+          ruleViolations: ruleEvaluation.violations,
+        };
+      }
+    }
+  } catch {
+    // Safety rules evaluation error should not prevent check report
+  }
 
   // 7. Update safety log
   try {
@@ -120,6 +141,10 @@ export async function runCheck(options: CheckOptions): Promise<number> {
       (sum, r) => sum + (r.durationMs || 0),
       0
     );
+    const hasErrorViolations =
+      report.ruleViolations?.some((v) => v.severity === "error") ?? false;
+    const regressionDetected = report.summary.newFailures > 0 || hasErrorViolations;
+
     await updateLastEntry(
       {
         baselineId: baseline.git.headCommit ?? "baseline",
@@ -131,7 +156,7 @@ export async function runCheck(options: CheckOptions): Promise<number> {
           deleted: report.files.deleted.length,
           unchanged: report.files.unchangedCount,
         },
-        regressionDetected: report.summary.newFailures > 0,
+        regressionDetected,
         durationMs: totalDurationMs,
       },
       repoRoot
