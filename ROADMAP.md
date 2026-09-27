@@ -1,104 +1,76 @@
-# Roadmap
+# safe-change Roadmap
 
-Status definitions:
-- **Implemented**: Code written and locally tested.
-- **Planned**: Designed but not yet implemented.
-- **Deferred**: Intentionally postponed.
-- **Exploratory**: Under consideration, no commitment.
+This document tracks the planned development milestones
+for safe-change from current release to v1.0.
 
-No release dates are provided. Milestones are ordered by priority, not by calendar.
+Status labels: Done | In Progress | Planned
 
-## Milestone A -- Core CLI
+---
 
-| Feature | Status |
-| --- | --- |
-| `save` command with dirty-tree support | Implemented |
-| `check` command with full result matrix | Implemented |
-| `diff` command with bounded output | Implemented |
-| Explicit executable+args command schema | Implemented |
-| Configuration drift detection | Implemented |
-| Atomic baseline writes | Implemented |
-| Versioned baseline and report schemas | Implemented |
-| Timeouts and output bounds on checks | Implemented |
-| .safe-change/ exclusion without editing .gitignore | Implemented |
-| Exit codes 0-5 documented and enforced | Implemented |
-| JSON output mode | Implemented |
-| Unit tests (config, git, baseline, comparator) | Implemented |
-| Integration tests (acceptance, drift, fail-pass) | Implemented |
-| SECURITY.md with trust boundaries | Implemented |
-| README with honest status labels | Implemented |
-| GUIDE.md | Implemented |
-| CONTRIBUTING.md | Implemented |
+## v0.1.0 -- Core CLI (Done)
 
-## Milestone B -- Agent Skill
+- save, check, diff commands
+- Baseline management with atomic writes
+- Configuration drift detection
+- Symlink boundary enforcement
+- Canonical Agent Skill (SKILL.md)
+- Antigravity installer
+- Full test suite, CI on Ubuntu/macOS/Windows
 
-| Feature | Status |
-| --- | --- |
-| Canonical Agent Skill (skills/safe-change/SKILL.md) | Implemented |
-| Skill unit and integration tests | Implemented |
+## v0.1.1 -- Multi-Agent Support (Done)
 
-## Milestone C -- Distribution and Installation
+- Support for 10 AI coding agents:
+  Antigravity, Claude Code, Cursor, Codex, Cline,
+  Kimi Code, Amp, OpenCode, Gemini CLI, GitHub Copilot
+- BaseAdapter class
+- safe-change install all command
+- Agent auto-detection via detectInstalledAgents
+- Collision detection for shared skill paths
+- Antigravity runtime verification protocol
+- Native binary distribution architecture
 
-### C.1 -- Compatibility Research and Fixture (Implemented)
+## v0.1.2 -- MCP Server (In Progress)
 
-| Feature | Status |
-| --- | --- |
-| Agent compatibility research (docs/agent-compatibility.md) | Implemented |
-| Antigravity filesystem fixture (tests/integration/antigravity-fixture.test.ts) | Implemented |
-| Antigravity fixture documentation (docs/antigravity-fixture.md) | Implemented |
-| Home-directory boundary protection | Implemented |
-| Platform-aware case-sensitivity detection | Implemented |
-| Symlink, junction, and TOCTOU defense | Implemented |
+- Expose safe-change as a Model Context Protocol server
+- Tools: safe_change_save, safe_change_check,
+  safe_change_diff, safe_change_status
+- stdio transport, zero configuration
+- Agent setup documentation for all 10 supported agents
+- Agents can invoke safe-change directly without SKILL.md
 
-### C.2 -- Installer Architecture (Implemented)
+## v0.2.0 -- Persistent Safety Log (Planned)
 
-| Feature | Status |
-| --- | --- |
-| Installer architecture document (docs/installer-architecture.md) | Implemented |
-| Command design and scope model | Implemented |
-| Collision, update, uninstall, and rollback strategy | Implemented |
-| Security threat model | Implemented |
+- safe-change log command
+- Per-project history of all baselines and check results
+- Queryable: who triggered, when, what was the outcome
+- Exportable as JSON or plain text
+- Retention policy configuration
 
-### C.3 -- Installer Core Modules (Implemented)
+## v0.3.0 -- Local Dashboard (Planned)
 
-| Feature | Status |
-| --- | --- |
-| Path safety with home allowlist and boundary validation | Implemented |
-| Collision inspection and safe write decisions | Implemented |
-| Ownership manifests and integrity verification | Implemented |
-| Atomic transaction staging and commit | Implemented |
-| Transaction rollback and backup sessions | Implemented |
+- Web UI at localhost:4242
+- Visual baseline history, diff explorer, regression timeline
+- Per-project view
+- No cloud dependency, all data stays local
 
-### C.4 -- Antigravity Production Adapter and CLI Commands (Implemented)
+## v0.4.0 -- Safety Rules Registry (Planned)
 
-| Feature | Status |
-| --- | --- |
-| AgentAdapter interface contract and tests | Implemented |
-| AntigravityAdapter concrete implementation | Implemented |
-| Project scope and global scope support | Implemented |
-| Canonical skill SHA-256 verification and drift detection | Implemented |
-| CLI commands: install, update, uninstall, status | Implemented |
-| CLI flags: --scope, --dry-run, --overwrite, --non-interactive | Implemented |
-| Complete exit codes (0-9) specification | Implemented |
-| Antigravity status: filesystem validated; runtime discovery not independently verified | Implemented |
+- Community-publishable safety rule packages
+- safe-change rules add <rule-package>
+- Example rules: no-delete-migrations, require-test-pass,
+  no-modify-lockfile-without-install
+- Rules are enforced automatically at check time
 
-### C.5 and Beyond -- Distribution and Additional Agent Adapters (Next)
+## v1.0.0 -- Production Stable (Planned)
 
-| Feature | Status |
-| --- | --- |
-| Interactive installer (npx) | Planned |
-| npm package publication | Published v0.1.0 (2026-09-27) |
-| Claude Code adapter | Planned |
-| Codex adapter | Planned |
-| Cursor adapter | Planned |
-| Kimi Code adapter | Planned |
-| Cline adapter | Planned |
+- All @safe-change/* native binary packages published
+- Runtime-verified status for all 10 supported agents
+- Stable MCP protocol compatibility
+- Complete documentation and contributor guide
+- Security audit completed
 
-## Future
+---
 
-| Feature | Status |
-| --- | --- |
-| `recover` command with preview and confirmation | Deferred |
-| Browser-flow checks | Exploratory |
-| CI integration | Exploratory |
-| Watch mode | Exploratory |
+Maintained by ZACK.PRATAMA
+PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)
+License: AGPL-3.0-only

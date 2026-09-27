@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-28
+
+### Added
+- MCP Server via safe-change mcp subcommand
+- Tools: safe_change_save, safe_change_check,
+  safe_change_diff, safe_change_status
+- stdio transport for zero-config MCP integration
+- Agent setup documentation in docs/mcp-setup.md
+- Project roadmap in ROADMAP.md
+
+### Changed
+- @modelcontextprotocol/sdk added as dependency
+
 ## [0.1.1] - 2025-01-27
 
 ### Added
