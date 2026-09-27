@@ -8,12 +8,27 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/issues"
+  },
+  "homepage": "https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change#readme",
   "files": [
     "dist",
     "skills",
     "LICENSE",
     "LICENSE_CHANGE.md",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
@@ -30,7 +45,16 @@
     "baseline",
     "regression",
     "git",
-    "cli"
+    "cli",
+    "vibe-coding",
+    "cursor",
+    "claude-code",
+    "codex",
+    "antigravity",
+    "developer-tools",
+    "safe-change",
+    "agpl-3-0",
+    "typescript"
   ],
   "author": "ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)",
   "license": "AGPL-3.0-only",
