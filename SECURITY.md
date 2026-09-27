@@ -30,11 +30,16 @@ Platform note: On Windows systems, creation of symbolic links in tests or develo
 
 ### What safe-change writes
 
-safe-change writes only to the `.safe-change/` directory within the project root. It creates:
-- `baseline.json`: the baseline state file
-- Temporary files during atomic writes (immediately renamed or cleaned up)
+safe-change writes only to explicitly defined, isolated targets:
+1. Core CLI operations (`save`):
+   - `.safe-change/baseline.json`: the baseline state file.
+   - Temporary staging files during atomic writes (immediately renamed or cleaned up).
+2. Installer operations (`install`, `update`, `uninstall`):
+   - Project scope: `<workspaceRoot>/.agents/skills/safe-change/` (including `SKILL.md` and `.safe-change-manifest.json`).
+   - Global scope: `<homedir>/.gemini/config/skills/safe-change/` (strict allowlist under the user's home directory).
+   - Temporary staging and rollback backup directories in system temporary storage (cleaned up upon completion or rollback).
 
-safe-change never writes to `.gitignore`, `.git/`, or any other user file.
+safe-change never writes to `.gitignore`, `.git/`, or any user source code files.
 
 ### Process execution
 
@@ -53,6 +58,35 @@ Each command runs with:
 - JSON output uses standard serialization without executing embedded content.
 - Baseline files store file hashes (sha256), not file contents. This privacy-preserving design minimizes disk footprint and prevents accidental leakage of secrets or source code into tool state.
 - Process stdout/stderr is captured in bounded buffers for diagnostic display. safe-change does NOT perform automated secret or token detection; configured checks should avoid emitting sensitive credentials.
+
+## Installer security model
+
+The safe-change installer manages agent skills under rigorous security boundaries.
+
+### Scope isolation and path safety
+
+- **Project Scope**: Confined strictly inside the Git repository workspace root (`<workspaceRoot>/.agents/skills/safe-change/`). Path resolution normalizes and canonicalizes all paths. Relative path traversals (`..`), drive letter escapes on Windows, and root escapes on POSIX systems are strictly blocked.
+- **Global Scope**: Confined strictly to an explicit allowlist within the user's home directory (`<homedir>/.gemini/config/skills/safe-change/`). Absolute paths outside the allowlist, root paths (`/` or `C:\`), and sensitive directories (`~/.ssh`, `~/.bashrc`, or system folders) are rejected.
+- **Symlink and Junction Defense**: Both target directories and canonical source files are inspected with `lstat`. Any symbolic link or Windows directory junction is rejected with exit code 9 (`INCOMPATIBLE_TARGET`) to prevent directory traversal attacks or symlink swapping.
+
+### Ownership markers and integrity manifests
+
+- Every safe-change installation writes an ownership manifest (`.safe-change-manifest.json`).
+- The manifest records the package version, owning agent (`antigravity`), target scope, installation timestamp, and SHA-256 digests of all installed files.
+- Before `update` or `uninstall`, safe-change verifies:
+  1. The target directory contains a valid manifest owned by `safe-change`.
+  2. The owning agent matches the invoked adapter.
+  3. No untracked foreign files exist in the target directory. If foreign files are detected, uninstallation aborts with exit code 7 to prevent accidental deletion of user data.
+
+### TOCTOU (Time-of-Check to Time-of-Use) mitigation and limitations
+
+- **Mitigation**: The installer performs post-installation integrity checks by reading back the installed files immediately after commit, verifying that the installed SHA-256 matches the canonical source SHA-256. Staged writes use isolated temporary directories before moving files into place.
+- **Limitations**: In environments with concurrent local processes or hostile local actors sharing the same filesystem account, a race condition could theoretically exist between path inspection and directory creation/rename. Because standard OS filesystems do not support atomic multi-path cross-directory replacement without specialized kernel locking, absolute immunity against concurrent local root/admin interference is not possible. safe-change assumes single-user or cooperative local execution.
+
+### Rollback mechanism and limitations
+
+- **Mechanism**: Before writing or modifying the target directory, the installer creates a complete backup in a private temporary directory (`safe-change-backup-*`). If any step fails during staging, write, or integrity verification, the transaction is aborted, the backup is restored to the target path, and temporary files are cleaned up.
+- **Limitations**: Rollback protects against internal transaction failures, hash mismatches, and interrupted copy operations within the process. It cannot recover from sudden hard power cuts, OS kernel panics, or external deletion of the temporary backup directory during the operation.
 
 ## Implemented safety properties
 

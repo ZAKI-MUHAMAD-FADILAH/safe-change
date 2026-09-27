@@ -20,9 +20,9 @@ It works locally in a Git repository. It does not require a cloud account, AI AP
 
 **Agent Skill**: An instruction file that teaches a coding agent when and how to invoke the safe-change CLI. A skill alone cannot run checks; it needs the CLI installed. The canonical skill is implemented at [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md).
 
-**Plugin**: An agent-specific package that installs the skill and optionally the CLI. (Not yet implemented; planned for Milestone C.)
+**Plugin**: An agent-specific package that bundles skills, rules, or configurations.
 
-**Installer**: A future interactive installer that configures safe-change for your project and agents. (Not yet implemented.)
+**Installer**: Built-in CLI commands (`install`, `update`, `uninstall`, `status`) to safely manage agent skills in project or global scopes. Currently supports Antigravity (filesystem validated; runtime discovery not independently verified).
 
 ## Setup
 
@@ -149,6 +149,90 @@ When working with an AI coding agent:
    - `safe-change check` immediately after modifications to catch regressions.
    - `safe-change diff` when a file change summary is needed.
 4. The skill enforces non-negotiable safety rules: the agent is forbidden from running `git commit`, `git stash`, `git reset`, `git clean`, or `git checkout`, preserving all uncommitted work.
+
+## Agent Skill Installer (Antigravity)
+
+safe-change includes production installer commands to manage agent skills.
+Current support: **Antigravity (filesystem validated; runtime discovery not independently verified)**.
+
+### Target Scopes
+
+safe-change supports two target scopes:
+
+1. **Project Scope (`--scope project` or default)**:
+   - Target path: `<workspaceRoot>/.agents/skills/safe-change/SKILL.md`
+   - Scope isolation: Confined strictly within the Git repository root.
+   - Ideal for teams who want to version the agent skill within project settings.
+
+2. **Global Scope (`--scope global` or `--global` / `-g`)**:
+   - Target path: `<homedir>/.gemini/config/skills/safe-change/SKILL.md`
+   - Scope isolation: Confined strictly to an explicit allowlist within the user's home directory.
+   - Ideal for developers who want the safe-change skill available across all local workspaces.
+
+### Installer Workflow
+
+```bash
+# 1. Preview changes with dry-run (no disk writes)
+safe-change install antigravity --dry-run
+
+# 2. Install to project scope
+safe-change install antigravity
+
+# Or install to global scope
+safe-change install antigravity --global
+
+# 3. Verify status and inspect drift
+safe-change status antigravity
+
+# 4. Update installed skill when canonical skill changes
+safe-change update antigravity
+
+# 5. Uninstall skill safely
+safe-change uninstall antigravity
+```
+
+### Dry-Run Simulation
+
+Adding `--dry-run` performs full path validation, collision inspection, and SHA-256 calculation without writing to disk or creating directories:
+
+```bash
+safe-change install antigravity --dry-run
+```
+
+Example output:
+
+```
+safe-change installer: Antigravity (Google DeepMind)
+Scope: project
+Target: /tmp/my-project/.agents/skills/safe-change
+Dry run: Would install skill to '/tmp/my-project/.agents/skills/safe-change'. SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0.
+SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0
+```
+
+### Collision and Ownership Protection
+
+The installer provides strict guarantees to prevent data loss or unintended overwrites:
+
+- **Up-to-Date Recognition**: If the target skill already contains byte-identical content and is owned by safe-change, the installer reports `up_to_date` without modifying disk timestamps.
+- **Collision Detection**: If the target contains differing content, the installer will not overwrite silently. In interactive mode, it prompts for confirmation (`y/N`). In non-interactive mode (`--non-interactive`), it fails with exit code 7 unless `--overwrite` is explicitly provided.
+- **Ownership Manifest**: Installations write `.safe-change-manifest.json` recording the version, owning agent, scope, and SHA-256 hashes of installed files.
+- **Uninstall Safety**: `safe-change uninstall` validates ownership before removing files. If untracked foreign files are present in the target directory, uninstallation aborts with exit code 7 to protect user files.
+- **Symlink / Junction Rejection**: Targets or canonical sources that are symbolic links or junctions are rejected with exit code 9 (`INCOMPATIBLE_TARGET`).
+
+### Exit Codes Reference
+
+| Code | Label | Meaning |
+| --- | --- | --- |
+| 0 | `OK` | Success / No new regressions detected. |
+| 1 | `NEW_FAILURE` | At least one previously passing check now fails. |
+| 2 | `NO_BASELINE` / `STATE_ERROR` | State error / No baseline found or target not installed. |
+| 3 | `CONFIG_ERROR` | Configuration or argument parsing error. |
+| 4 | `NOT_GIT_REPO` | Not a Git repository (required for project operations). |
+| 5 | `INTERNAL_ERROR` | Unhandled internal exception. |
+| 6 | `OPERATION_CANCELLED` | Operation cancelled by user prompt rejection. |
+| 7 | `COLLISION_DETECTED` | Existing differing content; explicit `--overwrite` required. |
+| 8 | `OWNERSHIP_CONFLICT` | Target directory is not owned by safe-change. |
+| 9 | `INCOMPATIBLE_TARGET` | Incompatible target path or unsupported agent. |
 
 ## Troubleshooting
 

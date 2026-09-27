@@ -59,20 +59,40 @@ No release dates are provided. Milestones are ordered by priority, not by calend
 | Collision, update, uninstall, and rollback strategy | Implemented |
 | Security threat model | Implemented |
 
-### C.3 and Beyond -- Plugins and Publication (Next)
+### C.3 -- Installer Core Modules (Implemented)
+
+| Feature | Status |
+| --- | --- |
+| Path safety with home allowlist and boundary validation | Implemented |
+| Collision inspection and safe write decisions | Implemented |
+| Ownership manifests and integrity verification | Implemented |
+| Atomic transaction staging and commit | Implemented |
+| Transaction rollback and backup sessions | Implemented |
+
+### C.4 -- Antigravity Production Adapter and CLI Commands (Implemented)
+
+| Feature | Status |
+| --- | --- |
+| AgentAdapter interface contract and tests | Implemented |
+| AntigravityAdapter concrete implementation | Implemented |
+| Project scope and global scope support | Implemented |
+| Canonical skill SHA-256 verification and drift detection | Implemented |
+| CLI commands: install, update, uninstall, status | Implemented |
+| CLI flags: --scope, --dry-run, --overwrite, --non-interactive | Implemented |
+| Complete exit codes (0-9) specification | Implemented |
+| Antigravity status: filesystem validated; runtime discovery not independently verified | Implemented |
+
+### C.5 and Beyond -- Distribution and Additional Agent Adapters (Next)
 
 | Feature | Status |
 | --- | --- |
 | Interactive installer (npx) | Planned |
-| Install/update/uninstall tests | Planned |
 | npm package publication | Planned |
-| Antigravity adapter prototype (plugins/antigravity/) | Implemented |
-| Antigravity production plugin and manifest | Planned |
-| Claude Code plugin | Planned |
-| Codex plugin | Planned |
-| Cursor plugin | Planned |
-| Kimi Code plugin | Planned |
-| Cline plugin | Planned |
+| Claude Code adapter | Planned |
+| Codex adapter | Planned |
+| Cursor adapter | Planned |
+| Kimi Code adapter | Planned |
+| Cline adapter | Planned |
 
 ## Future
 

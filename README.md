@@ -57,8 +57,53 @@ Note: a passing check proves only that its configured command succeeded.
 | `safe-change save [description]` | Record a baseline of the repository state and verification results. |
 | `safe-change check` | Compare the current state against the baseline. Report new failures, fixes, and drift. |
 | `safe-change diff` | Show file-level changes since the baseline. |
+| `safe-change install <agent>` | Install agent skill (supported: antigravity). |
+| `safe-change update <agent>` | Update agent skill to the latest canonical version. |
+| `safe-change uninstall <agent>` | Remove agent skill from the target directory. |
+| `safe-change status [agent]` | Report installation, manifest, and drift status. |
 
-All commands accept `--json` for structured output and `--help` for usage information.
+All commands accept `--json` for structured output and `--help` for usage information. Installer commands support `--scope <project|global>`, `--dry-run`, `--overwrite`, and `--non-interactive`.
+
+## Antigravity Skill Installation
+
+safe-change includes a production installer for Google Antigravity.
+Current status: **supported (filesystem validated; runtime discovery not independently verified)**.
+
+### Installing the Skill
+
+```bash
+# Preview installation without modifying the disk
+safe-change install antigravity --dry-run
+
+# Install into the current project (.agents/skills/safe-change/SKILL.md)
+safe-change install antigravity
+
+# Install into the global user profile (<homedir>/.gemini/config/skills/safe-change/SKILL.md)
+safe-change install antigravity --global
+```
+
+Example dry-run output:
+
+```
+safe-change installer: Antigravity (Google DeepMind)
+Scope: project
+Target: /tmp/my-project/.agents/skills/safe-change
+Dry run: Would install skill to '/tmp/my-project/.agents/skills/safe-change'. SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0.
+SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0
+```
+
+### Inspecting Status and Updating
+
+```bash
+# Check status and detect drift
+safe-change status antigravity
+
+# Update to match the canonical skill
+safe-change update antigravity
+
+# Uninstall safely
+safe-change uninstall antigravity
+```
 
 ## Configuration
 
@@ -90,12 +135,16 @@ Checks use an explicit `executable` and `args` array. No shell interpretation oc
 
 | Code | Meaning |
 | --- | --- |
-| 0 | No new regressions detected. |
+| 0 | Success / No new regressions detected. |
 | 1 | At least one previously passing check now fails. |
-| 2 | No baseline found or baseline is corrupt. |
+| 2 | State error / No baseline found or baseline is corrupt. |
 | 3 | Configuration error. |
 | 4 | Not a Git repository. |
 | 5 | Internal error. |
+| 6 | Operation cancelled by user. |
+| 7 | Collision detected; explicit `--overwrite` required. |
+| 8 | Ownership conflict. |
+| 9 | Incompatible target or unsupported agent. |
 
 ## Who it is for
 
@@ -136,7 +185,8 @@ The skill defines the CLI invocation contract, non-negotiable safety rules (no s
 | --- | --- | --- |
 | Core CLI | `save`, `check`, `diff` with tests | Implemented |
 | Agent Skill | Canonical skill at [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md) | Implemented |
-| Distribution | Agent plugins and installer | Planned |
+| Distribution | Antigravity adapter and installer (filesystem validated) | Implemented |
+| Package Publishing | npm package publication and other agent plugins | Planned |
 | Recovery | Reviewed rollback with preview and confirmation | Deferred |
 
 See [ROADMAP.md](ROADMAP.md) for the full breakdown.
