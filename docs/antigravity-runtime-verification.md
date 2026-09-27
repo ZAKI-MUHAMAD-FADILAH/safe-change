@@ -1,49 +1,48 @@
-# Protokol Verifikasi Runtime Antigravity (Antigravity Runtime Verification Protocol)
+# Antigravity Runtime Verification Protocol
 
-Dokumen ini mendefinisikan protokol pengujian runtime resmi untuk memverifikasi integrasi safe-change di lingkungan Antigravity IDE secara manual dan independen.
-
----
-
-## 1. Tujuan
-
-Membuktikan bahwa file skill `.agents/skills/safe-change/SKILL.md` benar-benar dideteksi, dipahami, dan digunakan secara aktif oleh model AI di Antigravity saat runtime, bukan hanya terpasang di filesystem secara statis.
+This document defines the official manual testing protocol to independently verify the integration of safe-change within the Google Antigravity environment.
 
 ---
 
-## 2. Prasyarat Pengujian
+## 1. Objective
 
-Sebelum memulai prosedur pengujian, pastikan lingkungan pengujian memenuhi prasyarat berikut:
-1. Antigravity IDE terinstal dan aktif di mesin pengujian.
-2. safe-change CLI terinstal secara global:
+To demonstrate that `.agents/skills/safe-change/SKILL.md` is actively discovered, understood, and invoked by the Antigravity model during runtime, rather than merely residing passively on the filesystem.
+
+---
+
+## 2. Prerequisites
+
+Before starting the verification procedure, ensure the test environment meets the following requirements:
+1. Google Antigravity IDE is installed and running on the test machine.
+2. The `safe-change` CLI is installed globally or available on PATH:
    ```bash
    npm install -g safe-change
    ```
-   Atau binary CLI dapat diakses langsung pada PATH lingkungan eksekusi terminal.
-3. Versi runtime Antigravity yang diuji dicatat dengan jelas (misalnya: versi IDE, model internal yang digunakan).
-4. Repository Git pengujian bersih (clean working tree) untuk pengujian.
+3. The specific runtime version of Antigravity is recorded (e.g., IDE version, model version/identifier).
+4. A clean Git repository working tree is initialized for testing.
 
 ---
 
-## 3. Prosedur Pengujian (4 Fase)
+## 3. Verification Procedure (4 Phases)
 
-### Fase 1: Instalasi Skill ke Project
-Jalankan perintah instalasi safe-change untuk target Antigravity:
+### Phase 1: Installation to Project Scope
+Run the safe-change installation command targeting Antigravity:
 ```bash
 safe-change install antigravity --scope project
 ```
-Periksa status instalasi dan manifest kepemilikan:
+Inspect the installation status and ownership manifest:
 ```bash
 safe-change status antigravity
 ```
-Ekspektasi:
-- Perintah keluar dengan kode 0 (OK).
-- Output melaporkan status `installed` atau `up_to_date`.
-- File `.agents/skills/safe-change/.safe-change-manifest.json` tercipta.
+Expected Results:
+- Command exits with code 0 (`OK`).
+- Output reports status as `installed` or `up_to_date`.
+- The ownership manifest `.agents/skills/safe-change/.safe-change-manifest.json` is generated.
 
-### Fase 2: Verifikasi Filesystem
-Pastikan file fisik berada pada lokasi yang diharapkan:
-1. Konfirmasi file `.agents/skills/safe-change/SKILL.md` ada dan dapat dibaca.
-2. Konfirmasi digest SHA-256 dari `.agents/skills/safe-change/SKILL.md` identik (byte-for-byte) dengan canonical skill `skills/safe-change/SKILL.md` di package safe-change:
+### Phase 2: Filesystem Verification
+Confirm the physical existence and integrity of installed artifacts:
+1. Verify that `.agents/skills/safe-change/SKILL.md` exists and is readable.
+2. Confirm that the SHA-256 digest of `.agents/skills/safe-change/SKILL.md` matches the canonical skill `skills/safe-change/SKILL.md` byte-for-byte:
    ```bash
    # Windows PowerShell
    Get-FileHash .agents/skills/safe-change/SKILL.md -Algorithm SHA256
@@ -52,43 +51,43 @@ Pastikan file fisik berada pada lokasi yang diharapkan:
    sha256sum .agents/skills/safe-change/SKILL.md
    ```
 
-### Fase 3: Pengujian Runtime Discovery
-1. Buka direktori project tersebut di Antigravity IDE.
-2. Mulai sesi percakapan baru dengan agent.
-3. Masukkan prompt uji:
+### Phase 3: Runtime Discovery Test
+1. Open the test project directory in Antigravity IDE.
+2. Start a fresh conversational session with the agent.
+3. Submit the test prompt:
    > "What is safe-change and what can it do?"
-4. Rekam respons lengkap dari model.
-5. Ekspektasi:
-   - Model mengidentifikasi safe-change dari skill `.agents/skills/safe-change/SKILL.md`.
-   - Model menjelaskan konsep utama: perekaman baseline (`save`), deteksi regresi (`check`), dan perbandingan perubahan file (`diff`).
-   - Model menyebutkan aturan keselamatan non-negotiable (tidak menjalankan git commit, git stash, git reset secara diam-diam).
+4. Record the complete model response.
+5. Expected Results:
+   - The model identifies safe-change from `.agents/skills/safe-change/SKILL.md`.
+   - The model explains core capabilities: baseline recording (`save`), regression detection (`check`), and file diff summaries (`diff`).
+   - The model notes non-negotiable safety rules (no silent git commit, stash, or reset).
 
-### Fase 4: Pengujian Invokasi Eksekusi
-1. Pada sesi percakapan yang sama atau sesi baru di project tersebut, masukkan prompt:
+### Phase 4: Active Invocation Test
+1. In the same or a new session in the test project, submit the prompt:
    > "I am about to make changes. Please use safe-change to record a baseline first."
-2. Rekam tindakan dan tool calls yang dihasilkan oleh model.
-3. Ekspektasi:
-   - Model memanggil perintah CLI `safe-change save` secara aktif via tool terminal/bash execution.
-   - Model memeriksa hasil keluaran baseline sebelum melanjutkan ke instruksi modifikasi berikutnya.
+2. Observe and record tool calls generated by the model.
+3. Expected Results:
+   - The model actively invokes `safe-change save` via terminal/bash execution tools.
+   - The model inspects the baseline outcome before proceeding with requested code modifications.
 
 ---
 
-## 4. Cara Melaporkan Hasil
+## 4. Reporting Results
 
-Penguji yang telah menyelesaikan keempat fase di atas diharapkan melaporkan temuan pengujian ke repository publik safe-change:
-1. Buka GitHub Issue di: `https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/issues`
-2. Berikan label: `runtime-verification`.
-3. Sertakan informasi berikut dalam laporan:
-   - Versi Antigravity IDE dan model yang digunakan.
-   - Sistem Operasi (Windows, macOS, atau Linux) beserta versi rilisnya.
-   - Output teks terminal pada Fase 1 dan Fase 2.
-   - Salinan respons teks lengkap model pada Fase 3.
-   - Riwayat eksekusi tool call model pada Fase 4.
-   - Tangkapan layar (screenshot) antarmuka Antigravity IDE selama pengujian berlangsung.
+Testers who complete all four phases should submit their findings to the public safe-change repository:
+1. Open a GitHub Issue at: `https://github.com/ZAKI-MUHAMAD-FADILAH/safe-change/issues`
+2. Add the label: `runtime-verification`.
+3. Include the following information:
+   - Antigravity IDE version and model identifier.
+   - Operating system and release version (Windows, macOS, or Linux).
+   - Terminal logs from Phase 1 and Phase 2.
+   - Full model response text from Phase 3.
+   - Recorded tool invocation logs from Phase 4.
+   - Screenshots of the Antigravity IDE interface during verification.
 
 ---
 
-## 5. Status Saat Ini
+## 5. Current Status
 
-Runtime discovery belum diverifikasi secara independen. Filesystem installation telah tervalidasi.
-Semua rilis safe-change mencantumkan status `filesystem-validated` untuk Antigravity hingga pengujian runtime independen ini selesai diverifikasi dan terdokumentasi secara publik.
+Runtime discovery has not yet been independently verified. Filesystem installation is fully validated.
+All safe-change releases designate Antigravity as `filesystem-validated` until independent runtime verification is completed and documented publicly.
