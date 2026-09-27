@@ -7,6 +7,7 @@ import type { InstallerScope } from "./installer/core/path-safety.js";
 import { runSave } from "./commands/save.js";
 import { runCheck } from "./commands/check.js";
 import { runDiff } from "./commands/diff.js";
+import { runLog } from "./commands/log.js";
 import { runInstall } from "./installer/commands/install.js";
 import { runUpdate } from "./installer/commands/update.js";
 import { runUninstall } from "./installer/commands/uninstall.js";
@@ -41,6 +42,12 @@ interface ParsedArgs {
     dryRun: boolean;
     nonInteractive: boolean;
   };
+  logOptions: {
+    last?: number;
+    all?: boolean;
+    exportPath?: string;
+    clear?: boolean;
+  };
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -58,6 +65,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       dryRun: false,
       nonInteractive: false,
     },
+    logOptions: {},
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -115,6 +123,36 @@ function parseArgs(argv: string[]): ParsedArgs {
         process.stderr.write('Valid scopes are "project" or "global".\n');
         process.exit(ExitCodes.CONFIG_ERROR);
       }
+    } else if (arg === "--last") {
+      const nextArg = args[++i];
+      if (nextArg !== undefined && /^\d+$/.test(nextArg)) {
+        result.logOptions.last = parseInt(nextArg, 10);
+      } else {
+        process.stderr.write("Option --last requires a positive integer.\\n");
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+    } else if (arg.startsWith("--last=")) {
+      const val = arg.slice("--last=".length);
+      if (/^\d+$/.test(val)) {
+        result.logOptions.last = parseInt(val, 10);
+      } else {
+        process.stderr.write("Option --last requires a positive integer.\\n");
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+    } else if (arg === "--all") {
+      result.logOptions.all = true;
+    } else if (arg === "--clear") {
+      result.logOptions.clear = true;
+    } else if (arg === "--export") {
+      const nextArg = args[++i];
+      if (nextArg !== undefined && !nextArg.startsWith("-")) {
+        result.logOptions.exportPath = nextArg;
+      } else {
+        process.stderr.write("Option --export requires a file path.\\n");
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+    } else if (arg.startsWith("--export=")) {
+      result.logOptions.exportPath = arg.slice("--export=".length);
     } else if (arg.startsWith("-")) {
       process.stderr.write(`Unknown flag: ${arg}\n`);
       process.stderr.write('Run "safe-change --help" for usage.\n');
@@ -138,6 +176,7 @@ Usage:
   safe-change save [description]   Record a baseline of the repository and verification results.
   safe-change check                Compare current state against the baseline.
   safe-change diff                 Show a summary of changes since the baseline.
+  safe-change log [options]        Show or export persistent safety log.
   safe-change install <agent|all>  Install agent skill (or 'all' for all detected/supported agents).
   safe-change update <agent|all>   Update agent skill with latest canonical version.
   safe-change uninstall <agent|all> Remove agent skill from target directory.
@@ -161,6 +200,10 @@ Options:
   --scope <project|global>  Installation scope (default: project).
   --global, -g              Shorthand for --scope global.
   --project, -p             Shorthand for --scope project.
+  --last <n>                Show n most recent log entries (default: 10).
+  --all                     Show all log entries.
+  --export <file>           Export full log to a JSON file.
+  --clear                   Clear all log entries.
   --overwrite               Overwrite existing files or confirm destructive action.
   --dry-run                 Preview without writing to disk.
   --non-interactive, -y     Run without interactive confirmation prompts.
@@ -227,6 +270,18 @@ async function main(): Promise<void> {
 
     case "diff": {
       exitCode = await runDiff({ format });
+      break;
+    }
+
+    case "log": {
+      exitCode = await runLog({
+        format,
+        last: parsed.logOptions.last,
+        all: parsed.logOptions.all,
+        exportPath: parsed.logOptions.exportPath,
+        clear: parsed.logOptions.clear,
+        nonInteractive: parsed.flags.nonInteractive,
+      });
       break;
     }
 

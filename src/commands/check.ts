@@ -1,4 +1,4 @@
-import type { OutputFormat } from "../types/index.js";
+import type { OutputFormat, LogCheckResult, CheckLogState } from "../types/index.js";
 import { ExitCodes } from "../types/index.js";
 import { loadConfig } from "../config/loader.js";
 import {
@@ -9,9 +9,11 @@ import { loadBaseline } from "../baseline/manager.js";
 import { executeAllChecks } from "../runner/executor.js";
 import { buildReport } from "../comparator/engine.js";
 import { renderCheckReport, renderError } from "../output/renderer.js";
+import { updateLastEntry } from "../log/log-manager.js";
 
 export interface CheckOptions {
   readonly format: OutputFormat;
+  readonly trigger?: "manual" | "mcp" | "cli";
 }
 
 export async function runCheck(options: CheckOptions): Promise<number> {
@@ -105,6 +107,38 @@ export async function runCheck(options: CheckOptions): Promise<number> {
 
   // 6. Build and render report
   const report = buildReport(baseline, currentResults, currentFiles, config);
+
+  // 7. Update safety log
+  try {
+    const logCheckResults: LogCheckResult[] = report.results.map((r) => ({
+      name: r.name,
+      result: r.result,
+      before: (r.before ?? "unverified") as CheckLogState,
+      now: (r.now ?? "unverified") as CheckLogState,
+    }));
+    const totalDurationMs = currentResults.reduce(
+      (sum, r) => sum + (r.durationMs || 0),
+      0
+    );
+    await updateLastEntry(
+      {
+        baselineId: baseline.git.headCommit ?? "baseline",
+        trigger: options.trigger ?? "cli",
+        checkResults: logCheckResults,
+        fileSummary: {
+          added: report.files.added.length,
+          modified: report.files.modified.length,
+          deleted: report.files.deleted.length,
+          unchanged: report.files.unchangedCount,
+        },
+        regressionDetected: report.summary.newFailures > 0,
+        durationMs: totalDurationMs,
+      },
+      repoRoot
+    );
+  } catch {
+    // Safety log update failure should not break check execution
+  }
 
   process.stdout.write(renderCheckReport(format, report));
 

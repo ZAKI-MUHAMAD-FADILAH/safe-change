@@ -56,15 +56,16 @@ describe("MCP Server", () => {
     expect(server).toBeDefined();
   });
 
-  it("registers exactly 4 tools", async () => {
+  it("registers exactly 5 tools", async () => {
     const { client, close } = await createConnectedPair();
     try {
       const result = await client.listTools();
-      expect(result.tools).toHaveLength(4);
+      expect(result.tools).toHaveLength(5);
       const names = result.tools.map((t) => t.name).sort();
       expect(names).toEqual([
         "safe_change_check",
         "safe_change_diff",
+        "safe_change_log",
         "safe_change_save",
         "safe_change_status",
       ]);
@@ -162,6 +163,20 @@ describe("MCP Tool schemas", () => {
       await close();
     }
   });
+
+  it("safe_change_log accepts optional last and cwd", async () => {
+    const { client, close } = await createConnectedPair();
+    try {
+      const result = await client.listTools();
+      const tool = result.tools.find((t) => t.name === "safe_change_log");
+      expect(tool).toBeDefined();
+      const props = tool!.inputSchema.properties as Record<string, unknown>;
+      expect(props).toHaveProperty("last");
+      expect(props).toHaveProperty("cwd");
+    } finally {
+      await close();
+    }
+  });
 });
 
 describe("MCP Tool execution", () => {
@@ -204,8 +219,8 @@ describe("MCP Tool execution", () => {
 });
 
 describe("MCP internal helpers", () => {
-  it("TOOLS array contains exactly 4 entries", () => {
-    expect(TOOLS).toHaveLength(4);
+  it("TOOLS array contains exactly 5 entries", () => {
+    expect(TOOLS).toHaveLength(5);
   });
 
   it("toolToCommand maps known tool names correctly", () => {
@@ -213,6 +228,7 @@ describe("MCP internal helpers", () => {
     expect(toolToCommand("safe_change_check")).toEqual(["check"]);
     expect(toolToCommand("safe_change_diff")).toEqual(["diff"]);
     expect(toolToCommand("safe_change_status")).toEqual(["status"]);
+    expect(toolToCommand("safe_change_log")).toEqual(["log"]);
   });
 
   it("toolToCommand returns null for unknown tools", () => {

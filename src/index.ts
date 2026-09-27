@@ -15,6 +15,11 @@ export type {
   DiffSummary,
   ExitCode,
   OutputFormat,
+  LogEntry,
+  LogCheckResult,
+  LogFileSummary,
+  CheckLogResult,
+  CheckLogState,
 } from "./types/index.js";
 
 export { ExitCodes } from "./types/index.js";
@@ -23,3 +28,12 @@ export { loadBaseline, saveBaseline, computeConfigHash, BaselineError } from "./
 export { getRepositoryRoot, getGitState, getFileEntries, getDiffText, GitError } from "./git/inspector.js";
 export { executeCheck, executeAllChecks } from "./runner/executor.js";
 export { compareChecks, compareFiles, buildReport, detectConfigDrift } from "./comparator/engine.js";
+export {
+  appendEntry,
+  readEntries,
+  pruneToRetention,
+  clearLog,
+  exportLog,
+  createLogEntry,
+  updateLastEntry,
+} from "./log/log-manager.js";

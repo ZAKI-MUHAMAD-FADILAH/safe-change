@@ -91,6 +91,27 @@ const TOOLS = [
       required: [] as string[],
     },
   },
+  {
+    name: "safe_change_log",
+    description:
+      "Retrieve the persistent safety log for this project. Returns the most recent baseline and check history entries.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        last: {
+          type: "number",
+          description:
+            "Number of most recent entries to return. Defaults to 10.",
+        },
+        cwd: {
+          type: "string",
+          description:
+            "Absolute path to the project root. Defaults to process.cwd() if omitted.",
+        },
+      },
+      required: [] as string[],
+    },
+  },
 ] as const;
 
 function toolToCommand(toolName: string): string[] | null {
@@ -103,6 +124,8 @@ function toolToCommand(toolName: string): string[] | null {
       return ["diff"];
     case "safe_change_status":
       return ["status"];
+    case "safe_change_log":
+      return ["log"];
     default:
       return null;
   }
@@ -201,6 +224,10 @@ export function createServer(): Server {
 
     if (name === "safe_change_save" && typeof args["description"] === "string") {
       cliArgs.push(args["description"]);
+    }
+
+    if (name === "safe_change_log" && typeof args["last"] === "number") {
+      cliArgs.push("--last", String(args["last"]));
     }
 
     const cwd =

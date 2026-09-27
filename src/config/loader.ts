@@ -79,7 +79,39 @@ function validateConfig(data: unknown): SafeChangeConfig {
     checks.push(check);
   }
 
-  return { version: 1, checks };
+  let logRetention: number | undefined;
+  if (obj["logRetention"] !== undefined) {
+    if (
+      typeof obj["logRetention"] !== "number" ||
+      obj["logRetention"] <= 0 ||
+      !Number.isInteger(obj["logRetention"])
+    ) {
+      throw new ConfigError(`"logRetention" must be a positive integer.`);
+    }
+    logRetention = obj["logRetention"];
+  }
+
+  let dashboardPort: number | undefined;
+  if (obj["dashboardPort"] !== undefined) {
+    if (
+      typeof obj["dashboardPort"] !== "number" ||
+      obj["dashboardPort"] <= 0 ||
+      obj["dashboardPort"] > 65535 ||
+      !Number.isInteger(obj["dashboardPort"])
+    ) {
+      throw new ConfigError(
+        `"dashboardPort" must be a valid port number (1-65535).`
+      );
+    }
+    dashboardPort = obj["dashboardPort"];
+  }
+
+  return {
+    version: 1,
+    checks,
+    ...(logRetention !== undefined ? { logRetention } : {}),
+    ...(dashboardPort !== undefined ? { dashboardPort } : {}),
+  };
 }
 
 function validateCheckDefinition(data: unknown, index: number): CheckDefinition {

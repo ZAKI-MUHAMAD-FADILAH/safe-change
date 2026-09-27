@@ -1,4 +1,4 @@
-import type { OutputFormat } from "../types/index.js";
+import type { OutputFormat, LogCheckResult } from "../types/index.js";
 import { ExitCodes } from "../types/index.js";
 import { loadConfig } from "../config/loader.js";
 import {
@@ -12,10 +12,12 @@ import {
 } from "../baseline/manager.js";
 import { executeAllChecks } from "../runner/executor.js";
 import { renderSaveResult, renderError } from "../output/renderer.js";
+import { appendEntry, createLogEntry } from "../log/log-manager.js";
 
 export interface SaveOptions {
   readonly description: string;
   readonly format: OutputFormat;
+  readonly trigger?: "manual" | "mcp" | "cli";
 }
 
 export async function runSave(options: SaveOptions): Promise<number> {
@@ -107,10 +109,41 @@ export async function runSave(options: SaveOptions): Promise<number> {
     return ExitCodes.INTERNAL_ERROR;
   }
 
-  // 6. Check .gitignore warning
+  // 6. Append to safety log
+  try {
+    const logCheckResults: LogCheckResult[] = checkResults.map((c) => ({
+      name: c.name,
+      result: c.passed ? "pass-pass" : "fail-fail",
+      before: c.passed ? "pass" : "fail",
+      now: c.passed ? "pass" : "fail",
+    }));
+    const totalDurationMs = checkResults.reduce(
+      (sum, r) => sum + (r.durationMs || 0),
+      0
+    );
+    const entry = createLogEntry({
+      description: description || null,
+      baselineId: gitState.headCommit ?? baselinePath,
+      trigger: options.trigger ?? "cli",
+      checkResults: logCheckResults,
+      fileSummary: {
+        added: 0,
+        modified: 0,
+        deleted: 0,
+        unchanged: Object.keys(files).length,
+      },
+      regressionDetected: false,
+      durationMs: totalDurationMs,
+    });
+    await appendEntry(entry, repoRoot, config.logRetention);
+  } catch {
+    // Safety log write failure should not abort baseline save
+  }
+
+  // 7. Check .gitignore warning
   const gitignoreOk = await isStateExcludedFromGit(repoRoot);
 
-  // 7. Render output
+  // 8. Render output
   const checksRun = checkResults.length;
   const checksPassed = checkResults.filter((r) => r.passed).length;
   const fileCount = Object.keys(files).length;

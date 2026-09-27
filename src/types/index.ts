@@ -8,6 +8,53 @@ export interface CheckDefinition {
 export interface SafeChangeConfig {
   readonly version: number;
   readonly checks: readonly CheckDefinition[];
+  readonly logRetention?: number;
+  readonly dashboardPort?: number;
+}
+
+// Safety log
+
+export type CheckLogResult =
+  | "pass-pass"
+  | "pass-fail"
+  | "fail-fail"
+  | "fail-pass"
+  | "pass-timeout"
+  | "fail-timeout"
+  | "timeout-pass"
+  | "timeout-fail"
+  | "timeout-timeout"
+  | "config-removed"
+  | "config-added"
+  | "unverified"
+  | "definition-changed";
+
+export type CheckLogState = "pass" | "fail" | "timeout" | "unverified";
+
+export interface LogCheckResult {
+  readonly name: string;
+  readonly result: CheckLogResult;
+  readonly before: CheckLogState;
+  readonly now: CheckLogState;
+}
+
+export interface LogFileSummary {
+  readonly added: number;
+  readonly modified: number;
+  readonly deleted: number;
+  readonly unchanged: number;
+}
+
+export interface LogEntry {
+  readonly id: string;
+  readonly timestamp: string;
+  readonly description: string | null;
+  readonly baselineId: string;
+  readonly trigger: "manual" | "mcp" | "cli";
+  readonly checkResults: readonly LogCheckResult[];
+  readonly fileSummary: LogFileSummary;
+  readonly regressionDetected: boolean;
+  readonly durationMs: number | null;
 }
 
 // Git state
