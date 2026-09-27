@@ -1,8 +1,22 @@
 # safe-change
 
+Version: 0.1.0 | License: AGPL-3.0-only | Node: >=18.0.0
+
 A local-first safety net for AI-assisted coding.
 
 safe-change records what was working before an agent changes your project, detects what changed afterward, and distinguishes new failures from pre-existing ones -- all without silently modifying or losing your work.
+
+## Installation
+
+```bash
+npm install -g safe-change
+```
+
+Or run without installing:
+
+```bash
+npx safe-change --help
+```
 
 ## The problem
 
