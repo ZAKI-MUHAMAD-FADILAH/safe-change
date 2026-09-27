@@ -29,7 +29,7 @@ Status labels: Done | In Progress | Planned
 - Antigravity runtime verification protocol
 - Native binary distribution architecture
 
-## v0.1.2 -- MCP Server (In Progress)
+## v0.1.2 -- MCP Server (Done)
 
 - Expose safe-change as a Model Context Protocol server
 - Tools: safe_change_save, safe_change_check,
@@ -38,28 +38,30 @@ Status labels: Done | In Progress | Planned
 - Agent setup documentation for all 10 supported agents
 - Agents can invoke safe-change directly without SKILL.md
 
-## v0.2.0 -- Persistent Safety Log (Planned)
+## v0.2.0 -- Safety Observability & Guardrails (Done)
 
-- safe-change log command
-- Per-project history of all baselines and check results
-- Queryable: who triggered, when, what was the outcome
-- Exportable as JSON or plain text
-- Retention policy configuration
+- Persistent Safety Log: full baseline and verification history
+  stored in .safe-change/log.json
+- safe-change log command with --last, --all, --json,
+  --export, and --clear options
+- safe_change_log MCP tool for agent access to historical telemetry
+- Local Dashboard at localhost:4242 via safe-change dashboard
+- 4 Dashboard panels: System State, Monitored Baseline,
+  Regression Timeline stream, and Safety Guardrails
+- Safety Rules Registry: safe-change rules list/add/remove/validate
+- Zero-dependency platform-aware rule evaluation engine
+- 6 built-in rules: no-delete-migrations, no-delete-env,
+  no-modify-lockfile, max-files-changed,
+  max-deleted-files, require-tests-pass
+- Blocking rule violations with exit code 1 and warning rules
+  integrated into safe-change check and safety log
 
-## v0.3.0 -- Local Dashboard (Planned)
+## v0.3.0 -- Advanced Observability & Collaboration (Planned)
 
-- Web UI at localhost:4242
-- Visual baseline history, diff explorer, regression timeline
-- Per-project view
-- No cloud dependency, all data stays local
-
-## v0.4.0 -- Safety Rules Registry (Planned)
-
-- Community-publishable safety rule packages
-- safe-change rules add <rule-package>
-- Example rules: no-delete-migrations, require-test-pass,
-  no-modify-lockfile-without-install
-- Rules are enforced automatically at check time
+- File Change Drawer with syntax-highlighted diffs
+- Multi-Agent Presence Badge and agent identification
+- safe-change rules publish and community rule packages
+- Custom rule condition extensions
 
 ## v1.0.0 -- Production Stable (Planned)
 
