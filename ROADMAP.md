@@ -87,7 +87,7 @@ No release dates are provided. Milestones are ordered by priority, not by calend
 | Feature | Status |
 | --- | --- |
 | Interactive installer (npx) | Planned |
-| npm package publication | Planned |
+| npm package publication | Published v0.1.0 (2026-09-27) |
 | Claude Code adapter | Planned |
 | Codex adapter | Planned |
 | Cursor adapter | Planned |

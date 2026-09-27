@@ -12,7 +12,7 @@ safe-change records what was working before an agent changes your project, detec
 npm install -g safe-change
 ```
 
-Or run without installing:
+Or without installing:
 
 ```bash
 npx safe-change --help
