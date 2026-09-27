@@ -1,9 +1,10 @@
 {
   "name": "@safe-change/win32-x64-msvc",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "description": "Native binary for safe-change on win32-x64-msvc",
   "os": ["win32"],
   "cpu": ["x64"],
-  "main": "safe-change-native.win32-x64-msvc.node",
-  "files": ["safe-change-native.win32-x64-msvc.node"],
+  "main": "safe-change-native.node",
+  "files": ["safe-change-native.node"],
   "license": "AGPL-3.0-only"
 }

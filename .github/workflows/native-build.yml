@@ -3,6 +3,7 @@ name: Native Module CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -75,3 +76,44 @@ jobs:
 
       - name: Run tests with native module active
         run: npm test
+
+  publish-native:
+    name: Publish Native Packages
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download all native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy binaries to npm platform packages
+        run: |
+          mkdir -p npm/win32-x64-msvc npm/win32-arm64-msvc npm/darwin-x64 npm/darwin-arm64 npm/linux-x64-gnu npm/linux-arm64-gnu npm/linux-x64-musl
+          find artifacts/native-binary-ubuntu-latest -name "*.node" -exec cp {} npm/linux-x64-gnu/safe-change-native.node \; 2>/dev/null || true
+          find artifacts/native-binary-windows-latest -name "*.node" -exec cp {} npm/win32-x64-msvc/safe-change-native.node \; 2>/dev/null || true
+          find artifacts/native-binary-macos-latest -name "*.node" -exec cp {} npm/darwin-x64/safe-change-native.node \; 2>/dev/null || true
+          find artifacts/native-binary-macos-latest -name "*.node" -exec cp {} npm/darwin-arm64/safe-change-native.node \; 2>/dev/null || true
+        shell: bash
+
+      - name: Publish platform packages
+        run: |
+          for dir in npm/*/; do
+            if [ -f "$dir/safe-change-native.node" ]; then
+              echo "Publishing $(basename "$dir")..."
+              npm publish "$dir" --access public || echo "Publish failed for $dir"
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+

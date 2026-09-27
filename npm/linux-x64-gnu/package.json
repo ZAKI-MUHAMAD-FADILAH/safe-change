@@ -1,9 +1,10 @@
 {
   "name": "@safe-change/linux-x64-gnu",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "description": "Native binary for safe-change on linux-x64-gnu",
   "os": ["linux"],
   "cpu": ["x64"],
-  "main": "safe-change-native.linux-x64-gnu.node",
-  "files": ["safe-change-native.linux-x64-gnu.node"],
+  "main": "safe-change-native.node",
+  "files": ["safe-change-native.node"],
   "license": "AGPL-3.0-only"
 }

@@ -16,8 +16,28 @@ function loadNative(): NativeModule | null {
   if (process.env["SAFE_CHANGE_NATIVE_DISABLED"] === "1") {
     return null;
   }
+
+  const require = createRequire(import.meta.url);
+  const platforms = [
+    "@safe-change/darwin-arm64",
+    "@safe-change/darwin-x64",
+    "@safe-change/linux-x64-gnu",
+    "@safe-change/linux-arm64-gnu",
+    "@safe-change/linux-x64-musl",
+    "@safe-change/win32-x64-msvc",
+    "@safe-change/win32-arm64-msvc",
+  ];
+
+  for (const pkg of platforms) {
+    try {
+      return require(pkg) as NativeModule;
+    } catch {
+      continue;
+    }
+  }
+
+  // Fallback: local native binary
   try {
-    const require = createRequire(import.meta.url);
     return require("./safe-change-native.node") as NativeModule;
   } catch {
     return null;
