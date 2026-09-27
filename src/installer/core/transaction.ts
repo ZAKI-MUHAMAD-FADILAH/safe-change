@@ -70,23 +70,26 @@ export class InstallationTransaction {
   private committed = false;
   private aborted = false;
   private lockHandle: number | null = null;
+  private lockFilePath: string | null = null;
 
   constructor(options: TransactionOptions) {
     this.targetDir = path.resolve(options.targetDir);
-
-    // Attempt kernel file locking via native module if available
-    const lock = lockFileNative(this.targetDir);
-    if (lock !== null) {
-      this.lockHandle = lock;
-    }
-    // Fallback: If lockFileNative is unavailable (null), filesystem locking is omitted in pure TypeScript mode.
-    // Limitation: Concurrent processes modifying the same target directory must be managed via process orchestration.
 
     // Staging directory should preferably be in the same filesystem/parent to allow atomic rename
     const parentDir = options.stagingParentDir ?? path.dirname(this.targetDir);
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
+
+    // Attempt kernel file locking via native module if available on dedicated lock file
+    const lockPath = path.join(parentDir, `.lock-${path.basename(this.targetDir)}`);
+    const lock = lockFileNative(lockPath);
+    if (lock !== null) {
+      this.lockHandle = lock;
+      this.lockFilePath = lockPath;
+    }
+    // Fallback: If lockFileNative is unavailable (null), filesystem locking is omitted in pure TypeScript mode.
+    // Limitation: Concurrent processes modifying the same target directory must be managed via process orchestration.
 
     const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     this.stagingDir = path.join(parentDir, `.staging-safe-change-${uniqueId}`);
@@ -215,6 +218,13 @@ export class InstallationTransaction {
       if (this.lockHandle !== null) {
         unlockFileNative(this.lockHandle);
         this.lockHandle = null;
+        if (this.lockFilePath && fs.existsSync(this.lockFilePath)) {
+          try {
+            fs.unlinkSync(this.lockFilePath);
+          } catch {
+            // Best-effort cleanup
+          }
+        }
       }
     } catch (err: any) {
       // Rollback target from tempBackupDir if it was moved aside
@@ -254,6 +264,13 @@ export class InstallationTransaction {
       if (this.lockHandle !== null) {
         unlockFileNative(this.lockHandle);
         this.lockHandle = null;
+        if (this.lockFilePath && fs.existsSync(this.lockFilePath)) {
+          try {
+            fs.unlinkSync(this.lockFilePath);
+          } catch {
+            // Best-effort cleanup
+          }
+        }
       }
     }
   }

@@ -150,7 +150,9 @@ pub fn lock_file(path_str: &str) -> Result<u64, String> {
             winapi::um::fileapi::CreateFileW(
                 wide_path.as_ptr(),
                 winapi::um::winnt::GENERIC_READ | winapi::um::winnt::GENERIC_WRITE,
-                winapi::um::winnt::FILE_SHARE_READ | winapi::um::winnt::FILE_SHARE_WRITE,
+                winapi::um::winnt::FILE_SHARE_READ
+                    | winapi::um::winnt::FILE_SHARE_WRITE
+                    | winapi::um::winnt::FILE_SHARE_DELETE,
                 std::ptr::null_mut(),
                 winapi::um::fileapi::OPEN_ALWAYS,
                 winapi::um::winnt::FILE_ATTRIBUTE_NORMAL,
