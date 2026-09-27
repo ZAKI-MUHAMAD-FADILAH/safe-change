@@ -153,6 +153,10 @@ export const ExitCodes = {
   CONFIG_ERROR: 3,
   NOT_GIT_REPO: 4,
   INTERNAL_ERROR: 5,
+  OPERATION_CANCELLED: 6,
+  COLLISION_DETECTED: 7,
+  OWNERSHIP_CONFLICT: 8,
+  INCOMPATIBLE_TARGET: 9,
 } as const;
 
 export type ExitCode = (typeof ExitCodes)[keyof typeof ExitCodes];

@@ -2,6 +2,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import * as os from "node:os";
+import { fileURLToPath } from "node:url";
+
+const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 import type {
   AgentAdapter,
@@ -51,8 +54,8 @@ function fileSha256(filePath: string): string {
  */
 function readPackageVersion(): string {
   try {
-    // Walk up from __dirname to find package.json
-    let dir = __dirname;
+    // Walk up from CURRENT_DIR to find package.json
+    let dir = CURRENT_DIR;
     for (let i = 0; i < 10; i++) {
       const pkgPath = path.join(dir, "package.json");
       if (fs.existsSync(pkgPath)) {
@@ -79,8 +82,8 @@ export class AntigravityAdapter implements AgentAdapter {
       this.canonicalSkillPath = path.resolve(canonicalSkillPath);
     } else {
       // Default: resolve relative to repository root
-      // Walk up from __dirname to find skills/safe-change/SKILL.md
-      let dir = __dirname;
+      // Walk up from CURRENT_DIR to find skills/safe-change/SKILL.md
+      let dir = CURRENT_DIR;
       for (let i = 0; i < 10; i++) {
         const candidate = path.join(dir, "skills", "safe-change", "SKILL.md");
         if (fs.existsSync(candidate)) {
