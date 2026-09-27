@@ -374,93 +374,205 @@ export function renderDashboardHtml(): string {
       display: inline-block;
     }
 
+    /* Enhanced Panel 3 — Regression Timeline */
     .timeline-card {
-      padding: 20px 22px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
 
-    .timeline-scroll {
-      position: relative;
+    .timeline-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .timeline-indicators {
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .timeline-stream-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .timeline-stream {
+      display: flex;
+      align-items: stretch;
+      gap: 12px;
       overflow-x: auto;
-      padding: 20px 8px 10px;
+      padding: 4px 2px 14px;
+      scroll-behavior: smooth;
       scrollbar-width: thin;
       scrollbar-color: var(--divider) transparent;
+      -webkit-overflow-scrolling: touch;
     }
 
-    .timeline-scroll::-webkit-scrollbar {
-      height: 5px;
+    .timeline-stream::-webkit-scrollbar {
+      height: 6px;
     }
 
-    .timeline-scroll::-webkit-scrollbar-thumb {
-      background: var(--divider);
+    .timeline-stream::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.12);
       border-radius: 4px;
     }
 
-    .timeline-scroll::before {
-      content: "";
-      position: absolute;
-      top: 36px;
-      left: 12px;
-      right: 12px;
-      height: 2px;
-      background: rgba(0, 0, 0, 0.08);
-      z-index: 1;
-    }
-
-    .timeline-item {
-      position: relative;
-      z-index: 2;
+    .timeline-node-card {
+      flex: 0 0 280px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--glass-border);
+      outline: 1px solid var(--divider);
+      border-radius: 14px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      position: relative;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .timeline-node-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.09);
+      outline-color: var(--apple-blue);
+    }
+
+    .timeline-node-card.selected {
+      outline: 2px solid var(--apple-blue);
+      box-shadow: 0 8px 24px -2px rgba(0, 113, 227, 0.25);
+      background: #ffffff;
+    }
+
+    .timeline-node-card.card-clean {
+      border-top: 3px solid var(--apple-green);
+    }
+
+    .timeline-node-card.card-regression {
+      border-top: 3px solid var(--apple-red);
+    }
+
+    .timeline-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timeline-run-badge {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
-      flex-shrink: 0;
-      cursor: pointer;
-      transition: transform 0.16s ease;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-main);
     }
 
-    .timeline-item:hover {
-      transform: translateY(-2px);
+    .timeline-card-desc {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 35px;
     }
 
-    .timeline-circle {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
+    .timeline-card-metrics {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-caption);
+    }
+
+    .timeline-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid var(--divider);
+      font-size: 11px;
+    }
+
+    .timeline-connector {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      border: 2px solid #ffffff;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .timeline-circle.clean {
-      background: var(--apple-green);
-      color: #ffffff;
-    }
-
-    .timeline-circle.regression {
-      background: var(--apple-red);
-      color: #ffffff;
-    }
-
-    .timeline-txt {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-sub);
-      max-width: 130px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .timeline-date {
-      font-size: 10px;
       color: var(--text-caption);
+      flex: 0 0 16px;
+    }
+
+    .timeline-connector svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .timeline-inspector {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--divider);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .inspector-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .inspector-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .inspector-checks {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .inspector-check-pill {
+      background: rgba(0, 0, 0, 0.02);
+      border: 1px solid var(--divider);
+      padding: 6px 10px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
     }
 
     .table-card {
@@ -737,17 +849,26 @@ export function renderDashboardHtml(): string {
       </div>
     </div>
 
-    <div class="timeline-card liquid-glass">
-      <div class="panel-top" style="margin-bottom: 2px;">
+    <div class="timeline-card liquid-glass" id="panel-timeline">
+      <div class="timeline-header-bar">
         <div class="panel-heading">
           Panel 3 &mdash; Regression Timeline
           <span class="panel-tag">Historical Verification Stream</span>
         </div>
-        <span id="timeline-stats" class="mono" style="font-size: 11px; color: var(--text-caption);">0 runs tracked</span>
+        <div class="timeline-indicators" id="timeline-metrics-bar">
+          <span id="timeline-stats" class="badge badge-info mono">0 runs tracked</span>
+          <div class="segmented-control">
+            <button class="segment-btn" onclick="scrollTimeline('start')">Earliest</button>
+            <button class="segment-btn" onclick="scrollTimeline('end')">Latest</button>
+          </div>
+        </div>
       </div>
-      <div id="timeline-content" class="timeline-scroll">
-        <div class="empty-state">Loading timeline...</div>
+      <div class="timeline-stream-wrapper">
+        <div id="timeline-content" class="timeline-stream">
+          <div class="empty-state">Loading timeline...</div>
+        </div>
       </div>
+      <div id="timeline-inspector" class="timeline-inspector" style="display: none;"></div>
     </div>
 
     <div class="table-card liquid-glass">
@@ -786,13 +907,24 @@ export function renderDashboardHtml(): string {
   <script>
     let globalLogEntries = [];
     let currentFilter = 'all';
+    let selectedTimelineId = null;
 
     function setFilter(filter) {
       currentFilter = filter;
-      document.querySelectorAll('.segment-btn').forEach(btn => {
+      document.querySelectorAll('.table-header-row .segment-btn').forEach(btn => {
         btn.classList.toggle('active', btn.textContent.toLowerCase() === filter);
       });
       renderLogTable();
+    }
+
+    function scrollTimeline(pos) {
+      const el = document.getElementById('timeline-content');
+      if (!el) return;
+      if (pos === 'start') {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
+      }
     }
 
     async function loadData() {
@@ -903,34 +1035,164 @@ export function renderDashboardHtml(): string {
       \`;
     }
 
+    function selectTimelineRun(id) {
+      selectedTimelineId = (selectedTimelineId === id) ? null : id;
+      renderTimeline(globalLogEntries);
+    }
+
     function renderTimeline(entries) {
       const container = document.getElementById('timeline-content');
-      const statsEl = document.getElementById('timeline-stats');
+      const metricsBar = document.getElementById('timeline-metrics-bar');
+      const inspector = document.getElementById('timeline-inspector');
 
       if (!entries || entries.length === 0) {
-        statsEl.textContent = '0 runs tracked';
+        metricsBar.innerHTML = '<span id="timeline-stats" class="badge badge-info mono">0 runs tracked</span>';
         container.innerHTML = '<div class="empty-state">No history recorded yet. Baseline and check events will appear here.</div>';
+        if (inspector) inspector.style.display = 'none';
         return;
       }
 
-      statsEl.textContent = \`\${entries.length} runs tracked\`;
+      const total = entries.length;
+      const cleanCount = entries.filter(e => !e.regressionDetected).length;
+      const regCount = entries.filter(e => e.regressionDetected).length;
+      const stability = Math.round((cleanCount / total) * 100);
 
-      container.innerHTML = entries.map((e, idx) => {
-        const isReg = e.regressionDetected;
-        const cls = isReg ? 'regression' : 'clean';
+      metricsBar.innerHTML = \`
+        <span id="timeline-stats" class="badge badge-info mono">\${total} runs tracked</span>
+        <span class="badge badge-clean mono">\${cleanCount} clean</span>
+        \${regCount > 0 ? \`<span class="badge badge-regression mono">\${regCount} regression\${regCount > 1 ? 's' : ''}</span>\` : ''}
+        <span class="badge mono" style="background: rgba(0,0,0,0.04); color: var(--text-sub);">\${stability}% stability</span>
+        <div class="segmented-control" style="margin-left: 6px;">
+          <button class="segment-btn" onclick="scrollTimeline('start')">Earliest</button>
+          <button class="segment-btn" onclick="scrollTimeline('end')">Latest</button>
+        </div>
+      \`;
+
+      let html = '';
+      entries.forEach((e, idx) => {
         const num = idx + 1;
-        const shortId = e.id.slice(0, 6);
+        const isReg = e.regressionDetected;
+        const isSelected = selectedTimelineId === e.id;
+        const cardCls = isReg ? 'card-regression' : 'card-clean';
+        const shortId = e.id.slice(0, 8);
         const dateStr = new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const title = \`Run #\${num} [\${e.timestamp}]\nID: \${shortId}\nStatus: \${isReg ? 'REGRESSION' : 'CLEAN'}\nDescription: \${e.description || '(none)'}\`;
 
-        return \`
-          <div class="timeline-item" title="\${title}">
-            <div class="timeline-circle \${cls}">\${num}</div>
-            <span class="timeline-txt">\${e.description || shortId}</span>
-            <span class="timeline-date mono">\${dateStr}</span>
+        const fs = e.fileSummary || { added: 0, modified: 0, deleted: 0 };
+        const checks = e.checkResults || [];
+        const passedChecks = checks.filter(c => c.result === 'pass-pass' || c.result === 'fail-pass').length;
+        const checksSummary = checks.length > 0 ? \`\${passedChecks}/\${checks.length} checks\` : 'No checks';
+
+        const triggerPill = e.trigger === 'mcp'
+          ? '<span class="badge badge-info" style="font-size: 10px; padding: 1px 6px;">MCP</span>'
+          : '<span class="badge" style="font-size: 10px; padding: 1px 6px; background: rgba(0,0,0,0.04); color: var(--text-sub);">CLI</span>';
+
+        const statusBadge = isReg
+          ? '<span class="badge badge-regression"><span class="live-dot" style="background: var(--apple-red); width: 6px; height: 6px; margin-right: 4px;"></span>REGRESSION</span>'
+          : '<span class="badge badge-clean"><span class="live-dot" style="background: var(--apple-green); width: 6px; height: 6px; margin-right: 4px;"></span>CLEAN</span>';
+
+        if (idx > 0) {
+          html += \`
+            <div class="timeline-connector">
+              <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          \`;
+        }
+
+        html += \`
+          <div class="timeline-node-card \${cardCls} \${isSelected ? 'selected' : ''}" onclick="selectTimelineRun('\${e.id}')">
+            <div class="timeline-card-top">
+              <span class="timeline-run-badge mono">RUN #\${num}</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                \${triggerPill}
+                \${statusBadge}
+              </div>
+            </div>
+
+            <div class="timeline-card-desc">\${e.description || '(no description)'}</div>
+
+            <div class="timeline-card-metrics">
+              <span class="mono" style="color: var(--apple-blue); font-weight: 600;">#\${shortId}</span>
+              <span class="mono" style="display: flex; align-items: center; gap: 4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                \${dateStr}
+              </span>
+            </div>
+
+            <div class="timeline-card-footer">
+              <div class="diff-pill mono">
+                <span class="diff-add">+\${fs.added}</span>
+                <span class="diff-mod">~\${fs.modified}</span>
+                <span class="diff-del">-\${fs.deleted}</span>
+              </div>
+              <span class="mono" style="color: var(--text-caption); font-size: 11px;">\${checksSummary}</span>
+            </div>
           </div>
         \`;
-      }).join('');
+      });
+
+      container.innerHTML = html;
+
+      // Render inspector if an entry is selected
+      if (selectedTimelineId && inspector) {
+        const selectedEntry = entries.find(e => e.id === selectedTimelineId);
+        if (selectedEntry) {
+          const runNum = entries.indexOf(selectedEntry) + 1;
+          const checks = selectedEntry.checkResults || [];
+          const fs = selectedEntry.fileSummary || { added: 0, modified: 0, deleted: 0, unchanged: 0 };
+          const isReg = selectedEntry.regressionDetected;
+
+          inspector.style.display = 'flex';
+          inspector.innerHTML = \`
+            <div class="inspector-head">
+              <div class="inspector-title">
+                <span class="mono" style="font-weight: 700; color: var(--apple-blue);">RUN #\${runNum} INSPECTOR</span>
+                <span class="mono" style="color: var(--text-caption); font-size: 12px;">ID: \${selectedEntry.id}</span>
+                <span class="badge \${isReg ? 'badge-regression' : 'badge-clean'}">\${isReg ? 'REGRESSION DETECTED' : 'CLEAN'}</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="segment-btn active" onclick="focusAuditRun('\${selectedEntry.id}')">View in Audit Table</button>
+                <button class="segment-btn" onclick="selectTimelineRun('\${selectedEntry.id}')">Close</button>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <span style="color: var(--text-caption); font-size: 11px;">Description: </span>
+                <span style="font-weight: 600; color: var(--text-main);">\${selectedEntry.description || '(none)'}</span>
+              </div>
+              <div class="mono" style="font-size: 11px; color: var(--text-caption);">
+                Timestamp: \${selectedEntry.timestamp} | Trigger: \${selectedEntry.trigger.toUpperCase()}
+              </div>
+            </div>
+            <div class="inspector-checks">
+              \${checks.length > 0 ? checks.map(c => {
+                const pass = c.result === 'pass-pass' || c.result === 'fail-pass';
+                return \`
+                  <div class="inspector-check-pill mono">
+                    <span style="font-weight: 600;">\${c.name}</span>
+                    <span class="badge \${pass ? 'badge-clean' : 'badge-regression'}" style="font-size: 10px;">\${c.result}</span>
+                  </div>
+                \`;
+              }).join('') : '<div class="empty-state" style="padding: 10px; width: 100%;">No checks run during this entry</div>'}
+            </div>
+          \`;
+        } else {
+          inspector.style.display = 'none';
+        }
+      } else if (inspector) {
+        inspector.style.display = 'none';
+      }
+    }
+
+    function focusAuditRun(id) {
+      const row = document.querySelector(\`tr[data-id="\${id}"]\`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.style.outline = '2px solid var(--apple-blue)';
+        setTimeout(() => { row.style.outline = ''; }, 3000);
+      } else {
+        const table = document.getElementById('log-table');
+        if (table) table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function renderLogTable() {
@@ -973,7 +1235,7 @@ export function renderDashboardHtml(): string {
         }).join('<span style="color: var(--text-caption);">, </span>') || '<span style="color: var(--text-caption);">-</span>';
 
         return \`
-          <tr class="\${rowCls}">
+          <tr class="\${rowCls}" data-id="\${e.id}">
             <td class="mono" style="color: var(--text-caption); font-size: 11px;">\${e.timestamp}</td>
             <td><code class="mono" style="color: var(--apple-blue); font-weight: 600;">\${e.id.slice(0, 8)}</code></td>
             <td>\${triggerBadge}</td>
