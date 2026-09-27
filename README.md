@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=220&section=header&text=safe-change&fontSize=72&fontColor=ffffff&animation=twinkling&fontAlignY=40&desc=The%20safety%20net%20every%20AI%20coding%20agent%20needs&descSize=20&descAlignY=62&descAlign=50" />
+<img width="100%" src="./assets/banner.png" alt="safe-change banner" />
 
 <br/>
 
@@ -400,6 +400,11 @@ safe-change is and will always be free and open-source under AGPL-3.0. Sponsorsh
 <br/>
 
 <div align="center">
+
+<video width="100%" controls autoplay loop muted playsinline src="./assets/Animating_SAFE-CHANGE_logo_reveal.mp4"></video>
+
+<br/>
+<br/>
 
 *safe-change is a filter, not magic.*
 *It clears the noise between what your AI changed and what your codebase lost.*
