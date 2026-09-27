@@ -231,12 +231,21 @@ export function assertNoSymlinkOrJunction(
 }
 
 /**
- * Default global allowlist for Antigravity skill directory.
+ * Default global allowlist for supported agent skill directories.
  */
 export function getDefaultGlobalAllowlist(homeDir = os.homedir()): string[] {
   const resolvedHome = path.resolve(homeDir);
   return [
     path.join(resolvedHome, ".gemini", "config", "skills", "safe-change"),
+    path.join(resolvedHome, ".claude", "skills", "safe-change"),
+    path.join(resolvedHome, ".cursor", "skills", "safe-change"),
+    path.join(resolvedHome, ".codex", "skills", "safe-change"),
+    path.join(resolvedHome, ".cline", "skills", "safe-change"),
+    path.join(resolvedHome, ".kimi-code", "skills", "safe-change"),
+    path.join(resolvedHome, ".config", "agents", "skills", "safe-change"),
+    path.join(resolvedHome, ".config", "opencode", "skills", "safe-change"),
+    path.join(resolvedHome, ".gemini", "skills", "safe-change"),
+    path.join(resolvedHome, ".github", "skills", "safe-change"),
   ];
 }
 

@@ -82,11 +82,29 @@ export interface AdapterStatus {
  * and rollback to the core modules.
  */
 export interface AgentAdapter {
-  /** Unique identifier for the agent this adapter supports. */
+  /** Unique identifier for the agent (e.g. "antigravity", "claude-code"). */
+  readonly agentId?: string;
+
+  /** Unique identifier or display name for the agent this adapter supports. */
   readonly agentName: string;
 
   /** Human-readable display name. */
   readonly displayName: string;
+
+  /** Relative path from workspace root for project scope installation. */
+  readonly projectSkillPath?: string;
+
+  /** Relative path from user home directory for global scope installation. */
+  readonly globalSkillPath?: string;
+
+  /** Verification status of the adapter. */
+  readonly verificationStatus?: "filesystem-validated" | "runtime-verified";
+
+  /** Special notes per agent. */
+  readonly notes?: string;
+
+  /** Documentation URL. */
+  readonly documentationUrl?: string;
 
   /** Path to the canonical skill source file. */
   readonly canonicalSkillPath: string;

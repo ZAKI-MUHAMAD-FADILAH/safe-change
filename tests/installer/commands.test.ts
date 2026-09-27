@@ -79,7 +79,7 @@ describe("installer CLI commands", () => {
     it("should return INCOMPATIBLE_TARGET (9) when agent is unsupported", async () => {
       const capture = createStreamCapture();
       const code = await runInstall({
-        agent: "claude-code",
+        agent: "unsupported-agent",
         canonicalSkillPath,
         stdout: capture.stdoutStream,
         stderr: capture.stderrStream,
