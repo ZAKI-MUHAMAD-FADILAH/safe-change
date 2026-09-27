@@ -20,6 +20,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure git for tests
+        run: |
+          git config --global user.email "ci@safe-change"
+          git config --global user.name "CI"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

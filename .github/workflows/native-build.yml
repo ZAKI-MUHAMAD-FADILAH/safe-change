@@ -20,6 +20,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure git for tests
+        run: |
+          git config --global user.email "ci@safe-change"
+          git config --global user.name "CI"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -37,6 +42,8 @@ jobs:
 
       - name: Verify TypeScript fallback without native binary
         run: npm test
+        env:
+          SAFE_CHANGE_NATIVE_DISABLED: "1"
 
       - name: Run Rust unit tests
         run: |

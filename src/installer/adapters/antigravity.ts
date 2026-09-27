@@ -20,6 +20,7 @@ import {
   assertSafeScopePath,
   assertNoSymlinkOrJunction,
   getDefaultGlobalAllowlist,
+  PathSafetyError,
 } from "../core/path-safety.js";
 import {
   inspectCollision,
@@ -149,20 +150,33 @@ export class AntigravityAdapter implements AgentAdapter {
     const canonicalSha256 = fileSha256(this.canonicalSkillPath);
 
     // Path safety validation
-    if (scope === "project") {
-      assertSafeScopePath({
-        scope: "project",
-        targetPath: targetDir,
-        workspaceRoot,
-        homeDir,
-      });
-    } else {
-      assertSafeScopePath({
-        scope: "global",
-        targetPath: targetDir,
-        homeDir,
-        allowedGlobalSubpaths: getDefaultGlobalAllowlist(homeDir),
-      });
+    try {
+      if (scope === "project") {
+        assertSafeScopePath({
+          scope: "project",
+          targetPath: targetDir,
+          workspaceRoot,
+          homeDir,
+        });
+      } else {
+        assertSafeScopePath({
+          scope: "global",
+          targetPath: targetDir,
+          homeDir,
+          allowedGlobalSubpaths: getDefaultGlobalAllowlist(homeDir),
+        });
+      }
+    } catch (err: any) {
+      if (err instanceof PathSafetyError && err.code === "SYMLINK_REJECTED") {
+        return {
+          status: "cancelled",
+          targetDir,
+          scope,
+          agent: AGENT_NAME,
+          message: err.message,
+        };
+      }
+      throw err;
     }
 
     // Collision detection
@@ -323,7 +337,20 @@ export class AntigravityAdapter implements AgentAdapter {
       };
     }
 
-    assertNoSymlinkOrJunction(targetDir);
+    try {
+      assertNoSymlinkOrJunction(targetDir);
+    } catch (err: any) {
+      if (err instanceof PathSafetyError && err.code === "SYMLINK_REJECTED") {
+        return {
+          status: "cancelled",
+          targetDir,
+          scope,
+          agent: AGENT_NAME,
+          message: err.message,
+        };
+      }
+      throw err;
+    }
 
     // Validate ownership before deletion
     const ownershipCheck = validateOwnership(targetDir, {

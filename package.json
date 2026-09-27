@@ -40,13 +40,6 @@
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
   },
-  "optionalDependencies": {
-    "@safe-change/win32-x64-msvc": "0.1.0",
-    "@safe-change/darwin-x64": "0.1.0",
-    "@safe-change/darwin-arm64": "0.1.0",
-    "@safe-change/linux-x64-gnu": "0.1.0",
-    "@safe-change/linux-arm64-gnu": "0.1.0"
-  },
   "keywords": [
     "ai",
     "coding-agent",

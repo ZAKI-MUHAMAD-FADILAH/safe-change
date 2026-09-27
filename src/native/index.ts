@@ -13,6 +13,9 @@ export interface NativeModule {
 }
 
 function loadNative(): NativeModule | null {
+  if (process.env["SAFE_CHANGE_NATIVE_DISABLED"] === "1") {
+    return null;
+  }
   try {
     const require = createRequire(import.meta.url);
     return require("./safe-change-native.node") as NativeModule;
