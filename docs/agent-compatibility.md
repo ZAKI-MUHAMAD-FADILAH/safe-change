@@ -1,12 +1,18 @@
-# Agent Compatibility Research (Milestone C Preparation)
+# Agent Compatibility Research (Milestone v0.1.1)
 
-This document records factual, evidence-evaluated research into the skill and configuration mechanisms for four target AI coding agents:
-1. Antigravity
-2. Claude Code
-3. Cursor
-4. Codex
+This document records factual, evidence-evaluated research into the skill and configuration mechanisms for 10 supported AI coding agents:
+1. Antigravity (Google DeepMind)
+2. Claude Code (Anthropic)
+3. Cursor (Anysphere)
+4. OpenAI Codex
+5. Cline
+6. Kimi Code (Moonshot AI)
+7. Amp (Sourcegraph)
+8. OpenCode
+9. Google Gemini CLI
+10. GitHub Copilot
 
-Research conducted as part of Milestone C preparation. No installer, plugin manifest, marketplace package, or runtime integration is implemented in this phase.
+All 10 agents have filesystem-validated status in v0.1.1. Runtime verification will be performed in subsequent versions.
 
 ---
 

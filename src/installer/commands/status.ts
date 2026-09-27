@@ -3,7 +3,13 @@ import type { OutputFormat } from "../../types/index.js";
 import { ExitCodes } from "../../types/index.js";
 import { getRepositoryRoot } from "../../git/inspector.js";
 import type { InstallerScope } from "../core/path-safety.js";
-import { AntigravityAdapter } from "../adapters/antigravity.js";
+import {
+  SUPPORTED_AGENTS,
+  getAdapter,
+  isSupportedAgent,
+  detectInstalledAgents,
+} from "../adapters/registry.js";
+import type { AdapterStatus } from "../adapters/adapter.js";
 
 export interface StatusCommandOptions {
   agent?: string;
@@ -23,17 +29,7 @@ export async function runStatus(
   const stderr = options.stderr ?? process.stderr;
   const format = options.format ?? "terminal";
 
-  // 1. Agent validation (default to antigravity if not specified)
-  const agentRaw = options.agent ?? "antigravity";
-  const agentName = agentRaw.toLowerCase().trim();
-  if (agentName !== "antigravity") {
-    stderr.write(
-      `Error: Unsupported agent '${agentRaw}'. Currently supported: antigravity\n`
-    );
-    return ExitCodes.INCOMPATIBLE_TARGET;
-  }
-
-  // 2. Scope validation
+  // 1. Scope validation
   const scope: InstallerScope = options.scope ?? "project";
   if (scope !== "project" && scope !== "global") {
     stderr.write(
@@ -42,7 +38,7 @@ export async function runStatus(
     return ExitCodes.CONFIG_ERROR;
   }
 
-  // 3. Workspace root resolution for project scope
+  // 2. Workspace root resolution for project scope
   let workspaceRoot = options.workspaceRoot;
   if (scope === "project" && !workspaceRoot) {
     try {
@@ -56,10 +52,25 @@ export async function runStatus(
   }
 
   const homeDir = options.homeDir ?? os.homedir();
-  const adapter = new AntigravityAdapter(options.canonicalSkillPath);
 
-  // 4. Query status
-  try {
+  // 3. Check if specific agent was requested
+  const rawAgent = options.agent?.toLowerCase().trim();
+  const isAll = !rawAgent || rawAgent === "all";
+
+  if (!isAll) {
+    if (!isSupportedAgent(rawAgent)) {
+      stderr.write(
+        `Error: Unsupported agent '${options.agent}'. Supported agents: ${SUPPORTED_AGENTS.join(", ")}, all\n`
+      );
+      return ExitCodes.INCOMPATIBLE_TARGET;
+    }
+
+    const adapter = getAdapter(rawAgent, options.canonicalSkillPath);
+    if (!adapter) {
+      stderr.write(`Error: Could not instantiate adapter for '${rawAgent}'.\n`);
+      return ExitCodes.INCOMPATIBLE_TARGET;
+    }
+
     const status = adapter.status({
       scope,
       workspaceRoot,
@@ -107,12 +118,92 @@ export async function runStatus(
         stdout.write("Status: Up to date\n");
       }
     }
-
     return ExitCodes.OK;
-  } catch (err: unknown) {
-    stderr.write(
-      `Internal error: ${err instanceof Error ? err.message : String(err)}\n`
-    );
-    return ExitCodes.INTERNAL_ERROR;
   }
+
+  // 4. Multi-agent comprehensive status report (TASK 7)
+  const detectedAgents = (scope === "project" && workspaceRoot)
+    ? detectInstalledAgents(workspaceRoot)
+    : [];
+
+  const statuses: Array<{
+    agentId: string;
+    displayName: string;
+    verificationStatus: string;
+    detected: boolean;
+    status: AdapterStatus;
+  }> = [];
+
+  const recommendations: string[] = [];
+
+  for (const agentId of SUPPORTED_AGENTS) {
+    const adapter = getAdapter(agentId, options.canonicalSkillPath)!;
+    const isDetected = detectedAgents.includes(agentId);
+    const s = adapter.status({
+      scope,
+      workspaceRoot,
+      homeDir,
+    });
+
+    statuses.push({
+      agentId,
+      displayName: adapter.displayName,
+      verificationStatus: adapter.verificationStatus ?? "filesystem-validated",
+      detected: isDetected,
+      status: s,
+    });
+
+    if (isDetected && !s.installed) {
+      recommendations.push(
+        `Agent '${agentId}' (${adapter.displayName}) detected in project but not protected. Run: safe-change install ${agentId}`
+      );
+    }
+  }
+
+  if (detectedAgents.length === 0 && scope === "project") {
+    recommendations.push(
+      "No specific AI coding agent directories detected. Run 'safe-change install all' to install across all supported agents."
+    );
+  }
+
+  if (format === "json") {
+    stdout.write(
+      JSON.stringify(
+        {
+          scope,
+          detectedAgents,
+          agents: statuses,
+          recommendations,
+        },
+        null,
+        2
+      ) + "\n"
+    );
+  } else {
+    stdout.write("safe-change status report\n");
+    stdout.write("========================\n");
+    stdout.write(`Scope: ${scope}\n`);
+    stdout.write(
+      `Detected agents in project: ${
+        detectedAgents.length > 0 ? detectedAgents.join(", ") : "none detected"
+      }\n\n`
+    );
+
+    stdout.write("Agent Skill Status:\n");
+    for (const item of statuses) {
+      const mark = item.status.installed ? "[installed]" : "[not installed]";
+      const driftMark = item.status.hasDrift ? " (drift detected)" : "";
+      stdout.write(`  ${mark} ${item.displayName} (${item.verificationStatus})${driftMark}\n`);
+      stdout.write(`      Target: ${item.status.targetDir}\n`);
+    }
+
+    if (recommendations.length > 0) {
+      stdout.write("\nRecommendations:\n");
+      for (const rec of recommendations) {
+        stdout.write(`  - ${rec}\n`);
+      }
+    }
+  }
+
+  return ExitCodes.OK;
 }

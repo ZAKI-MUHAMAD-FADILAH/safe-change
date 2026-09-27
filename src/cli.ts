@@ -144,22 +144,35 @@ Usage:
   safe-change save [description]   Record a baseline of the repository and verification results.
   safe-change check                Compare current state against the baseline.
   safe-change diff                 Show a summary of changes since the baseline.
-  safe-change install <agent>      Install agent skill (supported: antigravity).
-  safe-change update <agent>       Update agent skill with latest canonical version.
-  safe-change uninstall <agent>    Remove agent skill from target directory.
-  safe-change status [agent]       Show installation and drift status.
+  safe-change install <agent|all>  Install agent skill (or 'all' for all detected/supported agents).
+  safe-change update <agent|all>   Update agent skill with latest canonical version.
+  safe-change uninstall <agent|all> Remove agent skill from target directory.
+  safe-change status [agent]       Show installation, auto-detection, and drift status.
+
+Supported agents:
+  all             Install for all detected agents
+  antigravity     Google Antigravity (filesystem-validated)
+  claude-code     Anthropic Claude Code (filesystem-validated)
+  cursor          Cursor by Anysphere (filesystem-validated)
+  codex           OpenAI Codex (filesystem-validated)
+  cline           Cline (filesystem-validated)
+  kimi-code       Kimi Code by Moonshot AI (filesystem-validated)
+  amp             Amp by Sourcegraph (filesystem-validated)
+  opencode        OpenCode (filesystem-validated)
+  gemini-cli      Google Gemini CLI (filesystem-validated)
+  github-copilot  GitHub Copilot (filesystem-validated)
 
 Options:
-  --scope <project|global> Target scope for installer commands (default: project).
-  --global, -g             Shorthand for --scope global.
-  --project, -p            Shorthand for --scope project.
-  --overwrite              Overwrite existing files or confirm destructive action.
-  --dry-run                Simulate operation without writing to disk.
-  --non-interactive, -y    Run without interactive confirmation prompts.
-  --json                   Output in JSON format.
-  --help, -h               Show this help message.
-  --version, -v            Show version.
-  --verbose                Show additional detail.
+  --scope <project|global>  Installation scope (default: project).
+  --global, -g              Shorthand for --scope global.
+  --project, -p             Shorthand for --scope project.
+  --overwrite               Overwrite existing files or confirm destructive action.
+  --dry-run                 Preview without writing to disk.
+  --non-interactive, -y     Run without interactive confirmation prompts.
+  --json                    Output in JSON format.
+  --help, -h                Show this help message.
+  --version, -v             Show version.
+  --verbose                 Show additional detail.
 
 Exit codes:
   0  Success / No regressions detected.

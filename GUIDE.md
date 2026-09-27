@@ -22,7 +22,7 @@ It works locally in a Git repository. It does not require a cloud account, AI AP
 
 **Plugin**: An agent-specific package that bundles skills, rules, or configurations.
 
-**Installer**: Built-in CLI commands (`install`, `update`, `uninstall`, `status`) to safely manage agent skills in project or global scopes. Currently supports Antigravity (filesystem validated; runtime discovery not independently verified).
+**Installer**: Built-in CLI commands (`install`, `update`, `uninstall`, `status`) to safely manage agent skills in project or global scopes. Supports 10 AI coding agents (Antigravity, Claude Code, Cursor, Codex, Cline, Kimi Code, Amp, OpenCode, Gemini CLI, GitHub Copilot) with filesystem-validated status.
 
 ## Setup
 
@@ -150,63 +150,152 @@ When working with an AI coding agent:
    - `safe-change diff` when a file change summary is needed.
 4. The skill enforces non-negotiable safety rules: the agent is forbidden from running `git commit`, `git stash`, `git reset`, `git clean`, or `git checkout`, preserving all uncommitted work.
 
-## Agent Skill Installer (Antigravity)
+## Agent Skill Installer
 
 safe-change includes production installer commands to manage agent skills.
-Current support: **Antigravity (filesystem validated; runtime discovery not independently verified)**.
+Version 0.1.1 supports 10 AI coding agents: Antigravity, Claude Code, Cursor, Codex, Cline, Kimi Code, Amp, OpenCode, Gemini CLI, and GitHub Copilot.
+Status for all agents: **filesystem-validated** (verified at filesystem level; runtime verification in subsequent versions).
 
-### Target Scopes
+### Supported Agents and Installation Paths
 
-safe-change supports two target scopes:
+| Agent | Agent ID | Project Path | Global Path |
+| --- | --- | --- | --- |
+| Claude Code | `claude-code` | `<workspaceRoot>/.claude/skills/safe-change/` | `~/.claude/skills/safe-change/` |
+| Cursor | `cursor` | `<workspaceRoot>/.cursor/skills/safe-change/` | `~/.cursor/skills/safe-change/` |
+| Codex | `codex` | `<workspaceRoot>/.codex/skills/safe-change/` | `~/.codex/skills/safe-change/` |
+| Cline | `cline` | `<workspaceRoot>/.cline/skills/safe-change/` | `~/.cline/skills/safe-change/` |
+| Kimi Code | `kimi-code` | `<workspaceRoot>/.kimi-code/skills/safe-change/` | `~/.kimi-code/skills/safe-change/` |
+| Amp | `amp` | `<workspaceRoot>/.agents/skills/safe-change/` | `~/.config/agents/skills/safe-change/` |
+| OpenCode | `opencode` | `<workspaceRoot>/.opencode/skills/safe-change/` | `~/.config/opencode/skills/safe-change/` |
+| Gemini CLI | `gemini-cli` | `<workspaceRoot>/.gemini/skills/safe-change/` | `~/.gemini/skills/safe-change/` |
+| GitHub Copilot | `github-copilot` | `<workspaceRoot>/.github/skills/safe-change/` | `~/.github/skills/safe-change/` |
+| Antigravity | `antigravity` | `<workspaceRoot>/.agents/skills/safe-change/` | `~/.gemini/config/skills/safe-change/` |
 
-1. **Project Scope (`--scope project` or default)**:
-   - Target path: `<workspaceRoot>/.agents/skills/safe-change/SKILL.md`
-   - Scope isolation: Confined strictly within the Git repository root.
-   - Ideal for teams who want to version the agent skill within project settings.
+> Note: Amp and Antigravity share the `.agents/skills/` directory at project scope. The installer detects this collision and issues an informational warning:
+> `"amp dan antigravity berbagi direktori .agents/skills/. Keduanya akan membaca skill yang sama."`
+> The installation succeeds safely without failing or corrupting ownership.
 
-2. **Global Scope (`--scope global` or `--global` / `-g`)**:
-   - Target path: `<homedir>/.gemini/config/skills/safe-change/SKILL.md`
-   - Scope isolation: Confined strictly to an explicit allowlist within the user's home directory.
-   - Ideal for developers who want the safe-change skill available across all local workspaces.
+### Per-Agent Installation Instructions
 
-### Installer Workflow
-
+#### Claude Code (Anthropic)
 ```bash
-# 1. Preview changes with dry-run (no disk writes)
-safe-change install antigravity --dry-run
+# Project scope
+safe-change install claude-code
 
-# 2. Install to project scope
+# Global scope
+safe-change install claude-code --scope global
+```
+Skill is loaded contextually based on the description field. In Claude Code, reload skills using `/reload-skills`.
+
+#### Cursor (Anysphere)
+```bash
+# Project scope
+safe-change install cursor
+
+# Global scope
+safe-change install cursor --scope global
+```
+Installed into `.cursor/skills/safe-change`. Cursor discovers project-level skills within workspace rules and configurations.
+
+#### OpenAI Codex
+```bash
+# Project scope
+safe-change install codex
+
+# Global scope
+safe-change install codex --scope global
+```
+Uses community convention `.codex/skills/safe-change` alongside standard AGENTS.md rules.
+
+#### Cline
+```bash
+# Project scope
+safe-change install cline
+
+# Global scope
+safe-change install cline --scope global
+```
+Installed into `.cline/skills/safe-change` following Cline's skill structure.
+
+#### Kimi Code (Moonshot AI)
+```bash
+# Project scope
+safe-change install kimi-code
+
+# Global scope
+safe-change install kimi-code --scope global
+```
+Installed into `.kimi-code/skills/safe-change`.
+
+#### Amp (Sourcegraph)
+```bash
+# Project scope
+safe-change install amp
+
+# Global scope
+safe-change install amp --scope global
+```
+At project scope, Amp shares `.agents/skills/` with Antigravity. Global scope installs into `~/.config/agents/skills/safe-change`.
+
+#### OpenCode
+```bash
+# Project scope
+safe-change install opencode
+
+# Global scope
+safe-change install opencode --scope global
+```
+Follows the Agent Skills standard with global configuration at `~/.config/opencode/skills/safe-change`.
+
+#### Google Gemini CLI
+```bash
+# Project scope
+safe-change install gemini-cli
+
+# Global scope
+safe-change install gemini-cli --scope global
+```
+Legacy configuration directory. Antigravity supersedes Gemini CLI for full agent workflows.
+
+#### GitHub Copilot
+```bash
+# Project scope
+safe-change install github-copilot
+
+# Global scope
+safe-change install github-copilot --scope global
+```
+Installed into `.github/skills/safe-change` (also compatible with `.agents/skills/`).
+
+#### Google Antigravity
+```bash
+# Project scope
 safe-change install antigravity
 
-# Or install to global scope
-safe-change install antigravity --global
-
-# 3. Verify status and inspect drift
-safe-change status antigravity
-
-# 4. Update installed skill when canonical skill changes
-safe-change update antigravity
-
-# 5. Uninstall skill safely
-safe-change uninstall antigravity
+# Global scope
+safe-change install antigravity --scope global
 ```
+Discovered automatically via `.agents/skills/` at workspace root or `~/.gemini/config/skills/` globally.
+
+### Installing All Agents (`install all`)
+
+To install safe-change for all agents present in a project at once:
+
+```bash
+safe-change install all [--scope project|global] [--dry-run]
+```
+
+The installer runs auto-detection (`detectInstalledAgents`):
+- If one or more agent configuration directories (`.claude/`, `.cursor/`, `.codex/`, `.cline/`, `.kimi-code/`, `.agents/`, `.opencode/`, `.gemini/`, `.github/`) exist in the workspace, safe-change installs into each detected agent.
+- If no agent directories are detected, safe-change installs into all 10 supported agents.
 
 ### Dry-Run Simulation
 
 Adding `--dry-run` performs full path validation, collision inspection, and SHA-256 calculation without writing to disk or creating directories:
 
 ```bash
-safe-change install antigravity --dry-run
-```
-
-Example output:
-
-```
-safe-change installer: Antigravity (Google DeepMind)
-Scope: project
-Target: /tmp/my-project/.agents/skills/safe-change
-Dry run: Would install skill to '/tmp/my-project/.agents/skills/safe-change'. SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0.
-SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0
+safe-change install claude-code --dry-run
+safe-change install all --dry-run
 ```
 
 ### Collision and Ownership Protection

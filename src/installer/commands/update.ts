@@ -1,10 +1,18 @@
+import * as fs from "node:fs";
 import * as os from "node:os";
 import * as readline from "node:readline";
 import type { OutputFormat } from "../../types/index.js";
 import { ExitCodes } from "../../types/index.js";
 import { getRepositoryRoot } from "../../git/inspector.js";
 import type { InstallerScope } from "../core/path-safety.js";
-import { AntigravityAdapter } from "../adapters/antigravity.js";
+import { validateOwnership } from "../core/ownership.js";
+import {
+  SUPPORTED_AGENTS,
+  getAdapter,
+  isSupportedAgent,
+  detectInstalledAgents,
+} from "../adapters/registry.js";
+import type { AgentAdapter } from "../adapters/adapter.js";
 
 export interface UpdateCommandOptions {
   agent?: string;
@@ -53,110 +61,91 @@ async function askConfirmation(
   });
 }
 
-export async function runUpdate(
-  options: UpdateCommandOptions
+async function updateSingleAdapter(
+  adapter: AgentAdapter,
+  options: UpdateCommandOptions,
+  context: {
+    scope: InstallerScope;
+    workspaceRoot?: string;
+    homeDir: string;
+    stdout: NodeJS.WritableStream;
+    stderr: NodeJS.WritableStream;
+    format: OutputFormat;
+  }
 ): Promise<number> {
-  const stdout = options.stdout ?? process.stdout;
-  const stderr = options.stderr ?? process.stderr;
-  const format = options.format ?? "terminal";
+  const { scope, workspaceRoot, homeDir, stdout, stderr, format } = context;
 
-  // 1. Agent validation
-  if (!options.agent) {
+  let targetDir: string;
+  try {
+    targetDir = adapter.resolveTargetDir({
+      scope,
+      workspaceRoot,
+      homeDir,
+    });
+  } catch (err: unknown) {
     stderr.write(
-      "Error: Agent name is required. Currently supported: antigravity\n"
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`
     );
     return ExitCodes.INCOMPATIBLE_TARGET;
   }
 
-  const agentName = options.agent.toLowerCase().trim();
-  if (agentName !== "antigravity") {
+  // Check if target directory exists
+  if (!fs.existsSync(targetDir)) {
     stderr.write(
-      `Error: Unsupported agent '${options.agent}'. Currently supported: antigravity\n`
-    );
-    return ExitCodes.INCOMPATIBLE_TARGET;
-  }
-
-  // 2. Scope validation
-  const scope: InstallerScope = options.scope ?? "project";
-  if (scope !== "project" && scope !== "global") {
-    stderr.write(
-      `Error: Invalid scope '${scope}'. Valid scopes are 'project' or 'global'.\n`
-    );
-    return ExitCodes.CONFIG_ERROR;
-  }
-
-  // 3. Workspace root resolution for project scope
-  let workspaceRoot = options.workspaceRoot;
-  if (scope === "project" && !workspaceRoot) {
-    try {
-      workspaceRoot = await getRepositoryRoot(process.cwd());
-    } catch {
-      stderr.write(
-        "Error: Not a Git repository. Project scope requires a Git repository.\n"
-      );
-      return ExitCodes.NOT_GIT_REPO;
-    }
-  }
-
-  const homeDir = options.homeDir ?? os.homedir();
-  const adapter = new AntigravityAdapter(options.canonicalSkillPath);
-
-  // 4. Check current status
-  const currentStatus = adapter.status({
-    scope,
-    workspaceRoot,
-    homeDir,
-  });
-
-  if (!currentStatus.installed) {
-    stderr.write(
-      `Error: Skill is not installed at '${currentStatus.targetDir}'. Run 'safe-change install' first.\n`
+      `Error: Skill is not installed at '${targetDir}'. Cannot update non-existent installation. Run 'safe-change install' first.\n`
     );
     return ExitCodes.NO_BASELINE;
   }
 
-  if (!currentStatus.manifest || currentStatus.manifest.owner !== "safe-change") {
+  // Validate ownership
+  const isSharedAmpAntigravity =
+    scope === "project" &&
+    (adapter.agentId === "amp" || adapter.agentId === "antigravity");
+
+  let ownershipCheck = validateOwnership(targetDir, {
+    expectedAgent: adapter.agentId ?? adapter.agentName,
+  });
+
+  if (!ownershipCheck.isValid && isSharedAmpAntigravity) {
+    const altAgent = adapter.agentId === "amp" ? "antigravity" : "amp";
+    const altCheck = validateOwnership(targetDir, {
+      expectedAgent: altAgent,
+    });
+    if (altCheck.isValid) {
+      ownershipCheck = altCheck;
+    }
+  }
+
+  if (!ownershipCheck.isValid) {
     stderr.write(
-      `Error: Ownership conflict at '${currentStatus.targetDir}'. Target is not owned by safe-change.\n`
+      `Error: Ownership validation failed at '${targetDir}': ${ownershipCheck.errorReason ?? "unknown"}.\n`
     );
     return ExitCodes.OWNERSHIP_CONFLICT;
   }
 
-  let overwrite = options.overwrite ?? false;
-
-  // Handle destructive prompt if drift is detected
-  if (currentStatus.hasDrift && !options.dryRun) {
-    if (options.nonInteractive && !overwrite) {
-      stderr.write(
-        `Local modifications detected at '${currentStatus.targetDir}'. In --non-interactive mode, pass --overwrite to proceed.\n`
-      );
-      return ExitCodes.COLLISION_DETECTED;
-    }
-
-    if (!options.nonInteractive && !overwrite) {
-      const confirmed = await askConfirmation(
-        `Installed skill at '${currentStatus.targetDir}' has local modifications. Overwrite with canonical skill? (y/N): `,
-        {
-          stdin: options.stdin,
-          stdout: options.stdout,
-          nonInteractive: options.nonInteractive,
-        }
-      );
-      if (!confirmed) {
-        stdout.write("Update cancelled by user.\n");
-        return ExitCodes.OPERATION_CANCELLED;
+  // Interactive confirmation
+  if (!options.dryRun && !options.overwrite && !options.nonInteractive) {
+    const confirmed = await askConfirmation(
+      `Update skill at '${targetDir}'? This will overwrite the installed files. (y/N): `,
+      {
+        stdin: options.stdin,
+        stdout: options.stdout,
+        nonInteractive: options.nonInteractive,
       }
-      overwrite = true;
+    );
+    if (!confirmed) {
+      stdout.write("Update cancelled by user.\n");
+      return ExitCodes.OPERATION_CANCELLED;
     }
   }
 
-  // 5. Execute adapter update
+  // Execute update
   try {
     const result = adapter.update({
       scope,
       workspaceRoot,
       homeDir,
-      overwrite,
+      overwrite: true,
       dryRun: options.dryRun,
       nonInteractive: options.nonInteractive,
     });
@@ -186,10 +175,6 @@ export async function runUpdate(
       return ExitCodes.OWNERSHIP_CONFLICT;
     }
 
-    if (result.status === "collision_detected") {
-      return ExitCodes.COLLISION_DETECTED;
-    }
-
     if (result.status === "cancelled") {
       return ExitCodes.OPERATION_CANCELLED;
     }
@@ -201,4 +186,91 @@ export async function runUpdate(
     );
     return ExitCodes.INTERNAL_ERROR;
   }
+}
+
+export async function runUpdate(
+  options: UpdateCommandOptions
+): Promise<number> {
+  const stdout = options.stdout ?? process.stdout;
+  const stderr = options.stderr ?? process.stderr;
+  const format = options.format ?? "terminal";
+
+  // 1. Agent validation
+  if (!options.agent) {
+    stderr.write(
+      `Error: Agent name is required. Supported agents: ${SUPPORTED_AGENTS.join(", ")}, all\n`
+    );
+    return ExitCodes.INCOMPATIBLE_TARGET;
+  }
+
+  const agentName = options.agent.toLowerCase().trim();
+  const isAll = agentName === "all";
+
+  if (!isAll && !isSupportedAgent(agentName)) {
+    stderr.write(
+      `Error: Unsupported agent '${options.agent}'. Supported agents: ${SUPPORTED_AGENTS.join(", ")}, all\n`
+    );
+    return ExitCodes.INCOMPATIBLE_TARGET;
+  }
+
+  // 2. Scope validation
+  const scope: InstallerScope = options.scope ?? "project";
+  if (scope !== "project" && scope !== "global") {
+    stderr.write(
+      `Error: Invalid scope '${scope}'. Valid scopes are 'project' or 'global'.\n`
+    );
+    return ExitCodes.CONFIG_ERROR;
+  }
+
+  // 3. Workspace root resolution for project scope
+  let workspaceRoot = options.workspaceRoot;
+  if (scope === "project" && !workspaceRoot) {
+    try {
+      workspaceRoot = await getRepositoryRoot(process.cwd());
+    } catch {
+      stderr.write(
+        "Error: Not a Git repository. Project scope requires a Git repository.\n"
+      );
+      return ExitCodes.NOT_GIT_REPO;
+    }
+  }
+
+  const homeDir = options.homeDir ?? os.homedir();
+  const context = {
+    scope,
+    workspaceRoot,
+    homeDir,
+    stdout,
+    stderr,
+    format,
+  };
+
+  if (isAll) {
+    let targetAgents: readonly string[];
+    if (scope === "project" && workspaceRoot) {
+      const detected = detectInstalledAgents(workspaceRoot);
+      targetAgents = detected.length > 0 ? detected : SUPPORTED_AGENTS;
+    } else {
+      targetAgents = SUPPORTED_AGENTS;
+    }
+
+    let overallExitCode: number = ExitCodes.OK;
+    for (const agentId of targetAgents) {
+      const adapter = getAdapter(agentId, options.canonicalSkillPath);
+      if (!adapter) continue;
+      const code = await updateSingleAdapter(adapter, options, context);
+      if (code !== ExitCodes.OK && overallExitCode === ExitCodes.OK) {
+        overallExitCode = code;
+      }
+    }
+    return overallExitCode;
+  }
+
+  const adapter = getAdapter(agentName, options.canonicalSkillPath);
+  if (!adapter) {
+    stderr.write(`Error: Could not instantiate adapter for '${agentName}'.\n`);
+    return ExitCodes.INCOMPATIBLE_TARGET;
+  }
+
+  return updateSingleAdapter(adapter, options, context);
 }

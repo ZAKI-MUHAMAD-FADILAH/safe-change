@@ -1,6 +1,6 @@
 # safe-change
 
-Version: 0.1.0 | License: AGPL-3.0-only | Node: >=18.0.0
+Version: 0.1.1 | License: AGPL-3.0-only | Node: >=18.0.0
 
 A local-first safety net for AI-assisted coding.
 
@@ -71,52 +71,65 @@ Note: a passing check proves only that its configured command succeeded.
 | `safe-change save [description]` | Record a baseline of the repository state and verification results. |
 | `safe-change check` | Compare the current state against the baseline. Report new failures, fixes, and drift. |
 | `safe-change diff` | Show file-level changes since the baseline. |
-| `safe-change install <agent>` | Install agent skill (supported: antigravity). |
-| `safe-change update <agent>` | Update agent skill to the latest canonical version. |
-| `safe-change uninstall <agent>` | Remove agent skill from the target directory. |
-| `safe-change status [agent]` | Report installation, manifest, and drift status. |
+| `safe-change install <agent\|all>` | Install safe-change skill for a specific agent or all detected agents. |
+| `safe-change update <agent\|all>` | Update agent skill to the latest canonical version. |
+| `safe-change uninstall <agent\|all>` | Remove agent skill from the target directory. |
+| `safe-change status [agent]` | Report installation, auto-detected agents, manifest, and drift status. |
 
 All commands accept `--json` for structured output and `--help` for usage information. Installer commands support `--scope <project|global>`, `--dry-run`, `--overwrite`, and `--non-interactive`.
 
-## Antigravity Skill Installation
+## Supported Agents
 
-safe-change includes a production installer for Google Antigravity.
-Current status: **supported (filesystem validated; runtime discovery not independently verified)**.
+safe-change v0.1.1 supports 10 AI coding agents:
 
-### Installing the Skill
+| Agent ID | Agent Name | Project Path | Global Path | Verification Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `antigravity` | Google Antigravity | `.agents/skills/safe-change/` | `~/.gemini/config/skills/safe-change/` | filesystem-validated | Shares project path with Amp |
+| `claude-code` | Claude Code (Anthropic) | `.claude/skills/safe-change/` | `~/.claude/skills/safe-change/` | filesystem-validated | Format documented in docs.anthropic.com |
+| `cursor` | Cursor (Anysphere) | `.cursor/skills/safe-change/` | `~/.cursor/skills/safe-change/` | filesystem-validated | Community convention format |
+| `codex` | OpenAI Codex | `.codex/skills/safe-change/` | `~/.codex/skills/safe-change/` | filesystem-validated | AGENTS.md official; .codex/skills/ convention |
+| `cline` | Cline | `.cline/skills/safe-change/` | `~/.cline/skills/safe-change/` | filesystem-validated | Official format from Cline docs |
+| `kimi-code` | Kimi Code (Moonshot AI) | `.kimi-code/skills/safe-change/` | `~/.kimi-code/skills/safe-change/` | filesystem-validated | Community format |
+| `amp` | Amp (Sourcegraph) | `.agents/skills/safe-change/` | `~/.config/agents/skills/safe-change/` | filesystem-validated | Shares project path with Antigravity |
+| `opencode` | OpenCode | `.opencode/skills/safe-change/` | `~/.config/opencode/skills/safe-change/` | filesystem-validated | Agent Skills standard format |
+| `gemini-cli` | Google Gemini CLI | `.gemini/skills/safe-change/` | `~/.gemini/skills/safe-change/` | filesystem-validated | Legacy, superseded by Antigravity |
+| `github-copilot` | GitHub Copilot | `.github/skills/safe-change/` | `~/.github/skills/safe-change/` | filesystem-validated | Reads .github/skills/ and .agents/skills/ |
+
+Note: Amp and Antigravity share `.agents/skills/safe-change/` at project scope. The installer detects this collision and notifies the user while keeping installations safe and compatible.
+
+### Installing Skills
 
 ```bash
-# Preview installation without modifying the disk
-safe-change install antigravity --dry-run
+# Preview installation for Claude Code without modifying disk
+safe-change install claude-code --dry-run
 
-# Install into the current project (.agents/skills/safe-change/SKILL.md)
-safe-change install antigravity
+# Install into current project
+safe-change install cursor
 
-# Install into the global user profile (<homedir>/.gemini/config/skills/safe-change/SKILL.md)
-safe-change install antigravity --global
-```
+# Install globally for Codex
+safe-change install codex --scope global
 
-Example dry-run output:
+# Auto-detect installed agents and install safe-change for all of them
+safe-change install all
 
-```
-safe-change installer: Antigravity (Google DeepMind)
-Scope: project
-Target: /tmp/my-project/.agents/skills/safe-change
-Dry run: Would install skill to '/tmp/my-project/.agents/skills/safe-change'. SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0.
-SHA-256: d73eaa851e868c90e2e387829bf24124ce59dba518b833e72bcf6e82d9af33d0
+# Preview installation for all agents
+safe-change install all --dry-run
 ```
 
 ### Inspecting Status and Updating
 
 ```bash
-# Check status and detect drift
-safe-change status antigravity
+# Check status and detect installed agents in project
+safe-change status
 
-# Update to match the canonical skill
-safe-change update antigravity
+# Check status for a specific agent
+safe-change status claude-code
+
+# Update all installed agent skills
+safe-change update all
 
 # Uninstall safely
-safe-change uninstall antigravity
+safe-change uninstall cursor
 ```
 
 ## Configuration
