@@ -1,0 +1,9 @@
+{
+  "name": "@safe-change/win32-arm64-msvc",
+  "version": "0.1.0",
+  "os": ["win32"],
+  "cpu": ["arm64"],
+  "main": "safe-change-native.win32-arm64-msvc.node",
+  "files": ["safe-change-native.win32-arm64-msvc.node"],
+  "license": "AGPL-3.0-only"
+}

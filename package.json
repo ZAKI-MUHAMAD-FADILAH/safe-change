@@ -32,11 +32,20 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:native": "sh scripts/build-native.sh",
+    "build:native:win": "powershell scripts/build-native.ps1",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
+  },
+  "optionalDependencies": {
+    "@safe-change/win32-x64-msvc": "0.1.0",
+    "@safe-change/darwin-x64": "0.1.0",
+    "@safe-change/darwin-arm64": "0.1.0",
+    "@safe-change/linux-x64-gnu": "0.1.0",
+    "@safe-change/linux-arm64-gnu": "0.1.0"
   },
   "keywords": [
     "ai",
@@ -62,8 +71,9 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@napi-rs/cli": "^3.10.5",
+    "@types/node": "^20.0.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0",
-    "@types/node": "^20.0.0"
+    "vitest": "^2.0.0"
   }
 }

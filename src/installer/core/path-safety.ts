@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { checkPathBoundaryNative } from "../../native/index.js";
 
 export type InstallerScope = "project" | "global";
 
@@ -58,9 +59,9 @@ export function normalizePathCase(inputPath: string, caseInsensitive?: boolean):
 }
 
 /**
- * Asserts that targetPath is safely within boundaryRoot without escaping via traversal.
+ * TypeScript fallback implementation for boundary checking.
  */
-export function assertWithinBoundary(
+export function assertWithinBoundaryTypeScript(
   boundaryRoot: string,
   targetPath: string,
   caseInsensitive?: boolean
@@ -87,6 +88,38 @@ export function assertWithinBoundary(
     resolvedBoundary,
     relativePath: path.relative(resolvedBoundary, resolvedTarget),
   };
+}
+
+/**
+ * Asserts that targetPath is safely within boundaryRoot without escaping via traversal.
+ * Attempts native Rust check first via napi-rs; falls back gracefully to TypeScript.
+ */
+export function assertWithinBoundary(
+  boundaryRoot: string,
+  targetPath: string,
+  caseInsensitive?: boolean
+): { resolvedTarget: string; resolvedBoundary: string; relativePath: string } {
+  const resolvedBoundary = path.resolve(boundaryRoot);
+  const resolvedTarget = path.resolve(targetPath);
+
+  const nativeResult = checkPathBoundaryNative(resolvedTarget, resolvedBoundary);
+  if (nativeResult !== null) {
+    if (!nativeResult) {
+      throw new PathSafetyError(
+        `Path traversal rejected: '${targetPath}' escapes root boundary '${boundaryRoot}'.`,
+        "PATH_TRAVERSAL",
+        resolvedTarget
+      );
+    }
+    return {
+      resolvedTarget,
+      resolvedBoundary,
+      relativePath: path.relative(resolvedBoundary, resolvedTarget),
+    };
+  }
+
+  // Graceful fallback to pure TypeScript implementation
+  return assertWithinBoundaryTypeScript(boundaryRoot, targetPath, caseInsensitive);
 }
 
 /**

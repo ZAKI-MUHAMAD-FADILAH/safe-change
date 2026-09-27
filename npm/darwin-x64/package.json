@@ -1,0 +1,9 @@
+{
+  "name": "@safe-change/darwin-x64",
+  "version": "0.1.0",
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "main": "safe-change-native.darwin-x64.node",
+  "files": ["safe-change-native.darwin-x64.node"],
+  "license": "AGPL-3.0-only"
+}

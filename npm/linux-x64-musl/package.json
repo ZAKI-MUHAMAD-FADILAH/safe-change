@@ -1,0 +1,9 @@
+{
+  "name": "@safe-change/linux-x64-musl",
+  "version": "0.1.0",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "main": "safe-change-native.linux-x64-musl.node",
+  "files": ["safe-change-native.linux-x64-musl.node"],
+  "license": "AGPL-3.0-only"
+}

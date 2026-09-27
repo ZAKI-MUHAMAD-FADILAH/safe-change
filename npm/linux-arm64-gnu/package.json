@@ -1,0 +1,9 @@
+{
+  "name": "@safe-change/linux-arm64-gnu",
+  "version": "0.1.0",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "main": "safe-change-native.linux-arm64-gnu.node",
+  "files": ["safe-change-native.linux-arm64-gnu.node"],
+  "license": "AGPL-3.0-only"
+}

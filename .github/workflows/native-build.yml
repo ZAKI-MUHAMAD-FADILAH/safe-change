@@ -1,0 +1,59 @@
+name: Native Module CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Build Native Module
+        run: |
+          cd crates/safe-change-native
+          npx napi build --platform --release
+        shell: bash
+
+      - name: Copy native binary to dist and src
+        run: |
+          mkdir -p dist/native src/native
+          find crates/safe-change-native -name "*.node" -exec cp {} src/native/safe-change-native.node \; || true
+          find crates/safe-change-native -name "*.node" -exec cp {} dist/native/safe-change-native.node \; || true
+        shell: bash
+
+      - name: Upload native artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-binary-${{ matrix.os }}
+          path: crates/safe-change-native/*.node
+          if-no-files-found: warn
+
+      - name: Run tests
+        run: npm test

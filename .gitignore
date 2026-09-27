@@ -3,5 +3,7 @@ dist/
 .safe-change/
 *.tsbuildinfo
 coverage/
+target/
+*.node
 .DS_Store
 Thumbs.db
