@@ -172,6 +172,7 @@ export function renderDashboardHtml(): string {
       50% { opacity: 0.35; transform: scale(0.85); }
     }
 
+    /* Hero Stats with Fintech Transfer Card Opacity Aesthetic */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -183,12 +184,41 @@ export function renderDashboardHtml(): string {
       display: flex;
       flex-direction: column;
       gap: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card-watermark {
+      position: absolute;
+      right: 12px;
+      bottom: 6px;
+      width: 68px;
+      height: 68px;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .stat-card:hover .stat-card-watermark {
+      opacity: 0.14;
+      transform: scale(1.08);
+    }
+
+    .stat-card-watermark svg {
+      width: 100%;
+      height: 100%;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.5;
     }
 
     .stat-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: relative;
+      z-index: 1;
     }
 
     .stat-label {
@@ -199,16 +229,45 @@ export function renderDashboardHtml(): string {
       color: var(--text-caption);
     }
 
-    .stat-icon {
-      color: var(--text-caption);
+    .stat-badge-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s ease, color 0.2s ease;
     }
 
-    .stat-icon svg {
-      width: 15px;
-      height: 15px;
+    .stat-badge-icon svg {
+      width: 16px;
+      height: 16px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .stat-badge-blue {
+      background: var(--apple-blue-bg);
+      color: var(--apple-blue);
+    }
+
+    .stat-badge-purple {
+      background: var(--apple-purple-bg);
+      color: var(--apple-purple);
+    }
+
+    .stat-badge-orange {
+      background: var(--apple-orange-bg);
+      color: var(--apple-orange);
+    }
+
+    .stat-badge-state {
+      background: var(--apple-green-bg);
+      color: var(--apple-green);
     }
 
     .stat-value {
@@ -218,11 +277,15 @@ export function renderDashboardHtml(): string {
       color: var(--text-main);
       line-height: 1.15;
       margin: 2px 0;
+      position: relative;
+      z-index: 1;
     }
 
     .stat-sub {
       font-size: 12px;
       color: var(--text-caption);
+      position: relative;
+      z-index: 1;
     }
 
     .panels-grid {
@@ -776,45 +839,61 @@ export function renderDashboardHtml(): string {
     </header>
 
     <div class="stats-grid">
+      <!-- Card 1: System State -->
       <div class="stat-card liquid-glass">
+        <div class="stat-card-watermark" id="stat-state-watermark" style="color: var(--apple-green);">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        </div>
         <div class="stat-header">
           <span class="stat-label">System State</span>
-          <span class="stat-icon">
+          <div class="stat-badge-icon stat-badge-state" id="stat-state-badge">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-          </span>
+          </div>
         </div>
         <div class="stat-value" id="stat-system-state">Scanning...</div>
         <span class="stat-sub" id="stat-system-sub">Verification guardrail</span>
       </div>
 
+      <!-- Card 2: Monitored Baseline -->
       <div class="stat-card liquid-glass">
+        <div class="stat-card-watermark" style="color: var(--apple-blue);">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
         <div class="stat-header">
           <span class="stat-label">Monitored Baseline</span>
-          <span class="stat-icon">
+          <div class="stat-badge-icon stat-badge-blue">
             <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          </span>
+          </div>
         </div>
         <div class="stat-value mono" id="stat-baseline-files">--</div>
         <span class="stat-sub" id="stat-baseline-desc">Active repository scope</span>
       </div>
 
+      <!-- Card 3: Safety History -->
       <div class="stat-card liquid-glass">
+        <div class="stat-card-watermark" style="color: var(--apple-purple);">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
         <div class="stat-header">
           <span class="stat-label">Safety History</span>
-          <span class="stat-icon">
+          <div class="stat-badge-icon stat-badge-purple">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </span>
+          </div>
         </div>
         <div class="stat-value mono" id="stat-runs-count">--</div>
         <span class="stat-sub" id="stat-runs-sub">Persistent safety log entries</span>
       </div>
 
+      <!-- Card 4: Active Guardrails -->
       <div class="stat-card liquid-glass">
+        <div class="stat-card-watermark" style="color: var(--apple-orange);">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
         <div class="stat-header">
           <span class="stat-label">Active Guardrails</span>
-          <span class="stat-icon">
+          <div class="stat-badge-icon stat-badge-orange">
             <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </span>
+          </div>
         </div>
         <div class="stat-value mono" id="stat-rules-count">--</div>
         <span class="stat-sub" id="stat-rules-sub">Configured safety policies</span>
@@ -950,6 +1029,8 @@ export function renderDashboardHtml(): string {
     function updateHeroStats(status, logs, rules) {
       const stateEl = document.getElementById('stat-system-state');
       const stateSub = document.getElementById('stat-system-sub');
+      const stateBadge = document.getElementById('stat-state-badge');
+      const stateWatermark = document.getElementById('stat-state-watermark');
       const baselineFilesEl = document.getElementById('stat-baseline-files');
       const baselineDescEl = document.getElementById('stat-baseline-desc');
       const runsCountEl = document.getElementById('stat-runs-count');
@@ -959,12 +1040,33 @@ export function renderDashboardHtml(): string {
       if (hasRegression) {
         stateEl.innerHTML = '<span style="color: var(--apple-red);">Regression</span>';
         stateSub.textContent = 'Active regression flagged';
+        if (stateBadge) {
+          stateBadge.style.background = 'var(--apple-red-bg)';
+          stateBadge.style.color = 'var(--apple-red)';
+        }
+        if (stateWatermark) {
+          stateWatermark.style.color = 'var(--apple-red)';
+        }
       } else if (status && status.hasBaseline) {
         stateEl.innerHTML = '<span style="color: var(--apple-green);">Nominal</span>';
         stateSub.textContent = 'All passing, zero regressions';
+        if (stateBadge) {
+          stateBadge.style.background = 'var(--apple-green-bg)';
+          stateBadge.style.color = 'var(--apple-green)';
+        }
+        if (stateWatermark) {
+          stateWatermark.style.color = 'var(--apple-green)';
+        }
       } else {
         stateEl.innerHTML = '<span style="color: var(--apple-orange);">No Baseline</span>';
         stateSub.textContent = 'Execute safe-change save';
+        if (stateBadge) {
+          stateBadge.style.background = 'var(--apple-orange-bg)';
+          stateBadge.style.color = 'var(--apple-orange)';
+        }
+        if (stateWatermark) {
+          stateWatermark.style.color = 'var(--apple-orange)';
+        }
       }
 
       if (status && status.hasBaseline) {
