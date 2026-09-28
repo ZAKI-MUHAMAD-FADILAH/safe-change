@@ -27,7 +27,6 @@ const WEIGHTS: Readonly<Record<RiskCategory, number>> = {
 const LOCKFILE_PATTERN =
   /(^|\/)(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|Cargo\.lock|poetry\.lock|Pipfile\.lock|go\.sum)$/i;
 const DOC_PATTERN = /(^|\/)(docs?\/|[^/]+\.(md|mdx|rst|txt)$)/i;
-const TEST_PATTERN = /(^|\/)(__tests__|tests?|specs?)\/|(\.test|\.spec)\.[^/]+$/i;
 const SOURCE_PATTERN =
   /(^|\/)(src|lib|app|packages|crates)\/|\.(ts|tsx|js|jsx|mjs|cjs|rs|go|py|java|kt|swift|cs|cpp|c|h)$/i;
 const DEPENDENCY_PATTERN =
@@ -48,6 +47,19 @@ const DOWNGRADE_PATTERNS: readonly RegExp[] = [
   /^\+.*\b(CodeQL|security|provenance|required checks?)\b.*\b(disable|false|off|skip)\b/im,
   /^\+.*uses:\s*[^@\s]+@(main|master|latest|v\d+)\s*$/im,
 ];
+
+function isTestPath(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/").toLowerCase();
+  const segments = normalized.split("/");
+  const basename = segments.at(-1) ?? "";
+  return (
+    segments.some((segment) =>
+      ["__tests__", "test", "tests", "spec", "specs"].includes(segment)
+    ) ||
+    basename.includes(".test.") ||
+    basename.includes(".spec.")
+  );
+}
 
 export interface AssessChangeInput {
   readonly files: FileChanges;
@@ -88,7 +100,7 @@ function classifyPaths(
   };
 
   add("documentation", paths.filter((path) => DOC_PATTERN.test(path)), "Documentation changed.");
-  add("test", paths.filter((path) => TEST_PATTERN.test(path)), "Test code changed.");
+  add("test", paths.filter(isTestPath), "Test code changed.");
   add("source", paths.filter((path) => SOURCE_PATTERN.test(path)), "Source code changed.");
   add("dependency", paths.filter((path) => DEPENDENCY_PATTERN.test(path)), "Dependency metadata or lockfiles changed.");
   add("ci", paths.filter((path) => CI_PATTERN.test(path)), "CI or build automation changed.");
@@ -100,7 +112,7 @@ function classifyPaths(
   if (DOWNGRADE_PATTERNS.some((pattern) => pattern.test(diffText))) {
     add(
       "guardrail-downgrade",
-      paths.filter((path) => CI_PATTERN.test(path) || TEST_PATTERN.test(path)),
+      paths.filter((path) => CI_PATTERN.test(path) || isTestPath(path)),
       "Diff contains a potential test, CI, coverage, provenance, or immutable-reference downgrade."
     );
   }

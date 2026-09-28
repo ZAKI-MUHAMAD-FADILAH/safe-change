@@ -90,6 +90,20 @@ describe("enterprise risk engine", () => {
     expect(result.requiredMode).toBe("enhanced");
   });
 
+  it("classifies adversarial test-like paths without a backtracking regular expression", () => {
+    const longPath = `${".spec.".repeat(10_000)}fixture.ts`;
+    const result = assessChange({
+      files: { ...NO_CHANGES, modified: [longPath] },
+      linesAdded: 1,
+      linesDeleted: 0,
+      policy: DEFAULT_ENTERPRISE_POLICY,
+      hasBaseline: true,
+      configuredCheckNames: ["test"],
+    });
+
+    expect(result.signals.some((signal) => signal.category === "test")).toBe(true);
+  });
+
   it("detects anti-policy-downgrade diff patterns as blocking", () => {
     const result = assessChange({
       files: {
