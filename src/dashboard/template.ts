@@ -825,7 +825,7 @@ export function renderDashboardHtml(): string {
         <div>
           <div class="brand-title">
             safe-change dashboard
-            <span class="badge badge-info" style="font-size: 10px; padding: 1px 6px;">v0.2.0</span>
+            <span class="badge badge-info" style="font-size: 10px; padding: 1px 6px;">v0.3.0</span>
           </div>
           <div class="brand-desc">Autonomous verification telemetry and safety sentinel</div>
         </div>

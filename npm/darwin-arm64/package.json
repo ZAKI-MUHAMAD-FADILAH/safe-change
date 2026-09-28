@@ -1,10 +1,16 @@
 {
   "name": "@safe-change/darwin-arm64",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "description": "Native binary for safe-change on darwin-arm64",
-  "os": ["darwin"],
-  "cpu": ["arm64"],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "main": "safe-change-native.node",
-  "files": ["safe-change-native.node"],
+  "files": [
+    "safe-change-native.node"
+  ],
   "license": "AGPL-3.0-only"
 }

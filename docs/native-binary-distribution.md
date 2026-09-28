@@ -38,7 +38,7 @@ Compilation and distribution are automated via `.github/workflows/native-build.y
   ```json
   {
     "name": "@safe-change/win32-x64-msvc",
-    "version": "0.1.1",
+    "version": "0.3.0",
     "os": ["win32"],
     "cpu": ["x64"],
     "main": "safe-change-native.node"

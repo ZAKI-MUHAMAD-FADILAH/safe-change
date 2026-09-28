@@ -1,6 +1,6 @@
 {
   "name": "safe-change",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A local-first safety net for AI-assisted coding. Records baselines, detects regressions, and helps investigate changes without silently altering your work.",
   "type": "module",
   "bin": {
@@ -38,7 +38,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
-    "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
+    "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\"",
+    "version:sync": "node scripts/sync-version.mjs"
   },
   "keywords": [
     "ai",

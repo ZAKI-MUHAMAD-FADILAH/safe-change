@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-28
+
+### Added
+- safe-change init command: auto-detects test runners across Node.js,
+  Rust (Cargo), Go, Python, and Makefile, creates .safe-change.json,
+  and adds .safe-change/ to .gitignore automatically
+- safe-change diff --stat flag: computes and displays line-level additions
+  and removals for working tree changes relative to baseline
+- Multi-agent runtime verification matrix in docs/runtime-verification.md
+  with test specifications for all 10 supported AI coding agents
+- Version synchronization tooling via scripts/sync-version.mjs and
+  npm run version:sync script to maintain monorepo parity across
+  root package, crates/safe-change-native, and npm platform packages
+
+### Changed
+- Clarified commercial AGPL-3.0 copyleft boundaries in README.md:
+  unmodified CLI, MCP server, and CI/CD usage does not trigger copyleft
+- Synchronized crates/safe-change-native/Cargo.toml and all 7 platform
+  packages under npm/ to version 0.3.0
+- Updated local dashboard badge to v0.3.0
+
 ## [0.2.0] - 2026-09-28
 
 ### Added

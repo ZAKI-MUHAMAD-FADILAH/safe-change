@@ -56,7 +56,15 @@ Status labels: Done | In Progress | Planned
 - Blocking rule violations with exit code 1 and warning rules
   integrated into safe-change check and safety log
 
-## v0.3.0 -- Advanced Observability & Collaboration (Planned)
+## v0.3.0 -- Developer Ergonomics & Monorepo Synchronization (Done)
+
+- safe-change init with multi-ecosystem test runner auto-detection
+- safe-change diff --stat line change statistics calculation
+- Multi-agent runtime verification matrix and test specifications
+- Commercial AGPL-3.0 copyleft boundaries clarified
+- Unified version synchronization across Rust crate and 7 npm platform packages
+
+## v0.4.0 -- Advanced Observability & Collaboration (Planned)
 
 - File Change Drawer with syntax-highlighted diffs
 - Multi-Agent Presence Badge and agent identification

@@ -2,13 +2,14 @@
 
 ## Status
 
-safe-change v0.2.0 is publicly released on npm and actively maintained. This document describes the security boundaries, threat models, and operational invariants implemented in the system.
+safe-change v0.3.0 is publicly released on npm and actively maintained. This document describes the security boundaries, threat models, and operational invariants implemented in the system.
 
 ## Supported versions
 
 | Version | Supported | Security Update Policy |
 | :--- | :--- | :--- |
-| `0.2.x` | Yes | Active patches and security fixes |
+| `0.3.x` | Yes | Active patches and security fixes |
+| `0.2.x` | Yes | Maintenance security fixes |
 | `< 0.2.0` | No | Upgrade to latest release |
 
 ## Reporting a vulnerability
