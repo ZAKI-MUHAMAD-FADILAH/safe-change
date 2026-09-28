@@ -151,7 +151,7 @@ describe("scripts/validate-release.mjs", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("package.json version mismatch"))).toBe(true);
+      expect(result.errors.some((e) => Boolean(e?.includes("package.json version mismatch")))).toBe(true);
     });
 
     it("rejects when an active native optionalDependency version mismatches", () => {
@@ -169,7 +169,7 @@ describe("scripts/validate-release.mjs", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("@safe-change/linux-x64-gnu"))).toBe(true);
+      expect(result.errors.some((e) => Boolean(e?.includes("@safe-change/linux-x64-gnu")))).toBe(true);
     });
 
     it("rejects when Cargo.toml version mismatches", () => {
@@ -185,7 +185,7 @@ describe("scripts/validate-release.mjs", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("Cargo.toml version mismatch"))).toBe(true);
+      expect(result.errors.some((e) => Boolean(e?.includes("Cargo.toml version mismatch")))).toBe(true);
     });
 
     it("rejects when a platform package version mismatches", () => {
@@ -201,7 +201,7 @@ describe("scripts/validate-release.mjs", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("npm/win32-x64-msvc/package.json version mismatch"))).toBe(true);
+      expect(result.errors.some((e) => Boolean(e?.includes("npm/win32-x64-msvc/package.json version mismatch")))).toBe(true);
     });
 
     it("rejects when CHANGELOG does not contain the target version in strict mode", () => {
@@ -217,7 +217,7 @@ describe("scripts/validate-release.mjs", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("CHANGELOG.md does not contain release section"))).toBe(true);
+      expect(result.errors.some((e) => Boolean(e?.includes("CHANGELOG.md does not contain release section")))).toBe(true);
     });
 
     it("accepts [Unreleased] section when allowUnreleased is enabled with a warning", () => {
@@ -248,7 +248,7 @@ describe("scripts/validate-release.mjs", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("release section for [0.3.1] is empty"))).toBe(true);
+      expect(result.errors.some((e) => Boolean(e?.includes("release section for [0.3.1] is empty")))).toBe(true);
     });
   });
 });

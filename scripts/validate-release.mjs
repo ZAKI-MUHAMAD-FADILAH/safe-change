@@ -12,6 +12,10 @@ export const ACTIVE_NATIVE_TARGETS = [
   "darwin-x64",
 ];
 
+/**
+ * @param {string} [tag]
+ * @returns {{ valid: true, version: string } | { valid: false, error: string }}
+ */
 export function validateTagFormat(tag) {
   if (typeof tag !== "string" || !SEMVER_TAG_REGEX.test(tag.trim())) {
     return {
@@ -95,13 +99,35 @@ export function extractChangelogSection(content, targetVersion) {
   return strippedText.trim();
 }
 
+/**
+ * @typedef {object} ValidateReleaseOptions
+ * @property {string} [rootDir]
+ * @property {string} [tag]
+ * @property {boolean} [allowUnreleased]
+ * @property {boolean} [checkGitStatus]
+ */
+
+/**
+ * @typedef {object} ValidateReleaseResult
+ * @property {boolean} valid
+ * @property {string} [expectedVersion]
+ * @property {string[]} errors
+ * @property {string[]} warnings
+ */
+
+/**
+ * @param {ValidateReleaseOptions} [options]
+ * @returns {ValidateReleaseResult}
+ */
 export function validateRelease({
   rootDir = resolve("."),
-  tag,
+  tag = undefined,
   allowUnreleased = false,
   checkGitStatus = true,
 } = {}) {
+  /** @type {string[]} */
   const errors = [];
+  /** @type {string[]} */
   const warnings = [];
 
   // 1. Tag format
