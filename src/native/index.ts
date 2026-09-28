@@ -12,36 +12,118 @@ export interface NativeModule {
   unlockFile(handle: number): boolean;
 }
 
-function loadNative(): NativeModule | null {
+export type NativeLoadStatus =
+  | "loaded"
+  | "disabled"
+  | "unsupported-platform"
+  | "package-not-installed"
+  | "binary-load-failed";
+
+export interface NativeLoadResult {
+  readonly module: NativeModule | null;
+  readonly status: NativeLoadStatus;
+  readonly packageName: string | null;
+  readonly error?: string;
+}
+
+export function isMusl(): boolean {
+  if (process.platform !== "linux") return false;
+  try {
+    const report = (process as unknown as { report?: { getReport?: () => { header?: { glibcVersionRuntime?: string } } } }).report?.getReport?.();
+    if (report && typeof report === "object" && report.header?.glibcVersionRuntime) {
+      return false;
+    }
+  } catch {
+    // Ignore
+  }
+  const glibcVersion = (process as unknown as { config?: { variables?: { glibc_version?: string } } }).config?.variables?.glibc_version;
+  if (glibcVersion) {
+    return false;
+  }
+  return true;
+}
+
+export function getExpectedPlatformPackage(): string | null {
+  const { platform, arch } = process;
+
+  if (platform === "darwin") {
+    if (arch === "arm64") return "@safe-change/darwin-arm64";
+    if (arch === "x64") return "@safe-change/darwin-x64";
+  } else if (platform === "linux") {
+    if (arch === "x64") {
+      return isMusl() ? "@safe-change/linux-x64-musl" : "@safe-change/linux-x64-gnu";
+    }
+    if (arch === "arm64") {
+      return "@safe-change/linux-arm64-gnu";
+    }
+  } else if (platform === "win32") {
+    if (arch === "x64") return "@safe-change/win32-x64-msvc";
+    if (arch === "arm64") return "@safe-change/win32-arm64-msvc";
+  }
+
+  return null;
+}
+
+let lastLoadResult: NativeLoadResult | null = null;
+
+export function loadNativeWithStatus(): NativeLoadResult {
   if (process.env["SAFE_CHANGE_NATIVE_DISABLED"] === "1") {
-    return null;
+    return { module: null, status: "disabled", packageName: null };
+  }
+
+  const expectedPkg = getExpectedPlatformPackage();
+  if (expectedPkg === null) {
+    return {
+      module: null,
+      status: "unsupported-platform",
+      packageName: null,
+      error: `Unsupported platform/architecture: ${process.platform}-${process.arch}`,
+    };
   }
 
   const require = createRequire(import.meta.url);
-  const platforms = [
-    "@safe-change/darwin-arm64",
-    "@safe-change/darwin-x64",
-    "@safe-change/linux-x64-gnu",
-    "@safe-change/linux-arm64-gnu",
-    "@safe-change/linux-x64-musl",
-    "@safe-change/win32-x64-msvc",
-    "@safe-change/win32-arm64-msvc",
-  ];
 
-  for (const pkg of platforms) {
-    try {
-      return require(pkg) as NativeModule;
-    } catch {
-      continue;
+  // 1. Try targeted platform package
+  try {
+    const mod = require(expectedPkg) as NativeModule;
+    return { module: mod, status: "loaded", packageName: expectedPkg };
+  } catch (err: unknown) {
+    const isNotFound =
+      err && typeof err === "object" && (err as { code?: string }).code === "MODULE_NOT_FOUND";
+
+    if (!isNotFound) {
+      return {
+        module: null,
+        status: "binary-load-failed",
+        packageName: expectedPkg,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 
-  // Fallback: local native binary
+  // 2. Try local native binary fallback (dev or direct build)
   try {
-    return require("./safe-change-native.node") as NativeModule;
+    const local = require("./safe-change-native.node") as NativeModule;
+    return { module: local, status: "loaded", packageName: expectedPkg };
   } catch {
-    return null;
+    return {
+      module: null,
+      status: "package-not-installed",
+      packageName: expectedPkg,
+    };
   }
+}
+
+function loadNative(): NativeModule | null {
+  lastLoadResult = loadNativeWithStatus();
+  return lastLoadResult.module;
+}
+
+export function getNativeLoadStatus(): NativeLoadStatus {
+  if (!native && !lastLoadResult) {
+    native = loadNative();
+  }
+  return lastLoadResult ? lastLoadResult.status : (native ? "loaded" : "package-not-installed");
 }
 
 export function getNativeVersion(): string {

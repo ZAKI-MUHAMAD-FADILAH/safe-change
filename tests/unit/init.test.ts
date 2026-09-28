@@ -50,7 +50,7 @@ describe("init command", () => {
     expect(detected.checks.map((c) => c.name)).toEqual(["test", "check"]);
   });
 
-  it("creates .safe-change.json and adds .safe-change/ to .gitignore", async () => {
+  it("creates .safe-change.json and leaves .gitignore untouched by default", async () => {
     const pkg = {
       name: "demo",
       scripts: { test: "jest" },
@@ -69,7 +69,57 @@ describe("init command", () => {
     expect(config.checks[0].name).toBe("test");
 
     const gitignoreContent = await readFile(join(tempDir, ".gitignore"), "utf-8");
+    expect(gitignoreContent).toBe("node_modules/\n");
+    expect(gitignoreContent).not.toContain(".safe-change/");
+  });
+
+  it("updates .gitignore when --update-gitignore is explicitly provided", async () => {
+    await writeFile(join(tempDir, ".gitignore"), "node_modules/\n");
+
+    process.chdir(tempDir);
+    const code = await runInit({ format: "json", updateGitignore: true });
+    expect(code).toBe(ExitCodes.OK);
+
+    const gitignoreContent = await readFile(join(tempDir, ".gitignore"), "utf-8");
     expect(gitignoreContent).toContain(".safe-change/");
+    expect(gitignoreContent).toContain("node_modules/");
+  });
+
+  it("ensures --update-gitignore is idempotent and does not create duplicate entries", async () => {
+    await writeFile(join(tempDir, ".gitignore"), "node_modules/\n.safe-change/\n");
+
+    process.chdir(tempDir);
+    const code = await runInit({ format: "json", overwrite: true, updateGitignore: true });
+    expect(code).toBe(ExitCodes.OK);
+
+    const gitignoreContent = await readFile(join(tempDir, ".gitignore"), "utf-8");
+    const matches = gitignoreContent.match(/\.safe-change\//g);
+    expect(matches).toHaveLength(1);
+  });
+
+  it("preserves CRLF line endings when updating .gitignore", async () => {
+    await writeFile(join(tempDir, ".gitignore"), "node_modules/\r\ndist/\r\n");
+
+    process.chdir(tempDir);
+    const code = await runInit({ format: "json", overwrite: true, updateGitignore: true });
+    expect(code).toBe(ExitCodes.OK);
+
+    const gitignoreContent = await readFile(join(tempDir, ".gitignore"), "utf-8");
+    expect(gitignoreContent).toContain("\r\n");
+    expect(gitignoreContent).toContain(".safe-change/\r\n");
+    expect(gitignoreContent.includes("\n") && !gitignoreContent.includes("\r\n")).toBe(false);
+  });
+
+  it("preserves LF line endings when updating .gitignore", async () => {
+    await writeFile(join(tempDir, ".gitignore"), "node_modules/\ndist/\n");
+
+    process.chdir(tempDir);
+    const code = await runInit({ format: "json", overwrite: true, updateGitignore: true });
+    expect(code).toBe(ExitCodes.OK);
+
+    const gitignoreContent = await readFile(join(tempDir, ".gitignore"), "utf-8");
+    expect(gitignoreContent).not.toContain("\r");
+    expect(gitignoreContent).toContain(".safe-change/\n");
   });
 
   it("aborts with COLLISION_DETECTED if .safe-change.json exists without overwrite", async () => {

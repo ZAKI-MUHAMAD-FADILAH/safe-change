@@ -60,7 +60,8 @@ export function renderSaveResult(
   checksPassed: number,
   fileCount: number,
   baselinePath: string,
-  gitignoreWarning: boolean
+  gitignoreWarning: boolean,
+  verification?: import("../types/index.js").VerificationInfo
 ): string {
   if (format === "json") {
     return JSON.stringify(
@@ -71,6 +72,7 @@ export function renderSaveResult(
         fileCount,
         baselinePath,
         gitignoreWarning,
+        verification: verification ?? null,
       },
       null,
       2
@@ -90,6 +92,13 @@ export function renderSaveResult(
         : ""
     }`
   );
+  if (verification) {
+    if (verification.state === "verified") {
+      lines.push(c(GREEN, `  Verification:  VERIFIED (${verification.reason})`));
+    } else {
+      lines.push(c(YELLOW, `  Verification:  NOT VERIFIED (${verification.reason})`));
+    }
+  }
   lines.push(`  Stored at:     ${baselinePath}`);
 
   if (gitignoreWarning) {
@@ -270,9 +279,44 @@ export function renderCheckReport(
   lines.push(c(DIM, `    Unchanged: ${fc.unchangedCount}`));
   lines.push("");
 
+  // Verification status
+  if (report.verification) {
+    const v = report.verification;
+    lines.push(c(BOLD, "  Verification Status:"));
+    if (v.state === "verified") {
+      lines.push(c(GREEN, `    State: VERIFIED (${v.reason})`));
+    } else if (v.state === "failed") {
+      lines.push(c(RED, `    State: FAILED (${v.reason})`));
+    } else {
+      lines.push(c(YELLOW, `    State: NOT VERIFIED (${v.reason})`));
+    }
+    lines.push(
+      c(
+        DIM,
+        `    Configured checks: ${v.configuredChecksCount} | Executed: ${v.executedChecksCount} | Active rules: ${v.activeRulesCount}`
+      )
+    );
+    lines.push("");
+  }
+
+  // Safety rules
+  if (report.rulesState) {
+    const rs = report.rulesState;
+    if (rs.status === "not-configured") {
+      lines.push(c(DIM, "  Safety Rules: None configured (rules.json not found)"));
+      lines.push("");
+    } else if (rs.status === "empty") {
+      lines.push(c(DIM, "  Safety Rules: Configured file exists but contains 0 active rules"));
+      lines.push("");
+    } else if (rs.status === "loaded" && (!report.ruleViolations || report.ruleViolations.length === 0)) {
+      lines.push(c(DIM, `  Safety Rules: ${rs.rules.length} active rule(s) evaluated - no violations`));
+      lines.push("");
+    }
+  }
+
   // Safety rules violations
   if (report.ruleViolations && report.ruleViolations.length > 0) {
-    lines.push(c(BOLD, "  Safety Rules:"));
+    lines.push(c(BOLD, "  Safety Rules Violations:"));
     for (const v of report.ruleViolations) {
       const tag = v.severity === "error" ? c(RED, "    [ERROR]") : c(YELLOW, "    [WARN] ");
       lines.push(`${tag} ${c(BOLD, v.ruleName)} (${v.ruleId}): ${v.message}`);

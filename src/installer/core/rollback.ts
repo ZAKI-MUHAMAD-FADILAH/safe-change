@@ -17,28 +17,51 @@ export class RollbackError extends Error {
 
 // Registry of active rollback sessions for cleanup
 const activeRollbackSessions = new Set<RollbackSession>();
-let signalsRegistered = false;
+let rollbackSignalsAttached = false;
 
-function registerRollbackSignals(): void {
-  if (signalsRegistered) {
+function handleRollbackSignal(signal: "SIGINT" | "SIGTERM"): void {
+  const sessions = Array.from(activeRollbackSessions);
+  for (const session of sessions) {
+    try {
+      session.restore();
+      session.cleanup();
+    } catch {
+      // Best effort during termination
+    }
+  }
+  activeRollbackSessions.clear();
+  detachRollbackSignals();
+
+  if (process.platform === "win32") {
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  } else {
+    try {
+      process.kill(process.pid, signal);
+    } catch {
+      process.exit(signal === "SIGINT" ? 130 : 143);
+    }
+  }
+}
+
+const onRollbackSigInt = () => handleRollbackSignal("SIGINT");
+const onRollbackSigTerm = () => handleRollbackSignal("SIGTERM");
+
+function attachRollbackSignals(): void {
+  if (rollbackSignalsAttached) {
     return;
   }
-  signalsRegistered = true;
+  rollbackSignalsAttached = true;
+  process.on("SIGINT", onRollbackSigInt);
+  process.on("SIGTERM", onRollbackSigTerm);
+}
 
-  const onSignal = () => {
-    for (const session of activeRollbackSessions) {
-      try {
-        session.restore();
-        session.cleanup();
-      } catch {
-        // Best effort during termination
-      }
-    }
-    activeRollbackSessions.clear();
-  };
-
-  process.once("SIGINT", onSignal);
-  process.once("SIGTERM", onSignal);
+function detachRollbackSignals(): void {
+  if (!rollbackSignalsAttached) {
+    return;
+  }
+  rollbackSignalsAttached = false;
+  process.removeListener("SIGINT", onRollbackSigInt);
+  process.removeListener("SIGTERM", onRollbackSigTerm);
 }
 
 export interface RollbackOptions {
@@ -67,8 +90,8 @@ export class RollbackSession {
     const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     this.backupDir = path.join(parentDir, `.rollback-safe-change-${uniqueId}`);
 
-    registerRollbackSignals();
     activeRollbackSessions.add(this);
+    attachRollbackSignals();
   }
 
   /**
@@ -151,6 +174,9 @@ export class RollbackSession {
       // Best effort cleanup
     } finally {
       activeRollbackSessions.delete(this);
+      if (activeRollbackSessions.size === 0) {
+        detachRollbackSignals();
+      }
     }
   }
 

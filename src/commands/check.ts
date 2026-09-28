@@ -11,7 +11,7 @@ import { executeAllChecks } from "../runner/executor.js";
 import { buildReport } from "../comparator/engine.js";
 import { renderCheckReport, renderError } from "../output/renderer.js";
 import { updateLastEntry } from "../log/log-manager.js";
-import { loadRules } from "../rules/manager.js";
+import { loadRulesResult } from "../rules/manager.js";
 import { evaluateRules } from "../rules/engine.js";
 
 export interface CheckOptions {
@@ -131,11 +131,22 @@ export async function runCheck(options: CheckOptions): Promise<number> {
     // Git inspection error should not prevent check report
   }
 
-  // Evaluate safety rules
-  try {
-    const rules = await loadRules(repoRoot);
-    if (rules.length > 0) {
-      const ruleEvaluation = evaluateRules(rules, report.files, report.results);
+  // Evaluate safety rules (fail-closed)
+  const rulesState = await loadRulesResult(repoRoot);
+  if (rulesState.status === "invalid") {
+    process.stderr.write(
+      renderError(
+        format,
+        `Invalid safety rules configuration: ${rulesState.error}`,
+        ExitCodes.CONFIG_ERROR
+      )
+    );
+    return ExitCodes.CONFIG_ERROR;
+  }
+
+  if (rulesState.status === "loaded" && rulesState.rules.length > 0) {
+    try {
+      const ruleEvaluation = evaluateRules(rulesState.rules, report.files, report.results);
       if (ruleEvaluation.violations.length > 0) {
         const exitCode =
           ruleEvaluation.errorCount > 0 ? ExitCodes.NEW_FAILURE : report.exitCode;
@@ -145,10 +156,64 @@ export async function runCheck(options: CheckOptions): Promise<number> {
           ruleViolations: ruleEvaluation.violations,
         };
       }
+    } catch (err: unknown) {
+      process.stderr.write(
+        renderError(
+          format,
+          `Safety rules evaluation error: ${err instanceof Error ? err.message : String(err)}`,
+          ExitCodes.INTERNAL_ERROR
+        )
+      );
+      return ExitCodes.INTERNAL_ERROR;
     }
-  } catch {
-    // Safety rules evaluation error should not prevent check report
   }
+
+  // Verification state computation
+  const activeRulesCount = rulesState.rules.length;
+  const configuredChecksCount = config.checks.length;
+  const executedChecksCount = report.results.length;
+
+  let verificationState: "verified" | "failed" | "not-verified";
+  let verificationReason: string;
+
+  const hasNewFailures = report.summary.newFailures > 0;
+  const hasBlockingRuleViolations = (report.ruleViolations ?? []).some(
+    (v) => v.severity === "error"
+  );
+
+  if (hasNewFailures || hasBlockingRuleViolations) {
+    verificationState = "failed";
+    verificationReason = hasBlockingRuleViolations
+      ? "Safety rule violation detected"
+      : "Regression detected in check results";
+  } else if (configuredChecksCount === 0 && activeRulesCount === 0) {
+    verificationState = "not-verified";
+    verificationReason = "Zero checks and zero rules configured; file changes tracked only";
+  } else if (configuredChecksCount === 0) {
+    verificationState = "not-verified";
+    verificationReason = "No verification checks configured; file changes and rules only";
+  } else if (
+    executedChecksCount > 0 &&
+    report.summary.definitionChanged === executedChecksCount
+  ) {
+    verificationState = "not-verified";
+    verificationReason = "All check definitions changed since baseline; results not comparable";
+  } else {
+    verificationState = "verified";
+    verificationReason = "All verification checks passed without regressions";
+  }
+
+  report = {
+    ...report,
+    rulesState,
+    verification: {
+      state: verificationState,
+      reason: verificationReason,
+      configuredChecksCount,
+      executedChecksCount,
+      activeRulesCount,
+    },
+  };
 
   // 7. Update safety log
   try {

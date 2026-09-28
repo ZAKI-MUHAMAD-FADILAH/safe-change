@@ -1078,7 +1078,8 @@ export function renderDashboardHtml(): string {
       }
 
       runsCountEl.textContent = logs.length;
-      rulesCountEl.textContent = Array.isArray(rules) ? rules.length : 0;
+      const rulesList = Array.isArray(rules) ? rules : (rules && Array.isArray(rules.rules) ? rules.rules : []);
+      rulesCountEl.textContent = rulesList.length;
     }
 
     function renderStatus(status) {
@@ -1350,16 +1351,37 @@ export function renderDashboardHtml(): string {
       }).join('');
     }
 
-    function renderRules(rules) {
+    function renderRules(rulesData) {
       const container = document.getElementById('rules-content');
       const badge = document.getElementById('rules-count-badge');
+
+      const isObject = rulesData && typeof rulesData === 'object' && !Array.isArray(rulesData);
+      const status = isObject ? rulesData.status : (Array.isArray(rulesData) ? 'loaded' : 'not-configured');
+      const rules = isObject ? (rulesData.rules || []) : (Array.isArray(rulesData) ? rulesData : []);
+      const errorMsg = isObject ? rulesData.error : null;
+
+      if (status === 'invalid') {
+        badge.className = 'badge badge-regression';
+        badge.textContent = 'Invalid Config';
+        container.innerHTML = '<div class=\"empty-state\" style=\"color: var(--apple-red);\">Configuration error in rules.json: ' + (errorMsg || 'Invalid schema or syntax') + '</div>';
+        return;
+      }
+
+      if (status === 'empty') {
+        badge.className = 'badge';
+        badge.style.background = 'rgba(0,0,0,0.04)';
+        badge.style.color = 'var(--text-caption)';
+        badge.textContent = '0 Rules (Empty)';
+        container.innerHTML = '<div class=\"empty-state\">Rules file exists but contains no active rules.</div>';
+        return;
+      }
 
       if (!rules || rules.length === 0) {
         badge.className = 'badge';
         badge.style.background = 'rgba(0,0,0,0.04)';
         badge.style.color = 'var(--text-caption)';
         badge.textContent = '0 Rules';
-        container.innerHTML = '<div class="empty-state">No rules configured. Run <code>safe-change rules add &lt;id&gt;</code> to activate guardrails.</div>';
+        container.innerHTML = '<div class=\"empty-state\">No rules configured. Run <code>safe-change rules add &lt;id&gt;</code> to activate guardrails.</div>';
         return;
       }
 

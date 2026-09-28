@@ -179,4 +179,67 @@ describe("Rules command integration", () => {
     expect(stdoutData).toContain("no-modify-lockfile");
     expect(stdoutData).toContain("[WARN]");
   });
+
+  it("safe-change check fails closed when rules.json is malformed JSON", async () => {
+    await runSave({ description: "baseline", format: "terminal" });
+    const rulesDir = join(repo.path, ".safe-change");
+    await writeFile(join(rulesDir, "rules.json"), "{ broken json");
+
+    stdoutData = "";
+    stderrData = "";
+    const checkCode = await runCheck({ format: "terminal" });
+    expect(checkCode).toBe(ExitCodes.CONFIG_ERROR);
+    expect(stderrData).toContain("Invalid safety rules configuration");
+
+    // JSON format check
+    stdoutData = "";
+    stderrData = "";
+    const jsonCode = await runCheck({ format: "json" });
+    expect(jsonCode).toBe(ExitCodes.CONFIG_ERROR);
+    const parsedError = JSON.parse(stderrData);
+    expect(parsedError.exitCode).toBe(ExitCodes.CONFIG_ERROR);
+    expect(parsedError.error).toContain("Invalid safety rules configuration");
+  });
+
+  it("safe-change check handles missing rules.json gracefully with not-configured state", async () => {
+    await runSave({ description: "baseline", format: "terminal" });
+
+    stdoutData = "";
+    const checkCode = await runCheck({ format: "json" });
+    expect(checkCode).toBe(ExitCodes.OK);
+    const parsed = JSON.parse(stdoutData);
+    expect(parsed.rulesState?.status).toBe("not-configured");
+    expect(parsed.rulesState?.rules).toHaveLength(0);
+  });
+
+  it("safe-change check handles empty valid rules.json with empty state", async () => {
+    await runSave({ description: "baseline", format: "terminal" });
+    const rulesDir = join(repo.path, ".safe-change");
+    await writeFile(join(rulesDir, "rules.json"), JSON.stringify({ version: 1, rules: [] }));
+
+    stdoutData = "";
+    const checkCode = await runCheck({ format: "json" });
+    expect(checkCode).toBe(ExitCodes.OK);
+    const parsed = JSON.parse(stdoutData);
+    expect(parsed.rulesState?.status).toBe("empty");
+    expect(parsed.rulesState?.rules).toHaveLength(0);
+  });
+
+  it("safe-change check rejects invalid rule schema in rules.json", async () => {
+    await runSave({ description: "baseline", format: "terminal" });
+    const rulesDir = join(repo.path, ".safe-change");
+    await writeFile(
+      join(rulesDir, "rules.json"),
+      JSON.stringify({
+        version: 1,
+        rules: [{ id: "", name: "Invalid", severity: "invalid-sev", condition: { type: "unknown" } }],
+      })
+    );
+
+    stdoutData = "";
+    stderrData = "";
+    const checkCode = await runCheck({ format: "terminal" });
+    expect(checkCode).toBe(ExitCodes.CONFIG_ERROR);
+    expect(stderrData).toContain("Invalid rule schema");
+  });
 });

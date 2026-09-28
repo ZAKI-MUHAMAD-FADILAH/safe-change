@@ -9,6 +9,7 @@ import { renderError } from "../output/renderer.js";
 export interface InitOptions {
   readonly format?: OutputFormat;
   readonly overwrite?: boolean;
+  readonly updateGitignore?: boolean;
 }
 
 export interface AutoDetectedChecks {
@@ -135,23 +136,42 @@ export async function runInit(options: InitOptions = {}): Promise<number> {
 
   await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
 
-  // Ensure .safe-change/ is in .gitignore
+  // Handle .gitignore: Never silently modify by default. Only update if --update-gitignore is explicitly passed.
   const gitignorePath = join(repoRoot, ".gitignore");
-  let gitignoreUpdated = false;
-  try {
-    if (existsSync(gitignorePath)) {
-      const gitignoreContent = await readFile(gitignorePath, "utf-8");
-      if (!gitignoreContent.includes(".safe-change")) {
-        const trailingNewline = gitignoreContent.endsWith("\n") ? "" : "\n";
-        await writeFile(gitignorePath, `${gitignoreContent}${trailingNewline}.safe-change/\n`, "utf-8");
-        gitignoreUpdated = true;
+  let gitignoreModified = false;
+  let gitignoreStatus: "already-ignored" | "not-ignored" | "updated" = "not-ignored";
+  const recommendedEntry = ".safe-change/";
+
+  let existingGitignore: string | null = null;
+  if (existsSync(gitignorePath)) {
+    try {
+      existingGitignore = await readFile(gitignorePath, "utf-8");
+      if (existingGitignore.includes(".safe-change")) {
+        gitignoreStatus = "already-ignored";
       }
-    } else {
-      await writeFile(gitignorePath, ".safe-change/\n", "utf-8");
-      gitignoreUpdated = true;
+    } catch {
+      // Best-effort read
     }
-  } catch {
-    // Non-fatal if gitignore write fails
+  }
+
+  if (options.updateGitignore) {
+    if (gitignoreStatus !== "already-ignored") {
+      try {
+        if (existingGitignore !== null) {
+          const isCrlf = existingGitignore.includes("\r\n");
+          const newline = isCrlf ? "\r\n" : "\n";
+          const needsLeadingNewline = !existingGitignore.endsWith("\n") && !existingGitignore.endsWith("\r");
+          const prefix = needsLeadingNewline ? newline : "";
+          await writeFile(gitignorePath, `${existingGitignore}${prefix}${recommendedEntry}${newline}`, "utf-8");
+        } else {
+          await writeFile(gitignorePath, `${recommendedEntry}\n`, "utf-8");
+        }
+        gitignoreModified = true;
+        gitignoreStatus = "updated";
+      } catch {
+        // Non-fatal if gitignore write fails
+      }
+    }
   }
 
   if (format === "json") {
@@ -162,7 +182,10 @@ export async function runInit(options: InitOptions = {}): Promise<number> {
           ecosystem: detected.ecosystem,
           configPath,
           checks: detected.checks,
-          gitignoreUpdated,
+          gitignoreModified,
+          gitignoreStatus,
+          gitignoreUpdated: gitignoreModified,
+          recommendedEntry,
         },
         null,
         2
@@ -176,12 +199,14 @@ export async function runInit(options: InitOptions = {}): Promise<number> {
       process.stdout.write(`    - ${c.name}: ${c.executable} ${c.args.join(" ")} (timeout: ${c.timeout}s)\n`);
     }
     if (detected.checks.length === 0) {
-      process.stdout.write("    (No automated test runner detected; safe-change will enforce file integrity guardrails)\n");
+      process.stdout.write("    (No automated test runner detected; safe-change will track file changes)\n");
     }
-    if (gitignoreUpdated) {
+    if (gitignoreStatus === "updated") {
       process.stdout.write("  Gitignore:   Added .safe-change/ to .gitignore\n");
-    } else {
+    } else if (gitignoreStatus === "already-ignored") {
       process.stdout.write("  Gitignore:   .safe-change/ is already excluded\n");
+    } else {
+      process.stdout.write("  Gitignore:   Unchanged. Recommendation: add '.safe-change/' to .gitignore\n");
     }
     process.stdout.write("\nNext step: Run 'safe-change save \"initial baseline\"' before editing code.\n\n");
   }

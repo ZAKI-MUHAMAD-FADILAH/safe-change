@@ -46,17 +46,18 @@ safe-change writes only to explicitly defined, isolated targets:
    - Global scope: `<homedir>/.gemini/config/skills/safe-change/` (strict allowlist under the user's home directory).
    - Temporary staging and rollback backup directories in system temporary storage (cleaned up upon completion or rollback).
 
-safe-change never writes to `.gitignore`, `.git/`, or any user source code files.
+safe-change never writes to `.git/` or any user source code files. By default, `safe-change init` does not modify `.gitignore`; `.gitignore` is only modified when the user explicitly passes the `--update-gitignore` flag.
 
-### Process execution
+### Process execution and tree termination
 
 Verification commands are spawned directly via `child_process.spawn` without a shell. The executable and arguments are taken from the configuration file's explicit `executable` and `args` fields. No shell interpretation occurs.
 
 Each command runs with:
-- A configurable timeout (default 60 seconds, maximum 3600 seconds)
-- Bounded output capture (default 100 KB per stream, 8 KB diagnostic tail)
-- No stdin (stdin is set to `ignore`)
-- Explicit timeout timers that accurately distinguish between execution timeouts and external process termination signals
+- A configurable timeout (default 60 seconds, maximum 3600 seconds).
+- Bounded ring-buffer tail capture (default 100 KB per stream, 8 KB diagnostic tail) with UTF-8 multibyte boundary alignment.
+- No stdin (stdin is set to `ignore`).
+- Whole-process-tree termination on timeout (`terminateProcessTree`): On POSIX, processes run in isolated process groups and are signaled with `SIGTERM` followed by `SIGKILL`. On Windows, `taskkill /pid <pid> /T /F` terminates the root process and all descendant processes, preventing orphaned child processes.
+- Explicit timeout timers that accurately distinguish between execution timeouts and external process termination signals.
 
 ### Data treatment
 
@@ -146,9 +147,33 @@ A safe-change baseline is not a general-purpose backup. It stores hashes for com
 
 safe-change does not redact secrets, API keys, or sensitive credentials from process output or terminal displays. Ensure configured test commands do not print credentials.
 
+## Dependency security policy
+
+safe-change maintains strict separation between production dependencies and development tooling:
+
+1. **Production Dependencies**:
+   - Zero external runtime dependencies for core CLI, git inspection, comparator, rules engine, and local dashboard (powered by Node.js standard libraries).
+   - Only standard MCP protocol SDK (`@modelcontextprotocol/sdk`) is included for the MCP server.
+   - Any High or Critical CVE in production dependencies is an absolute release blocker.
+   - Continuous gate: `npm audit --omit=dev --audit-level=high` runs on every CI commit and pull request.
+
+2. **Development Tooling**:
+   - Compilers (`typescript`, `napi-rs`), test runners (`vitest`), and coverage tools (`@vitest/coverage-v8`).
+   - Automated dependency monitoring via Dependabot for monthly security patches.
+   - Vitest, Vite, and Esbuild are pinned to patched, non-vulnerable versions.
+   - No untrusted or arbitrary post-install scripts.
+
+3. **Release Blockers**:
+   - Any unaddressed High/Critical vulnerability in `npm audit`.
+   - Broken version parity between root `package.json`, Cargo crate `Cargo.toml`, and platform packages.
+   - Failed smoke test against the generated npm pack tarball.
+   - Test coverage dropping below established thresholds.
+
 ## Release verification
  
-The following security verifications were completed prior to releasing v0.2.0:
-- Private vulnerability reporting link configured.
+The following security verifications are mandatory for all releases:
+- Private vulnerability reporting configured.
 - Package entry points, zero-dependency model, and publication file allowlists verified.
 - Supported-versions policy defined and documented.
+- Architecture validation for all native platform packages before npm publish.
+- npm provenance enabled for cryptographic build attestation.

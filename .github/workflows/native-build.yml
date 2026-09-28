@@ -1,35 +1,51 @@
-name: Native Module CI
+name: Native Module CI and Distribution
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
-    name: Build & Test (${{ matrix.os }})
+    name: Build & Test (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [20.x]
+        include:
+          - os: ubuntu-latest
+            target: linux-x64-gnu
+            pkg_name: "@safe-change/linux-x64-gnu"
+          - os: windows-latest
+            target: win32-x64-msvc
+            pkg_name: "@safe-change/win32-x64-msvc"
+          - os: macos-latest
+            target: darwin-arm64
+            pkg_name: "@safe-change/darwin-arm64"
+          - os: macos-13
+            target: darwin-x64
+            pkg_name: "@safe-change/darwin-x64"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Configure git for tests
         run: |
-          git config --global user.email "ci@safe-change"
-          git config --global user.name "CI"
+          git config --global user.email "ci@safe-change.local"
+          git config --global user.name "CI Runner"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20.x
           cache: "npm"
 
       - name: Setup Rust toolchain
@@ -52,68 +68,79 @@ jobs:
           cargo test
         shell: bash
 
-      - name: Build Native Module
+      - name: Build Native Module for ${{ matrix.target }}
         run: |
           cd crates/safe-change-native
           npx napi build --platform --release
         shell: bash
 
-      - name: Copy native binary to dist and src
+      - name: Verify generated native binary exists
         run: |
-          mkdir -p dist/native src/native
-          find . -name "*.node" -not -path "*/node_modules/*" -exec cp {} src/native/safe-change-native.node \; || true
-          find . -name "*.node" -not -path "*/node_modules/*" -exec cp {} dist/native/safe-change-native.node \; || true
+          ls -la crates/safe-change-native/*.node
         shell: bash
 
-      - name: Upload native artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload native artifact for ${{ matrix.target }}
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
-          name: native-binary-${{ matrix.os }}
-          path: |
-            crates/safe-change-native/*.node
-            *.node
-          if-no-files-found: warn
-
-      - name: Run tests with native module active
-        run: npm test
+          name: native-binary-${{ matrix.target }}
+          path: crates/safe-change-native/*.node
+          if-no-files-found: error
 
   publish-native:
-    name: Publish Native Packages
+    name: Publish Native Platform Packages
     needs: build-and-test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 20.x
           registry-url: "https://registry.npmjs.org"
 
       - name: Download all native artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           path: artifacts
 
-      - name: Copy binaries to npm platform packages
+      - name: Copy binaries to corresponding platform packages
         run: |
-          mkdir -p npm/win32-x64-msvc npm/win32-arm64-msvc npm/darwin-x64 npm/darwin-arm64 npm/linux-x64-gnu npm/linux-arm64-gnu npm/linux-x64-musl
-          find artifacts/native-binary-ubuntu-latest -name "*.node" -exec cp {} npm/linux-x64-gnu/safe-change-native.node \; 2>/dev/null || true
-          find artifacts/native-binary-windows-latest -name "*.node" -exec cp {} npm/win32-x64-msvc/safe-change-native.node \; 2>/dev/null || true
-          find artifacts/native-binary-macos-latest -name "*.node" -exec cp {} npm/darwin-x64/safe-change-native.node \; 2>/dev/null || true
-          find artifacts/native-binary-macos-latest -name "*.node" -exec cp {} npm/darwin-arm64/safe-change-native.node \; 2>/dev/null || true
+          for target in linux-x64-gnu win32-x64-msvc darwin-arm64 darwin-x64; do
+            artifact_dir="artifacts/native-binary-${target}"
+            target_pkg_dir="npm/${target}"
+            if [ ! -d "$artifact_dir" ]; then
+              echo "Error: Required artifact directory $artifact_dir is missing!"
+              exit 1
+            fi
+            binary_file=$(find "$artifact_dir" -name "*.node" | head -n 1)
+            if [ -z "$binary_file" ] || [ ! -f "$binary_file" ]; then
+              echo "Error: Native binary for target $target not found in $artifact_dir!"
+              exit 1
+            fi
+            mkdir -p "$target_pkg_dir"
+            cp "$binary_file" "$target_pkg_dir/safe-change-native.node"
+            echo "Installed native binary to $target_pkg_dir"
+          done
         shell: bash
 
-      - name: Publish platform packages
+      - name: Publish verified platform packages
         run: |
-          for dir in npm/*/; do
-            if [ -f "$dir/safe-change-native.node" ]; then
-              echo "Publishing $(basename "$dir")..."
-              npm publish "$dir" --access public || echo "Publish failed for $dir"
+          for target in linux-x64-gnu win32-x64-msvc darwin-arm64 darwin-x64; do
+            pkg_dir="npm/${target}"
+            if [ ! -f "$pkg_dir/safe-change-native.node" ]; then
+              echo "Error: Missing binary in $pkg_dir before publish"
+              exit 1
             fi
+            echo "Publishing package $pkg_dir..."
+            npm publish "$pkg_dir" --access public --provenance
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-

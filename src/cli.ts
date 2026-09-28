@@ -44,6 +44,7 @@ interface ParsedArgs {
     dryRun: boolean;
     nonInteractive: boolean;
     stat: boolean;
+    updateGitignore: boolean;
   };
   logOptions: {
     last?: number;
@@ -72,6 +73,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       dryRun: false,
       nonInteractive: false,
       stat: false,
+      updateGitignore: false,
     },
     logOptions: {},
     dashboardOptions: {},
@@ -95,6 +97,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       result.flags.stat = true;
     } else if (arg === "--overwrite") {
       result.flags.overwrite = true;
+    } else if (arg === "--update-gitignore") {
+      result.flags.updateGitignore = true;
     } else if (arg === "--dry-run") {
       result.flags.dryRun = true;
     } else if (
@@ -240,6 +244,7 @@ Options:
   --port <n>                Override dashboard port (default: 4242).
   --no-open                 Do not open browser automatically.
   --overwrite               Overwrite existing files or confirm destructive action.
+  --update-gitignore        Add .safe-change/ to .gitignore during init (disabled by default).
   --dry-run                 Preview without writing to disk.
   --non-interactive, -y     Run without interactive confirmation prompts.
   --json                    Output in JSON format.
@@ -296,6 +301,7 @@ async function main(): Promise<void> {
       exitCode = await runInit({
         format,
         overwrite: parsed.flags.overwrite,
+        updateGitignore: parsed.flags.updateGitignore,
       });
       break;
     }

@@ -20,36 +20,53 @@ export class TransactionError extends Error {
   }
 }
 
-// Global registry of active staging directories for graceful SIGINT / SIGTERM cleanup
-const activeStagingDirs = new Set<string>();
-let signalsRegistered = false;
+// Active registry of transactions for graceful signal handling
+const activeTransactions = new Set<InstallationTransaction>();
+let signalHandlersAttached = false;
 
-function cleanupActiveStagingDirs(): void {
-  for (const stagingDir of activeStagingDirs) {
+function handleTransactionSignal(signal: "SIGINT" | "SIGTERM"): void {
+  const transactions = Array.from(activeTransactions);
+  for (const tx of transactions) {
     try {
-      if (fs.existsSync(stagingDir)) {
-        fs.rmSync(stagingDir, { recursive: true, force: true });
-      }
+      tx.abort();
     } catch {
-      // Best-effort cleanup during process exit
+      // Best-effort during process exit
     }
   }
-  activeStagingDirs.clear();
+  activeTransactions.clear();
+  detachTransactionSignalHandlers();
+
+  // Terminate with standard signal semantics without swallowing
+  if (process.platform === "win32") {
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  } else {
+    try {
+      process.kill(process.pid, signal);
+    } catch {
+      process.exit(signal === "SIGINT" ? 130 : 143);
+    }
+  }
 }
 
-function registerProcessSignalHandlers(): void {
-  if (signalsRegistered) {
+const onSigInt = () => handleTransactionSignal("SIGINT");
+const onSigTerm = () => handleTransactionSignal("SIGTERM");
+
+function attachTransactionSignalHandlers(): void {
+  if (signalHandlersAttached) {
     return;
   }
-  signalsRegistered = true;
+  signalHandlersAttached = true;
+  process.on("SIGINT", onSigInt);
+  process.on("SIGTERM", onSigTerm);
+}
 
-  const onSignal = (signal: string) => {
-    cleanupActiveStagingDirs();
-    // Do not call process.exit directly if testing; re-emit or let caller handle
-  };
-
-  process.once("SIGINT", () => onSignal("SIGINT"));
-  process.once("SIGTERM", () => onSignal("SIGTERM"));
+function detachTransactionSignalHandlers(): void {
+  if (!signalHandlersAttached) {
+    return;
+  }
+  signalHandlersAttached = false;
+  process.removeListener("SIGINT", onSigInt);
+  process.removeListener("SIGTERM", onSigTerm);
 }
 
 export interface TransactionOptions {
@@ -95,8 +112,8 @@ export class InstallationTransaction {
     this.stagingDir = path.join(parentDir, `.staging-safe-change-${uniqueId}`);
     fs.mkdirSync(this.stagingDir, { recursive: true });
 
-    activeStagingDirs.add(this.stagingDir);
-    registerProcessSignalHandlers();
+    activeTransactions.add(this);
+    attachTransactionSignalHandlers();
   }
 
   /**
@@ -214,7 +231,10 @@ export class InstallationTransaction {
       }
 
       this.committed = true;
-      activeStagingDirs.delete(this.stagingDir);
+      activeTransactions.delete(this);
+      if (activeTransactions.size === 0) {
+        detachTransactionSignalHandlers();
+      }
       if (this.lockHandle !== null) {
         unlockFileNative(this.lockHandle);
         this.lockHandle = null;
@@ -260,7 +280,10 @@ export class InstallationTransaction {
     } catch {
       // Best-effort cleanup
     } finally {
-      activeStagingDirs.delete(this.stagingDir);
+      activeTransactions.delete(this);
+      if (activeTransactions.size === 0) {
+        detachTransactionSignalHandlers();
+      }
       if (this.lockHandle !== null) {
         unlockFileNative(this.lockHandle);
         this.lockHandle = null;

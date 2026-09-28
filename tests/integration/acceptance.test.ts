@@ -13,6 +13,8 @@ import { saveBaseline, loadBaseline } from "../../src/baseline/manager.js";
 import { executeAllChecks } from "../../src/runner/executor.js";
 import { buildReport, compareFiles } from "../../src/comparator/engine.js";
 import { renderDiffSummary } from "../../src/output/renderer.js";
+import { runSave } from "../../src/commands/save.js";
+import { runCheck } from "../../src/commands/check.js";
 
 describe("Acceptance: dirty working tree", () => {
   let repo: TempRepo;
@@ -590,5 +592,36 @@ describe("Acceptance: dirty working tree", () => {
     expect(report.summary.newFailures).toBe(0);
     expect(report.summary.definitionChanged).toBe(1);
     expect(report.exitCode).toBe(0);
+  });
+
+  it("should report not-verified verification state when zero checks and zero rules are configured", async () => {
+    repo = await createTempRepo();
+    await repo.createConfig([]); // Zero checks
+
+    const originalCwd = process.cwd();
+    process.chdir(repo.path);
+
+    let stdoutData = "";
+    const origWrite = process.stdout.write;
+    process.stdout.write = ((chunk: string | Buffer) => {
+      stdoutData += chunk.toString();
+      return true;
+    }) as typeof process.stdout.write;
+
+    try {
+      await runSave({ description: "initial baseline", format: "json" });
+      stdoutData = "";
+      const checkCode = await runCheck({ format: "json" });
+      expect(checkCode).toBe(0);
+
+      const parsed = JSON.parse(stdoutData);
+      expect(parsed.verification?.state).toBe("not-verified");
+      expect(parsed.verification?.configuredChecksCount).toBe(0);
+      expect(parsed.verification?.activeRulesCount).toBe(0);
+      expect(parsed.verification?.reason).toContain("Zero checks and zero rules");
+    } finally {
+      process.stdout.write = origWrite;
+      process.chdir(originalCwd);
+    }
   });
 });

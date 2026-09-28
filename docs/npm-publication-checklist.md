@@ -101,9 +101,12 @@ Execute the following in a fresh clone before publishing:
   ```bash
   npm publish --dry-run
   ```
+- [x] **Native Platform Validation**: Verify native binary architecture matches target platform package before publish.
+- [x] **Provenance Attestation**: Ensure `--provenance` flag is enabled during CI publish workflow.
+- [x] **Package Tarball Smoke Test**: Verify `scripts/smoke-test-tarball.mjs` runs and passes on a clean temporary project.
 - [x] **Public Publish**:
   ```bash
-  npm publish --access public
+  npm publish --access public --provenance
   ```
 - [x] **Post-Publish Verification**: Verify public package page on npm:
   `https://www.npmjs.com/package/safe-change`

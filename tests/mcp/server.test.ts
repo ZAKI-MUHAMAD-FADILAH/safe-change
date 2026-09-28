@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createServer, TOOLS, toolToCommand } from "../../src/mcp/server.js";
+import { createServer, TOOLS, toolToCommand, runCli } from "../../src/mcp/server.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
@@ -234,5 +234,11 @@ describe("MCP internal helpers", () => {
   it("toolToCommand returns null for unknown tools", () => {
     expect(toolToCommand("unknown_tool")).toBeNull();
     expect(toolToCommand("")).toBeNull();
+  });
+
+  it("runCli terminates subprocess and reports timedOut true when execution exceeds timeout", async () => {
+    const tempDir = await createTempDir();
+    const result = await runCli(["status"], tempDir, 50); // 50ms timeout
+    expect(result.timedOut).toBe(true);
   });
 });

@@ -26,10 +26,28 @@ export const BUILT_IN_RULES: readonly SafeChangeRule[] = [
   {
     id: "no-modify-lockfile",
     name: "No Modify Lockfiles",
-    description: "Ensure dependency lockfiles are not modified directly",
+    description: "Ensure dependency lockfiles are not modified directly or deleted",
     severity: "warn",
     condition: {
       type: "file-not-modified",
+      patterns: [
+        "**/package-lock.json",
+        "**/yarn.lock",
+        "**/pnpm-lock.yaml",
+        "**/Cargo.lock",
+        "**/poetry.lock",
+        "**/composer.lock",
+      ],
+    },
+    builtIn: true,
+  },
+  {
+    id: "protect-lockfiles",
+    name: "Protect Lockfiles",
+    description: "Ensure dependency lockfiles are not modified directly or deleted",
+    severity: "warn",
+    condition: {
+      type: "protect-lockfiles",
       patterns: [
         "**/package-lock.json",
         "**/yarn.lock",

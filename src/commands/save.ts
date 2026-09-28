@@ -143,11 +143,33 @@ export async function runSave(options: SaveOptions): Promise<number> {
   // 7. Check .gitignore warning
   const gitignoreOk = await isStateExcludedFromGit(repoRoot);
 
-  // 8. Render output
+  // 8. Compute verification status
+  const { loadRulesResult } = await import("../rules/manager.js");
+  const rulesState = await loadRulesResult(repoRoot);
   const checksRun = checkResults.length;
   const checksPassed = checkResults.filter((r) => r.passed).length;
   const fileCount = Object.keys(files).length;
+  const configuredChecksCount = config.checks.length;
+  const activeRulesCount = rulesState.rules.length;
 
+  let verificationState: "verified" | "failed" | "not-verified";
+  let verificationReason: string;
+
+  if (configuredChecksCount === 0 && activeRulesCount === 0) {
+    verificationState = "not-verified";
+    verificationReason = "Zero checks and zero rules configured; file changes tracked only";
+  } else if (configuredChecksCount === 0) {
+    verificationState = "not-verified";
+    verificationReason = "No verification checks configured; file changes and rules only";
+  } else if (checksPassed < checksRun) {
+    verificationState = "not-verified";
+    verificationReason = `${checksRun - checksPassed} baseline check(s) currently failing`;
+  } else {
+    verificationState = "verified";
+    verificationReason = "All configured baseline checks passed";
+  }
+
+  // 9. Render output
   process.stdout.write(
     renderSaveResult(
       format,
@@ -156,7 +178,14 @@ export async function runSave(options: SaveOptions): Promise<number> {
       checksPassed,
       fileCount,
       baselinePath,
-      !gitignoreOk
+      !gitignoreOk,
+      {
+        state: verificationState,
+        reason: verificationReason,
+        configuredChecksCount,
+        executedChecksCount: checksRun,
+        activeRulesCount,
+      }
     )
   );
 

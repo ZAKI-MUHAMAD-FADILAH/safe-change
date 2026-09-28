@@ -11,6 +11,13 @@ const rootDir = resolve(".");
 const pkgPath = join(rootDir, "package.json");
 const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 pkg.version = targetVersion;
+if (pkg.optionalDependencies) {
+  for (const dep of Object.keys(pkg.optionalDependencies)) {
+    if (dep.startsWith("@safe-change/")) {
+      pkg.optionalDependencies[dep] = targetVersion;
+    }
+  }
+}
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
 console.log(`Updated ${pkgPath}`);
 
@@ -21,6 +28,13 @@ if (readFileSync(lockPath, "utf-8")) {
   lock.version = targetVersion;
   if (lock.packages && lock.packages[""]) {
     lock.packages[""].version = targetVersion;
+    if (lock.packages[""].optionalDependencies) {
+      for (const dep of Object.keys(lock.packages[""].optionalDependencies)) {
+        if (dep.startsWith("@safe-change/")) {
+          lock.packages[""].optionalDependencies[dep] = targetVersion;
+        }
+      }
+    }
   }
   writeFileSync(lockPath, JSON.stringify(lock, null, 2) + "\n", "utf-8");
   console.log(`Updated ${lockPath}`);

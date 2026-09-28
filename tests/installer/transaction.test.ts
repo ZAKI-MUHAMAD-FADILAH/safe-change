@@ -109,4 +109,75 @@ describe("installer/core/transaction", () => {
 
     tx.abort();
   });
+
+  it("handles repeated transactions without leaking signal listeners or exceeding max listeners", () => {
+    const initialSigintListeners = process.listenerCount("SIGINT");
+    const initialSigtermListeners = process.listenerCount("SIGTERM");
+
+    for (let i = 0; i < 15; i++) {
+      const targetDir = path.join(tempDir, `repeated-target-${i}`);
+      const tx = new InstallationTransaction({ targetDir });
+      tx.stageFile("file.txt", `data-${i}`);
+      tx.commit();
+    }
+
+    expect(process.listenerCount("SIGINT")).toBe(initialSigintListeners);
+    expect(process.listenerCount("SIGTERM")).toBe(initialSigtermListeners);
+  });
+
+  it("cleans up staging directory when transaction receives SIGINT in subprocess", async () => {
+    const { spawn } = await import("node:child_process");
+    const childScript = path.join(tempDir, "sigint-tx-child.cjs");
+    const stagingMarker = path.join(tempDir, "staging-path.txt");
+
+    fs.writeFileSync(
+      childScript,
+      `
+const { InstallationTransaction } = require(${JSON.stringify(path.resolve(__dirname, "../../dist/installer/core/transaction.js"))});
+const fs = require('fs');
+
+const targetDir = ${JSON.stringify(path.join(tempDir, "sigint-target"))};
+const tx = new InstallationTransaction({ targetDir });
+tx.stageFile("test.txt", "content");
+fs.writeFileSync(${JSON.stringify(stagingMarker)}, tx.stagingDir);
+
+// Notify parent ready
+console.log('READY');
+
+// When signaled via stdin, emit SIGINT to simulate Ctrl+C cross-platform
+process.stdin.on('data', () => {
+  process.emit('SIGINT');
+});
+`
+    );
+
+    const child = spawn(process.execPath, [childScript], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      child.stdout.on("data", (data) => {
+        if (data.toString().includes("READY")) {
+          resolve();
+        }
+      });
+      child.on("error", reject);
+    });
+
+    const stagingDir = fs.readFileSync(stagingMarker, "utf8").trim();
+    expect(fs.existsSync(stagingDir)).toBe(true);
+
+    // Send trigger to simulate SIGINT
+    child.stdin.write("TRIGGER_SIGINT\n");
+
+    const exitCode = await new Promise<number | null>((resolve) => {
+      child.on("close", (code) => resolve(code));
+    });
+
+    // Subprocess should exit with standard SIGINT exit code (130)
+    expect(exitCode).toBe(130);
+
+    // Staging directory must be cleaned up
+    expect(fs.existsSync(stagingDir)).toBe(false);
+  });
 });

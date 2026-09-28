@@ -277,4 +277,82 @@ describe("Rule engine & manager unit tests", () => {
     const afterRemove = await loadRules(tempDir);
     expect(afterRemove).toHaveLength(0);
   });
+
+  it("require-check-pass enforces exact match and rejects partial matches like contest", () => {
+    const rule: SafeChangeRule = {
+      id: "require-test-pass",
+      name: "Require Test Pass",
+      description: "Must pass exact check named test",
+      severity: "error",
+      condition: {
+        type: "require-check-pass",
+        checkName: "test",
+      },
+    };
+
+    const files: FileChanges = { added: [], modified: [], deleted: [], unchangedCount: 1 };
+    const checksWithContest: CheckComparison[] = [
+      {
+        name: "contest",
+        before: "pass",
+        now: "pass",
+        result: "pass-pass",
+        durationMs: 50,
+        timedOut: false,
+      },
+    ];
+
+    const result = evaluateRules([rule], files, checksWithContest);
+    expect(result.passed).toBe(false);
+    expect(result.errorCount).toBe(1);
+    expect(result.violations[0]?.message).toContain('Required check "test" was not found');
+
+    const checksWithExactTestPassing: CheckComparison[] = [
+      {
+        name: "test",
+        before: "pass",
+        now: "pass",
+        result: "pass-pass",
+        durationMs: 50,
+        timedOut: false,
+      },
+    ];
+    const passResult = evaluateRules([rule], files, checksWithExactTestPassing);
+    expect(passResult.passed).toBe(true);
+    expect(passResult.violations).toHaveLength(0);
+  });
+
+  it("detects lockfile deletion as a violation for protect-lockfiles rule", () => {
+    const rule: SafeChangeRule = {
+      id: "protect-lockfiles",
+      name: "Protect Lockfiles",
+      description: "Detect unauthorized modification or deletion of lockfiles",
+      severity: "error",
+      condition: {
+        type: "file-not-modified",
+        patterns: ["**/package-lock.json", "**/yarn.lock", "**/pnpm-lock.yaml"],
+      },
+    };
+
+    const filesDeleted: FileChanges = {
+      added: [],
+      modified: [],
+      deleted: ["package-lock.json"],
+      unchangedCount: 5,
+    };
+
+    const result = evaluateRules([rule], filesDeleted);
+    expect(result.passed).toBe(false);
+    expect(result.violations[0]?.message).toContain("Deleted protected file(s): package-lock.json");
+  });
+
+  it("validateRule rejects invalid conditions, negative thresholds, and empty names", () => {
+    expect(validateRule({ id: "", name: "Name", description: "", severity: "error", condition: { type: "file-not-deleted", pattern: "a" } }).valid).toBe(false);
+    expect(validateRule({ id: "id", name: "", description: "", severity: "error", condition: { type: "file-not-deleted", pattern: "a" } }).valid).toBe(false);
+    expect(validateRule({ id: "id", name: "Name", description: "", severity: "error", condition: { type: "unknown-type" as any } }).valid).toBe(false);
+    expect(validateRule({ id: "id", name: "Name", description: "", severity: "error", condition: { type: "max-files-changed", threshold: -1 } }).valid).toBe(false);
+    expect(validateRule({ id: "id", name: "Name", description: "", severity: "error", condition: { type: "max-files-changed", threshold: 1.5 } }).valid).toBe(false);
+    expect(validateRule({ id: "id", name: "Name", description: "", severity: "error", condition: { type: "require-check-pass", checkName: "" } }).valid).toBe(false);
+    expect(validateRule({ id: "id", name: "Name", description: "", severity: "error", condition: { type: "file-not-deleted", pattern: "   " } }).valid).toBe(false);
+  });
 });

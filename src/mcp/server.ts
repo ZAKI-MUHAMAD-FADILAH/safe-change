@@ -140,6 +140,8 @@ interface ToolCallResult {
   timedOut: boolean;
 }
 
+import { terminateProcessTree } from "../runner/process-controller.js";
+
 function runCli(
   args: string[],
   cwd: string,
@@ -155,13 +157,36 @@ function runCli(
     const child = spawn(process.execPath, [cliPath, ...args], {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
-      timeout: timeoutMs,
+      detached: process.platform !== "win32",
+      windowsHide: true,
       env: { ...process.env, NO_COLOR: "1" },
     });
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
     let timedOut = false;
+    let resolved = false;
+
+    const timeoutTimer = setTimeout(() => {
+      timedOut = true;
+      terminateProcessTree(child.pid);
+    }, timeoutMs);
+    timeoutTimer.unref();
+
+    function finish(exitCode: number | null, extraError?: string): void {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeoutTimer);
+      resolve({
+        stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
+        stderr:
+          Buffer.concat(stderrChunks).toString("utf-8") ||
+          extraError ||
+          "",
+        exitCode,
+        timedOut,
+      });
+    }
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdoutChunks.push(chunk);
@@ -175,23 +200,11 @@ function runCli(
       if (err.code === "ETIMEDOUT" || err.code === "ABORT_ERR") {
         timedOut = true;
       }
-      resolve({
-        stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
-        stderr:
-          Buffer.concat(stderrChunks).toString("utf-8") ||
-          `Process error: ${err.message}`,
-        exitCode: null,
-        timedOut,
-      });
+      finish(null, `Process error: ${err.message}`);
     });
 
     child.on("close", (code) => {
-      resolve({
-        stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
-        stderr: Buffer.concat(stderrChunks).toString("utf-8"),
-        exitCode: code,
-        timedOut,
-      });
+      finish(code);
     });
   });
 }
@@ -278,4 +291,4 @@ export async function startServer(): Promise<void> {
   );
 }
 
-export { TOOLS, toolToCommand };
+export { TOOLS, toolToCommand, runCli };

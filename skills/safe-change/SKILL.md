@@ -12,7 +12,7 @@ safe-change is a local-first safety net for AI-assisted coding. It establishes a
 When operating as an AI agent using safe-change, you must strictly observe these safety boundaries:
 
 1. **Zero Silent Git Alteration**: Never execute `git commit`, `git stash`, `git reset`, `git clean`, or `git checkout` as part of safe-change workflows. All user work—including uncommitted, dirty, or untracked changes—must remain preserved and untouched.
-2. **No Silent Configuration or State Injection**: Never edit `.gitignore` or any user configuration file automatically to hide or store tool state. safe-change keeps state in `.safe-change/` and warns if it is unignored, but does not modify `.gitignore`.
+2. **No Silent Configuration or State Injection**: Never edit `.gitignore` or any user configuration file automatically to hide or store tool state. safe-change keeps state in `.safe-change/` and warns if it is unignored, but does not modify `.gitignore` by default. Modification of `.gitignore` is only permitted when explicitly requested by the user or when invoking `safe-change init --update-gitignore`. Passing `--overwrite` for configuration does not grant permission to modify `.gitignore`.
 3. **No False Verification Claims**: If the `safe-change` CLI is not installed or unavailable, you must never claim that verification checks or baselines were performed. Clearly state that safe-change is unavailable.
 4. **Honest Verification Boundaries**: A passing check proves only that its configured command exited with code 0. Unchecked code paths and behaviors remain unverified.
 

@@ -167,6 +167,16 @@ export interface BranchMismatch {
   readonly currentBranch: string;
 }
 
+export type VerificationState = "verified" | "failed" | "not-verified" | "unavailable";
+
+export interface VerificationInfo {
+  readonly state: VerificationState;
+  readonly reason: string;
+  readonly configuredChecksCount: number;
+  readonly executedChecksCount: number;
+  readonly activeRulesCount: number;
+}
+
 export interface CheckReport {
   readonly schemaVersion: 2;
   readonly generatedAt: string;
@@ -181,6 +191,8 @@ export interface CheckReport {
   readonly exitCode: number;
   readonly ruleViolations?: readonly RuleViolation[];
   readonly branchMismatch?: BranchMismatch | null;
+  readonly verification?: VerificationInfo;
+  readonly rulesState?: RulesState;
 }
 
 // Safety rules
@@ -192,7 +204,8 @@ export type RuleConditionType =
   | "file-not-modified"
   | "max-files-changed"
   | "max-deleted-files"
-  | "require-check-pass";
+  | "require-check-pass"
+  | "protect-lockfiles";
 
 export interface RuleCondition {
   readonly type: RuleConditionType;
@@ -200,6 +213,7 @@ export interface RuleCondition {
   readonly patterns?: readonly string[];
   readonly threshold?: number;
   readonly checkName?: string;
+  readonly exactMatch?: boolean;
 }
 
 export interface SafeChangeRule {
@@ -209,6 +223,19 @@ export interface SafeChangeRule {
   readonly severity: RuleSeverity;
   readonly condition: RuleCondition;
   readonly builtIn?: boolean;
+}
+
+export type RulesLoadStatus =
+  | "not-configured"
+  | "loaded"
+  | "empty"
+  | "invalid"
+  | "evaluation-error";
+
+export interface RulesState {
+  readonly status: RulesLoadStatus;
+  readonly rules: readonly SafeChangeRule[];
+  readonly error?: string;
 }
 
 export interface RulesConfigFile {

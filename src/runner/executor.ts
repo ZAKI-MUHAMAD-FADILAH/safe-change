@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { CheckDefinition, CheckResult } from "../types/index.js";
+import { terminateProcessTree, BoundedTailBuffer } from "./process-controller.js";
 
 const DEFAULT_OUTPUT_LIMIT = 100 * 1024; // 100 KB per stream
 const DIAGNOSTIC_TAIL_LIMIT = 8 * 1024; // 8 KB tail kept for diagnostics
@@ -7,12 +8,14 @@ const DIAGNOSTIC_TAIL_LIMIT = 8 * 1024; // 8 KB tail kept for diagnostics
 export interface ExecutorOptions {
   readonly cwd: string;
   readonly outputLimit?: number; // bytes
+  readonly maxBuffer?: number; // bytes (bound for output/tail)
+  readonly tailLimit?: number; // bytes for diagnostic tail buffer
 }
 
 /**
  * Execute a single verification check. The executable is spawned directly
- * without a shell. Bounded stdout/stderr content is captured so that
- * the user can diagnose why a check failed.
+ * without a shell. Bounded stdout/stderr content is captured with a sliding
+ * tail buffer so that the user can diagnose the true cause of failure.
  *
  * Reliably distinguishes between:
  * - Successful completion (exitCode: 0, timedOut: false)
@@ -25,36 +28,37 @@ export async function executeCheck(
   check: CheckDefinition,
   options: ExecutorOptions
 ): Promise<CheckResult> {
-  const outputLimit = options.outputLimit ?? DEFAULT_OUTPUT_LIMIT;
+  const outputLimit = options.outputLimit ?? options.maxBuffer ?? DEFAULT_OUTPUT_LIMIT;
+  const tailLimit = options.tailLimit ?? (options.maxBuffer !== undefined ? Math.min(options.maxBuffer, DIAGNOSTIC_TAIL_LIMIT) : DIAGNOSTIC_TAIL_LIMIT);
   const timeoutMs = check.timeout * 1000;
 
   return new Promise<CheckResult>((resolve) => {
     const startTime = performance.now();
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
-    let outputTruncated = false;
+    const stdoutBuffer = new BoundedTailBuffer(tailLimit);
+    const stderrBuffer = new BoundedTailBuffer(tailLimit);
     let timedOut = false;
     let resolved = false;
 
     let timeoutTimer: NodeJS.Timeout | null = null;
-    let forceKillTimer: NodeJS.Timeout | null = null;
+
+    function cleanup(): void {
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = null;
+      }
+    }
 
     function finish(exitCode: number | null): void {
       if (resolved) return;
       resolved = true;
-
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-      if (forceKillTimer) clearTimeout(forceKillTimer);
+      cleanup();
 
       const durationMs = Math.round(performance.now() - startTime);
-
-      // Keep only the tail of captured output for diagnostics
-      const stdoutFull = Buffer.concat(stdoutChunks);
-      const stderrFull = Buffer.concat(stderrChunks);
-      const stdout = tailString(stdoutFull, DIAGNOSTIC_TAIL_LIMIT);
-      const stderr = tailString(stderrFull, DIAGNOSTIC_TAIL_LIMIT);
+      const totalBytes = stdoutBuffer.totalBytes + stderrBuffer.totalBytes;
+      const isTruncated =
+        stdoutBuffer.isTruncated ||
+        stderrBuffer.isTruncated ||
+        totalBytes > outputLimit;
 
       resolve({
         name: check.name,
@@ -65,10 +69,10 @@ export async function executeCheck(
         passed: exitCode === 0 && !timedOut,
         durationMs,
         timedOut,
-        outputBytes: stdoutBytes + stderrBytes,
-        outputTruncated,
-        stdout,
-        stderr,
+        outputBytes: totalBytes,
+        outputTruncated: isTruncated,
+        stdout: stdoutBuffer.getTailString(),
+        stderr: stderrBuffer.getTailString(),
       });
     }
 
@@ -79,56 +83,33 @@ export async function executeCheck(
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
         windowsHide: true,
+        detached: process.platform !== "win32",
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      stderrChunks.push(Buffer.from(`Spawn error: ${msg}\n`, "utf-8"));
+      stderrBuffer.push(Buffer.from(`Spawn error: ${msg}\n`, "utf-8"));
       finish(null);
       return;
     }
 
-    // Set explicit execution timeout timer
+    // Set execution timeout timer targeting full process tree
     timeoutTimer = setTimeout(() => {
       timedOut = true;
-      try {
-        child.kill("SIGTERM");
-      } catch {
-        // Child may already have exited
-      }
-
-      // If still not closed after 2 seconds, force kill
-      forceKillTimer = setTimeout(() => {
-        try {
-          child.kill("SIGKILL");
-        } catch {
-          // Ignore
-        }
-      }, 2000);
-      forceKillTimer.unref();
+      terminateProcessTree(child.pid);
     }, timeoutMs);
     timeoutTimer.unref();
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdoutBytes += chunk.length;
-      if (stdoutBytes + stderrBytes <= outputLimit) {
-        stdoutChunks.push(chunk);
-      } else {
-        outputTruncated = true;
-      }
+      stdoutBuffer.push(chunk);
     });
 
     child.stderr.on("data", (chunk: Buffer) => {
-      stderrBytes += chunk.length;
-      if (stdoutBytes + stderrBytes <= outputLimit) {
-        stderrChunks.push(chunk);
-      } else {
-        outputTruncated = true;
-      }
+      stderrBuffer.push(chunk);
     });
 
     child.on("error", (err: NodeJS.ErrnoException) => {
       const msg = err.message || String(err);
-      stderrChunks.push(Buffer.from(`Execution error: ${msg}\n`, "utf-8"));
+      stderrBuffer.push(Buffer.from(`Execution error: ${msg}\n`, "utf-8"));
       if (err.code === "ETIMEDOUT") {
         timedOut = true;
       }
@@ -137,9 +118,8 @@ export async function executeCheck(
 
     child.on("close", (code: number | null, signal: string | null) => {
       if (signal) {
-        // Only classify as timedOut if our timeout timer actually fired
         if (!timedOut) {
-          stderrChunks.push(
+          stderrBuffer.push(
             Buffer.from(`Process terminated by external signal: ${signal}\n`, "utf-8")
           );
         }
@@ -169,16 +149,4 @@ export async function executeAllChecks(
   }
 
   return results;
-}
-
-// Helpers
-
-/**
- * Return the last `limit` bytes of a buffer as a UTF-8 string.
- */
-function tailString(buf: Buffer, limit: number): string {
-  if (buf.length <= limit) {
-    return buf.toString("utf-8");
-  }
-  return buf.subarray(buf.length - limit).toString("utf-8");
 }

@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { randomBytes } from "node:crypto";
-import type { SafeChangeRule, RulesConfigFile } from "../types/index.js";
+import type { SafeChangeRule, RulesConfigFile, RulesState } from "../types/index.js";
 import { getBuiltInRule } from "./built-in.js";
 
 export function getRulesFilePath(repoRoot: string): string {
@@ -19,6 +19,7 @@ interface UncheckedRule {
     patterns?: unknown;
     threshold?: unknown;
     checkName?: unknown;
+    exactMatch?: unknown;
   };
 }
 
@@ -57,23 +58,36 @@ export function validateRule(rule: unknown): { valid: boolean; errors: string[] 
       "max-files-changed",
       "max-deleted-files",
       "require-check-pass",
+      "protect-lockfiles",
     ];
 
     if (!validTypes.includes(c.type as string)) {
       errors.push(`Rule condition type must be one of: ${validTypes.join(", ")}`);
     }
 
-    if (c.type === "file-not-deleted" || c.type === "file-not-modified") {
+    if (
+      c.type === "file-not-deleted" ||
+      c.type === "file-not-modified" ||
+      c.type === "protect-lockfiles"
+    ) {
       const hasPattern = typeof c.pattern === "string" && c.pattern.trim().length > 0;
-      const hasPatterns = Array.isArray(c.patterns) && c.patterns.length > 0;
+      const hasPatterns =
+        Array.isArray(c.patterns) &&
+        c.patterns.length > 0 &&
+        c.patterns.every((p) => typeof p === "string" && p.trim().length > 0);
       if (!hasPattern && !hasPatterns) {
-        errors.push(`Condition ${c.type} requires a pattern or non-empty patterns array`);
+        errors.push(`Condition ${c.type} requires a non-empty pattern or non-empty patterns array`);
       }
     }
 
     if (c.type === "max-files-changed" || c.type === "max-deleted-files") {
-      if (typeof c.threshold !== "number" || c.threshold < 0) {
-        errors.push(`Condition ${c.type} requires a non-negative threshold number`);
+      if (
+        typeof c.threshold !== "number" ||
+        !Number.isInteger(c.threshold) ||
+        c.threshold < 0 ||
+        c.threshold > 1000000
+      ) {
+        errors.push(`Condition ${c.type} requires a non-negative integer threshold`);
       }
     }
 
@@ -81,28 +95,91 @@ export function validateRule(rule: unknown): { valid: boolean; errors: string[] 
       if (typeof c.checkName !== "string" || c.checkName.trim().length === 0) {
         errors.push("Condition require-check-pass requires a non-empty checkName string");
       }
+      if (c.exactMatch !== undefined && typeof c.exactMatch !== "boolean") {
+        errors.push("Condition require-check-pass exactMatch must be a boolean if specified");
+      }
     }
   }
 
   return { valid: errors.length === 0, errors };
 }
 
-export async function loadRules(repoRoot: string): Promise<SafeChangeRule[]> {
+export async function loadRulesResult(repoRoot: string): Promise<RulesState> {
   const filePath = getRulesFilePath(repoRoot);
 
+  let raw: string;
   try {
-    const raw = await readFile(filePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.rules)) {
-      return [];
-    }
-    return parsed.rules as SafeChangeRule[];
+    raw = await readFile(filePath, "utf-8");
   } catch (err: unknown) {
     if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "ENOENT") {
-      return [];
+      return { status: "not-configured", rules: [] };
     }
-    throw new Error(`Failed to read rules file at ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+    return {
+      status: "invalid",
+      rules: [],
+      error: `Failed to read rules file at ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err: unknown) {
+    return {
+      status: "invalid",
+      rules: [],
+      error: `Rules file contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return {
+      status: "invalid",
+      rules: [],
+      error: "Rules configuration must be an object containing a 'rules' array",
+    };
+  }
+
+  const rulesRecord = parsed as { rules?: unknown };
+  if (!Array.isArray(rulesRecord.rules)) {
+    return {
+      status: "invalid",
+      rules: [],
+      error: "Rules configuration missing 'rules' array property",
+    };
+  }
+
+  if (rulesRecord.rules.length === 0) {
+    return { status: "empty", rules: [] };
+  }
+
+  const validatedRules: SafeChangeRule[] = [];
+  for (let i = 0; i < rulesRecord.rules.length; i++) {
+    const candidate = rulesRecord.rules[i];
+    const validation = validateRule(candidate);
+    if (!validation.valid) {
+      const candidateId =
+        candidate && typeof candidate === "object" && "id" in candidate && typeof (candidate as { id: unknown }).id === "string"
+          ? (candidate as { id: string }).id
+          : `#${i}`;
+      return {
+        status: "invalid",
+        rules: [],
+        error: `Invalid rule schema at rule index ${i} (id: "${candidateId}"): ${validation.errors.join("; ")}`,
+      };
+    }
+    validatedRules.push(candidate as SafeChangeRule);
+  }
+
+  return { status: "loaded", rules: validatedRules };
+}
+
+export async function loadRules(repoRoot: string): Promise<SafeChangeRule[]> {
+  const result = await loadRulesResult(repoRoot);
+  if (result.status === "invalid") {
+    throw new Error(result.error ?? "Invalid rules configuration file");
+  }
+  return [...result.rules];
 }
 
 export async function saveRules(

@@ -114,6 +114,54 @@ export function evaluateRules(
             details: matchedModifications,
           });
         }
+
+        // Lockfile protection rules also detect deletion of protected files
+        if (rule.id === "no-modify-lockfile" || rule.id === "protect-lockfiles") {
+          const matchedDeletions = files.deleted.filter((deletedFile) =>
+            patterns.some((pat) => matchGlob(deletedFile, pat))
+          );
+          if (matchedDeletions.length > 0) {
+            violations.push({
+              ruleId: rule.id,
+              ruleName: rule.name,
+              severity: rule.severity,
+              message: `Deleted protected file(s): ${matchedDeletions.join(", ")}`,
+              details: matchedDeletions,
+            });
+          }
+        }
+        break;
+      }
+
+      case "protect-lockfiles": {
+        const patterns = condition.patterns ?? (condition.pattern ? [condition.pattern] : []);
+        const matchedModifications = files.modified.filter((modFile) =>
+          patterns.some((pat) => matchGlob(modFile, pat))
+        );
+        const matchedDeletions = files.deleted.filter((deletedFile) =>
+          patterns.some((pat) => matchGlob(deletedFile, pat))
+        );
+
+        if (matchedModifications.length > 0) {
+          violations.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            severity: rule.severity,
+            message: `Modified protected lockfile(s): ${matchedModifications.join(", ")}`,
+            details: matchedModifications,
+          });
+        }
+
+        if (matchedDeletions.length > 0) {
+          violations.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            severity: rule.severity,
+            message: `Deleted protected lockfile(s): ${matchedDeletions.join(", ")}`,
+            details: matchedDeletions,
+          });
+        }
+        // Newly added lockfiles are permitted by default unless explicitly configured otherwise
         break;
       }
 
@@ -155,9 +203,11 @@ export function evaluateRules(
 
       case "require-check-pass": {
         const requiredName = (condition.checkName ?? "test").toLowerCase();
-        const matchedCheck = checkResults.find((c) =>
-          c.name.toLowerCase().includes(requiredName)
-        );
+        const exactMatch = condition.exactMatch ?? true;
+        const matchedCheck = checkResults.find((c) => {
+          const checkName = c.name.toLowerCase();
+          return exactMatch ? checkName === requiredName : checkName.includes(requiredName);
+        });
 
         if (!matchedCheck) {
           violations.push({
@@ -189,6 +239,9 @@ export function evaluateRules(
         }
         break;
       }
+
+      default:
+        throw new Error(`Unknown rule condition type: ${(condition as { type?: string }).type}`);
     }
   }
 

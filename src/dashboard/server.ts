@@ -103,15 +103,28 @@ export async function createDashboardServer(
 
     if (url.pathname === "/api/rules") {
       try {
-        const rulesPath = join(repoRoot, ".safe-change", "rules.json");
-        const raw = await readFile(rulesPath, "utf-8");
-        const parsed = JSON.parse(raw);
-        const rules = Array.isArray(parsed?.rules) ? parsed.rules : [];
+        const { loadRulesResult } = await import("../rules/manager.js");
+        const rulesState = await loadRulesResult(repoRoot);
+        const safeError = rulesState.error ? rulesState.error.replace(repoRoot, ".") : null;
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(rules));
+        res.end(
+          JSON.stringify({
+            status: rulesState.status,
+            configured: rulesState.status !== "not-configured",
+            rules: rulesState.rules,
+            error: safeError,
+          })
+        );
       } catch {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify([]));
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            status: "invalid",
+            configured: true,
+            rules: [],
+            error: "Failed to read rules configuration",
+          })
+        );
       }
       return;
     }
