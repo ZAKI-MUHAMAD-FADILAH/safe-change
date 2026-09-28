@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { checkPackageVersionStatus, verifyNpmAuth, PACKAGES_TO_VERIFY } from "../../scripts/preflight-npm.mjs";
+import { checkPackageVersionStatus, verifyNpmAuth, classifyReleaseState, PACKAGES_TO_VERIFY } from "../../scripts/preflight-npm.mjs";
 
 describe("scripts/preflight-npm.mjs", () => {
   beforeEach(() => {
@@ -22,13 +22,17 @@ describe("scripts/preflight-npm.mjs", () => {
     it("classifies HTTP 200 as already_published", async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         status: 200,
+        json: vi.fn().mockResolvedValue({
+          name: "@safe-change/linux-x64-gnu",
+          version: "0.3.1",
+        }),
       });
       vi.stubGlobal("fetch", mockFetch);
 
       const result = await checkPackageVersionStatus("@safe-change/linux-x64-gnu", "0.3.1");
       expect(result.status).toBe("already_published");
       expect(result.code).toBe(200);
-      expect(mockFetch).toHaveBeenCalledWith("https://registry.npmjs.org/@safe-change%2Flinux-x64-gnu/0.3.1", expect.any(Object));
+      expect(mockFetch).toHaveBeenCalledWith("https://registry.npmjs.org/%40safe-change%2Flinux-x64-gnu/0.3.1", expect.any(Object));
     });
 
     it("classifies HTTP 401/403 as auth_error", async () => {
@@ -67,6 +71,27 @@ describe("scripts/preflight-npm.mjs", () => {
         if (oldToken) process.env.NODE_AUTH_TOKEN = oldToken;
         if (oldNpmToken) process.env.NPM_TOKEN = oldNpmToken;
       }
+    });
+  });
+
+  describe("classifyReleaseState", () => {
+    const version = "0.3.1";
+    const unpublished = (pkg: string) => ({ status: "not_published", pkg, version, code: 404 });
+    const published = (pkg: string) => ({ status: "already_published", pkg, version, code: 200 });
+
+    it("selects full mode when every package is unpublished", () => {
+      expect(classifyReleaseState(PACKAGES_TO_VERIFY.map(unpublished)).mode).toBe("full");
+    });
+
+    it("selects root-recovery when all native packages are published", () => {
+      const results = [unpublished("safe-change"), ...PACKAGES_TO_VERIFY.slice(1).map(published)];
+      expect(classifyReleaseState(results).mode).toBe("root-recovery");
+    });
+
+    it("rejects mixed native publication state", () => {
+      const results = PACKAGES_TO_VERIFY.map(unpublished);
+      results[1] = published(PACKAGES_TO_VERIFY[1]);
+      expect(classifyReleaseState(results).mode).toBe("mixed");
     });
   });
 

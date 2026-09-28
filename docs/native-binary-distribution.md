@@ -25,9 +25,9 @@ Compilation and testing are automated via continuous integration, while producti
    - CI runs are strictly non-publishing.
 
 2. **Unified Release Pipeline (`.github/workflows/release.yml`)**:
-   - Triggered on tag pushes matching `v*` or via manual `workflow_dispatch` with dry-run support.
+   - Production publication is triggered only by a pushed SemVer tag. Manual `workflow_dispatch` validates, builds, packages, and verifies the exact release artifacts in dry-run mode; it cannot publish.
    - Executes release validation and npm preflight before initiating build jobs.
-   - Compiles native binaries, packages tarballs, and publishes platform packages to the npm registry with `--access public --provenance`.
+   - Compiles native binaries, creates immutable tarballs, verifies their metadata and SHA-256 digest, and publishes those exact tarball files with `--access public --provenance`.
    - Requires all four active native platform packages to be verified visible on the npm registry before publishing the root `safe-change` package.
 
 ---
@@ -94,4 +94,18 @@ To add support for a new operating system or architecture:
 3. **Update Loader**:
    Add the platform and architecture mapping in `getExpectedPlatformPackage()` in [src/native/index.ts](../src/native/index.ts).
 4. **Update CI Workflow**:
-   Add the target runner to the matrix in `.github/workflows/native-build.yml` and add the mapping in the `publish-native` job.
+   Add the target runner to `.github/workflows/native-build.yml`, the release build matrix in `.github/workflows/release.yml`, and the active target mapping in `scripts/publish-orchestrator.mjs` and `scripts/preflight-npm.mjs`.
+
+
+---
+
+## 7. Partial Release Recovery
+
+The npm preflight classifies registry state before publication:
+
+- `full`: the root and all native package versions are unpublished.
+- `root-recovery`: all native packages are already published and the root package is not. A rerun of the original tag workflow skips immutable native versions and publishes only the exact root tarball artifact.
+- `complete`: all package versions are already published; the workflow stops.
+- mixed state: only part of the native matrix is published; the workflow fails closed and reports the inconsistent state.
+
+Never change or republish an existing npm version. Recover by rerunning the original tag workflow after confirming the protected `npm-production` environment and registry state. Manual workflow dispatch remains non-publishing.

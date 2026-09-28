@@ -18,13 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ordered native-first and root-last publication orchestrator `scripts/publish-orchestrator.mjs` with registry visibility polling.
 
 ### Changed
+- Hardened production release policy so only pushed SemVer tags can publish; manual dispatch is permanently non-publishing.
+- Release publication now uses exact verified tarball files with SHA-256 reporting instead of publishing from a fresh source directory.
+- npm preflight now distinguishes full release, safe root recovery, completed release, and unsafe mixed registry states.
+- Re-enabled bounded Dependabot pull requests for npm, Cargo, and GitHub Actions ecosystems.
 - Explicit `.gitignore` management: `safe-change init` preserves user `.gitignore` by default; updates to `.gitignore` now strictly require the explicit `--update-gitignore` flag.
 - Verification status correctness: Resolved false-positive `verified` status on pre-existing check failures (`fail-fail`, `fail-timeout`, `timeout-fail`, `timeout-timeout`); verification state now reports `failed` with diagnostic reason while keeping exit code 0 to maintain regression exit-code contracts.
 - Fail-closed rules evaluation on `save`: `safe-change save` validates `rules.json` schema and version (only version 1 is supported); invalid or malformed rules abort baseline creation with exit code 3 (`CONFIG_ERROR`) without leaking absolute filesystem paths.
 - Bounded MCP subprocess output: Replaced unbounded array chunk buffering in MCP server with `BoundedTailBuffer`, capping stdout and stderr memory growth during command execution while retaining trailing diagnostic tails.
 - Native distribution alignment: Aligned active binary distribution and `optionalDependencies` to the four fully built and tested targets (`linux-x64-gnu`, `win32-x64-msvc`, `darwin-arm64`, `darwin-x64`).
 - CI hardening: Pinned `dtolnay/rust-toolchain` to immutable commit SHA `6bed0761d98439e5a578e2877258200ad565ba87` in GitHub Actions and added post-build native module load verification steps.
-- Removed private filesystem and `file:///` URI references across documentation.
+- Removed private filesystem URI references across documentation.
 
 ## [0.3.0] - 2026-09-28
 

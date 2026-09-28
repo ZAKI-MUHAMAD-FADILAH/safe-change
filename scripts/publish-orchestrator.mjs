@@ -1,6 +1,14 @@
-import { readFileSync, existsSync, readdirSync, statSync, mkdirSync, copyFileSync } from "node:fs";
-import { resolve, join } from "node:path";
-import { execSync } from "node:child_process";
+import {
+  readFileSync,
+  existsSync,
+  readdirSync,
+  statSync,
+  mkdirSync,
+  copyFileSync,
+} from "node:fs";
+import { createHash } from "node:crypto";
+import { resolve, join, basename } from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export const ACTIVE_TARGETS = [
@@ -10,21 +18,49 @@ export const ACTIVE_TARGETS = [
   "darwin-x64",
 ];
 
-export async function pollPackageVisibility(pkgName, version, registry = "https://registry.npmjs.org", maxAttempts = 12, delayMs = 5000) {
-  const encodedName = pkgName.startsWith("@")
-    ? `@${encodeURIComponent(pkgName.slice(1))}`
-    : encodeURIComponent(pkgName);
+function encodePackageName(pkgName) {
+  return encodeURIComponent(pkgName);
+}
 
-  const url = `${registry.replace(/\/$/, "")}/${encodedName}/${version}`;
+export async function getPackageVersionStatus(
+  pkgName,
+  version,
+  registry = "https://registry.npmjs.org"
+) {
+  const url = `${registry.replace(/\/$/, "")}/${encodePackageName(pkgName)}/${version}`;
+  try {
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    if (response.status === 404) return { status: "not_published", pkgName, version };
+    if (response.status !== 200) {
+      return { status: "registry_error", pkgName, version, code: response.status };
+    }
+    const metadata = await response.json();
+    return {
+      status: "published",
+      pkgName,
+      version,
+      metadata,
+    };
+  } catch (error) {
+    return { status: "network_error", pkgName, version, error: error.message };
+  }
+}
 
+export async function pollPackageVisibility(
+  pkgName,
+  version,
+  registry = "https://registry.npmjs.org",
+  maxAttempts = 12,
+  delayMs = 5000
+) {
+  const url = `${registry.replace(/\/$/, "")}/${encodePackageName(pkgName)}/${version}`;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
-      if (res.status === 200) {
-        return true;
-      }
+      const response = await fetch(url, { headers: { Accept: "application/json" } });
+      if (response.status === 200) return true;
+      if (response.status !== 404) return false;
     } catch {
-      // Ignore network blips during polling
+      // Retry transient network failures until the bounded attempt limit.
     }
     if (attempt < maxAttempts) {
       await new Promise((resolvePromise) => setTimeout(resolvePromise, delayMs));
@@ -33,52 +69,92 @@ export async function pollPackageVisibility(pkgName, version, registry = "https:
   return false;
 }
 
+export function sha256File(filePath) {
+  return createHash("sha256").update(readFileSync(filePath)).digest("hex");
+}
+
 export function copyNativeArtifacts(rootDir = resolve(".")) {
   const artifactsDir = join(rootDir, "artifacts");
-  if (!existsSync(artifactsDir)) {
-    return;
-  }
+  if (!existsSync(artifactsDir)) return;
 
   for (const target of ACTIVE_TARGETS) {
     const artifactFolder = join(artifactsDir, `native-binary-${target}`);
     const targetDir = join(rootDir, "npm", target);
+    if (!existsSync(artifactFolder)) continue;
 
-    if (existsSync(artifactFolder)) {
-      mkdirSync(targetDir, { recursive: true });
-      const files = readdirSync(artifactFolder);
-      const nodeFile = files.find((f) => f.endsWith(".node"));
-      if (nodeFile) {
-        const srcPath = join(artifactFolder, nodeFile);
-        const destPath = join(targetDir, "safe-change-native.node");
-        copyFileSync(srcPath, destPath);
-        console.log(`Copied ${nodeFile} to npm/${target}/safe-change-native.node`);
-      }
+    const nodeFiles = readdirSync(artifactFolder).filter((file) => file.endsWith(".node"));
+    if (nodeFiles.length !== 1) {
+      throw new Error(`Expected exactly one native binary for ${target}, found ${nodeFiles.length}.`);
     }
+    mkdirSync(targetDir, { recursive: true });
+    copyFileSync(join(artifactFolder, nodeFiles[0]), join(targetDir, "safe-change-native.node"));
   }
 }
 
-export function inspectPackageTarball(pkgDir) {
-  const packJson = execSync("npm pack --json --dry-run", {
-    cwd: pkgDir,
-    encoding: "utf-8",
-  });
-
-  const parsed = JSON.parse(packJson);
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error(`npm pack failed to produce metadata for ${pkgDir}`);
+export function createPackageTarball(pkgDir, outputDir) {
+  mkdirSync(outputDir, { recursive: true });
+  const output = execFileSync(
+    "npm",
+    ["pack", "--json", "--pack-destination", outputDir],
+    { cwd: pkgDir, encoding: "utf-8" }
+  );
+  const result = JSON.parse(output);
+  if (!Array.isArray(result) || result.length !== 1 || !result[0].filename) {
+    throw new Error(`npm pack did not return one tarball for ${pkgDir}.`);
   }
-
-  const pkgInfo = parsed[0];
-  const fileNames = pkgInfo.files ? pkgInfo.files.map((f) => f.path) : [];
-
+  const tarballPath = join(outputDir, basename(result[0].filename));
+  if (!existsSync(tarballPath) || statSync(tarballPath).size === 0) {
+    throw new Error(`Packed tarball is missing or empty: ${tarballPath}`);
+  }
   return {
-    name: pkgInfo.name,
-    version: pkgInfo.version,
-    filename: pkgInfo.filename,
-    fileCount: pkgInfo.entryCount,
-    unpackedSize: pkgInfo.unpackedSize,
-    files: fileNames,
+    path: tarballPath,
+    name: result[0].name,
+    version: result[0].version,
+    files: (result[0].files || []).map((file) => file.path),
+    sha256: sha256File(tarballPath),
   };
+}
+
+export function findRootTarball(rootDir, packageName, version) {
+  const expected = `${packageName.replace(/^@/, "").replace(/\//g, "-")}-${version}.tgz`;
+  const matches = readdirSync(rootDir).filter((file) => file === expected);
+  if (matches.length !== 1) {
+    throw new Error(`Expected exact root tarball "${expected}", found ${matches.length}.`);
+  }
+  const path = join(rootDir, matches[0]);
+  if (statSync(path).size === 0) throw new Error(`Root tarball is empty: ${expected}`);
+  return { path, sha256: sha256File(path) };
+}
+
+export async function determineReleaseMode(
+  version,
+  registry = "https://registry.npmjs.org"
+) {
+  const root = await getPackageVersionStatus("safe-change", version, registry);
+  const native = [];
+  for (const target of ACTIVE_TARGETS) {
+    native.push(await getPackageVersionStatus(`@safe-change/${target}`, version, registry));
+  }
+  const failures = [root, ...native].filter((item) =>
+    ["registry_error", "network_error"].includes(item.status)
+  );
+  if (failures.length > 0) {
+    throw new Error(`Registry state could not be determined for ${failures.map((x) => x.pkgName).join(", ")}.`);
+  }
+  const nativePublished = native.filter((item) => item.status === "published").length;
+  if (root.status === "not_published" && nativePublished === 0) return "full";
+  if (root.status === "not_published" && nativePublished === native.length) return "root-recovery";
+  if (root.status === "published" && nativePublished === native.length) return "complete";
+  throw new Error(
+    `Unsafe mixed release state: root=${root.status}, native published=${nativePublished}/${native.length}.`
+  );
+}
+
+function publishTarball(tarballPath) {
+  execFileSync("npm", ["publish", tarballPath, "--access", "public", "--provenance"], {
+    stdio: "inherit",
+    env: process.env,
+  });
 }
 
 export async function orchestrateNativePublish({
@@ -86,64 +162,51 @@ export async function orchestrateNativePublish({
   dryRun = false,
   registry = "https://registry.npmjs.org",
 } = {}) {
-  const pkgPath = join(rootDir, "package.json");
-  const rootPkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-  const targetVersion = rootPkg.version;
-
-  console.log(`\nStarting native platform publication phase for v${targetVersion}...`);
-  if (dryRun) {
-    console.log("[DRY-RUN] Publication steps will validate tarballs without executing npm publish.");
-  }
-
+  const rootPkg = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf-8"));
+  const version = rootPkg.version;
   copyNativeArtifacts(rootDir);
+  const outputDir = join(rootDir, "release-tarballs");
 
   for (const target of ACTIVE_TARGETS) {
+    const pkgName = `@safe-change/${target}`;
+    const status = await getPackageVersionStatus(pkgName, version, registry);
+    if (status.status === "published") {
+      console.log(`Skipping immutable package already on registry: ${pkgName}@${version}`);
+      continue;
+    }
+    if (status.status !== "not_published") {
+      throw new Error(`Cannot determine publication state for ${pkgName}@${version}.`);
+    }
+
     const targetDir = join(rootDir, "npm", target);
-    const subPkgJsonPath = join(targetDir, "package.json");
-    if (!existsSync(subPkgJsonPath)) {
-      throw new Error(`Missing package.json for target: ${target}`);
+    const metadata = JSON.parse(readFileSync(join(targetDir, "package.json"), "utf-8"));
+    if (metadata.name !== pkgName || metadata.version !== version) {
+      throw new Error(`Package metadata mismatch for ${target}.`);
     }
-
-    const subPkg = JSON.parse(readFileSync(subPkgJsonPath, "utf-8"));
-    if (subPkg.version !== targetVersion) {
-      throw new Error(
-        `Version mismatch in npm/${target}/package.json: expected "${targetVersion}", found "${subPkg.version}".`
-      );
-    }
-
     const binaryPath = join(targetDir, "safe-change-native.node");
     if (!existsSync(binaryPath) || statSync(binaryPath).size === 0) {
       if (dryRun) {
-        console.warn(`[DRY-RUN] Note: safe-change-native.node not present or empty in npm/${target}.`);
-      } else {
-        throw new Error(`Missing or empty native binary safe-change-native.node in npm/${target}.`);
+        console.warn(`[DRY-RUN] Native binary unavailable for ${target}; publication was not attempted.`);
+        continue;
       }
+      throw new Error(`Missing or empty native binary for ${target}.`);
     }
 
-    // Inspect tarball
-    const tarballInfo = inspectPackageTarball(targetDir);
-    console.log(`Validated package ${tarballInfo.name}@${tarballInfo.version} (${tarballInfo.fileCount} files, ${tarballInfo.unpackedSize} bytes).`);
-
-    if (dryRun) {
-      console.log(`[DRY-RUN] Platform package ${tarballInfo.name}@${tarballInfo.version} pack dry-run passed.`);
-    } else {
-      console.log(`Publishing ${tarballInfo.name}@${tarballInfo.version} to npm...`);
-      execSync(`npm publish "${targetDir}" --access public --provenance`, {
-        cwd: rootDir,
-        stdio: "inherit",
-        env: process.env,
-      });
-
-      console.log(`Verifying registry visibility for ${tarballInfo.name}@${tarballInfo.version}...`);
-      const visible = await pollPackageVisibility(tarballInfo.name, targetVersion, registry);
-      if (!visible) {
-        throw new Error(`Package ${tarballInfo.name}@${tarballInfo.version} published but not visible on registry within timeout.`);
+    const tarball = createPackageTarball(targetDir, outputDir);
+    if (tarball.name !== pkgName || tarball.version !== version) {
+      throw new Error(`Packed metadata mismatch for ${pkgName}@${version}.`);
+    }
+    if (!tarball.files.includes("safe-change-native.node")) {
+      throw new Error(`Native binary missing from packed tarball for ${target}.`);
+    }
+    console.log(`Verified ${basename(tarball.path)} sha256=${tarball.sha256}`);
+    if (!dryRun) {
+      publishTarball(tarball.path);
+      if (!(await pollPackageVisibility(pkgName, version, registry))) {
+        throw new Error(`${pkgName}@${version} is not visible after publication.`);
       }
-      console.log(`Confirmed visible on registry: ${tarballInfo.name}@${tarballInfo.version}`);
     }
   }
-
-  console.log(`\nNative platform publication phase completed successfully for all ${ACTIVE_TARGETS.length} targets.`);
 }
 
 export async function orchestrateRootPublish({
@@ -151,61 +214,30 @@ export async function orchestrateRootPublish({
   dryRun = false,
   registry = "https://registry.npmjs.org",
 } = {}) {
-  const pkgPath = join(rootDir, "package.json");
-  const rootPkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-  const targetVersion = rootPkg.version;
+  const rootPkg = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf-8"));
+  const version = rootPkg.version;
 
-  console.log(`\nStarting root package publication phase for safe-change@${targetVersion}...`);
-  if (dryRun) {
-    console.log("[DRY-RUN] Publication steps will validate tarballs without executing npm publish.");
-  }
-
-  // Pre-condition: verify all platform packages are on the registry
-  console.log("Verifying prerequisite: native platform packages must be visible on npm...");
   for (const target of ACTIVE_TARGETS) {
     const pkgName = `@safe-change/${target}`;
-    if (!dryRun) {
-      const visible = await pollPackageVisibility(pkgName, targetVersion, registry, 3, 2000);
-      if (!visible) {
-        throw new Error(
-          `Prerequisite failed: Native package ${pkgName}@${targetVersion} is not visible on npm! Cannot publish root package before native dependencies are live.`
-        );
-      }
-      console.log(`Prerequisite verified: ${pkgName}@${targetVersion} is active on registry.`);
-    } else {
-      console.log(`[DRY-RUN] Skipping live registry visibility check for ${pkgName}@${targetVersion}.`);
+    if (!dryRun && !(await pollPackageVisibility(pkgName, version, registry, 3, 2000))) {
+      throw new Error(`Native prerequisite is unavailable: ${pkgName}@${version}.`);
     }
   }
 
-  // Inspect root tarball
-  const rootTarballInfo = inspectPackageTarball(rootDir);
-  console.log(`Validated root package ${rootTarballInfo.name}@${rootTarballInfo.version} (${rootTarballInfo.fileCount} files, ${rootTarballInfo.unpackedSize} bytes).`);
+  const tarball = findRootTarball(rootDir, rootPkg.name, version);
+  console.log(`Verified exact root artifact ${basename(tarball.path)} sha256=${tarball.sha256}`);
+  if (dryRun) return;
 
-  // Ensure key distribution files are present
-  const requiredFiles = ["dist/index.js", "dist/cli.js", "skills/safe-change/SKILL.md", "README.md", "LICENSE", "CHANGELOG.md"];
-  for (const req of requiredFiles) {
-    if (!rootTarballInfo.files.includes(req)) {
-      throw new Error(`Required file "${req}" is missing from root package distribution bundle.`);
-    }
+  const rootStatus = await getPackageVersionStatus(rootPkg.name, version, registry);
+  if (rootStatus.status === "published") {
+    throw new Error(`${rootPkg.name}@${version} is already published and immutable.`);
   }
-
-  if (dryRun) {
-    console.log(`[DRY-RUN] Root package ${rootTarballInfo.name}@${rootTarballInfo.version} pack dry-run passed.`);
-    console.log(`[DRY-RUN] Dry run completed with zero mutations.`);
-  } else {
-    console.log(`Publishing ${rootTarballInfo.name}@${rootTarballInfo.version} to npm with provenance...`);
-    execSync(`npm publish --access public --provenance`, {
-      cwd: rootDir,
-      stdio: "inherit",
-      env: process.env,
-    });
-
-    console.log(`Verifying registry visibility for ${rootTarballInfo.name}@${rootTarballInfo.version}...`);
-    const visible = await pollPackageVisibility(rootTarballInfo.name, targetVersion, registry);
-    if (!visible) {
-      throw new Error(`Root package ${rootTarballInfo.name}@${rootTarballInfo.version} published but not visible on registry within timeout.`);
-    }
-    console.log(`\nSuccessfully released and verified safe-change@${targetVersion} on npm registry!`);
+  if (rootStatus.status !== "not_published") {
+    throw new Error(`Cannot determine root package publication state.`);
+  }
+  publishTarball(tarball.path);
+  if (!(await pollPackageVisibility(rootPkg.name, version, registry))) {
+    throw new Error(`${rootPkg.name}@${version} is not visible after publication.`);
   }
 }
 
@@ -213,27 +245,20 @@ export async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
   const phaseIndex = args.indexOf("--phase");
-  const phase = phaseIndex !== -1 ? args[phaseIndex + 1] : "all";
-
-  try {
-    if (phase === "native" || phase === "all") {
-      await orchestrateNativePublish({ dryRun });
-    }
-    if (phase === "root" || phase === "all") {
-      await orchestrateRootPublish({ dryRun });
-    }
-    process.exit(0);
-  } catch (err) {
-    console.error(`\nPublication Orchestrator Error: ${err.message}`);
-    process.exit(1);
+  const phase = phaseIndex === -1 ? "all" : args[phaseIndex + 1];
+  if (!new Set(["all", "native", "root"]).has(phase)) {
+    throw new Error(`Invalid release phase: ${phase}`);
   }
+  if (phase === "native" || phase === "all") await orchestrateNativePublish({ dryRun });
+  if (phase === "root" || phase === "all") await orchestrateRootPublish({ dryRun });
 }
 
 const isDirectRun = Boolean(
-  process.argv[1] &&
-    resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+  process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
 );
-
 if (isDirectRun) {
-  main();
+  main().catch((error) => {
+    console.error(`Publication Orchestrator Error: ${error.message}`);
+    process.exit(1);
+  });
 }

@@ -326,9 +326,15 @@ export function main() {
   const allowUnreleased = args.includes("--allow-unreleased") || args.includes("--dry-run");
   const noGitCheck = args.includes("--no-git-check");
 
+  const requireTag = args.includes("--require-tag");
   let tag = args.find((a) => !a.startsWith("-"));
 
-  // Default to v + root package version if tag not provided
+  if (!tag && requireTag) {
+    console.error("Error: An explicit Git tag is required for production release validation.");
+    process.exit(1);
+  }
+
+  // Local dry-runs may derive a candidate tag from package.json.
   if (!tag) {
     try {
       const pkg = JSON.parse(readFileSync("package.json", "utf-8"));

@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export const PACKAGES_TO_VERIFY = [
@@ -11,39 +11,42 @@ export const PACKAGES_TO_VERIFY = [
   "@safe-change/darwin-x64",
 ];
 
-export async function checkPackageVersionStatus(pkgName, version, registry = "https://registry.npmjs.org") {
-  const encodedName = pkgName.startsWith("@")
-    ? `@${encodeURIComponent(pkgName.slice(1))}`
-    : encodeURIComponent(pkgName);
+function registryUrl(registry, pkgName, version) {
+  return `${registry.replace(/\/$/, "")}/${encodeURIComponent(pkgName)}/${version}`;
+}
 
-  const url = `${registry.replace(/\/$/, "")}/${encodedName}/${version}`;
-
+export async function checkPackageVersionStatus(
+  pkgName,
+  version,
+  registry = "https://registry.npmjs.org"
+) {
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
+    const response = await fetch(registryUrl(registry, pkgName, version), {
+      headers: { Accept: "application/json" },
     });
-
-    if (res.status === 404) {
+    if (response.status === 404) {
       return { status: "not_published", code: 404, pkg: pkgName, version };
     }
-    if (res.status === 200) {
-      return { status: "already_published", code: 200, pkg: pkgName, version };
+    if (response.status === 401 || response.status === 403) {
+      return { status: "auth_error", code: response.status, pkg: pkgName, version };
     }
-    if (res.status === 401 || res.status === 403) {
-      return { status: "auth_error", code: res.status, pkg: pkgName, version };
+    if (response.status !== 200) {
+      return { status: "registry_error", code: response.status, pkg: pkgName, version };
     }
-    return { status: "registry_error", code: res.status, pkg: pkgName, version };
-  } catch (err) {
-    return {
-      status: "network_error",
-      error: err.message,
-      pkg: pkgName,
-      version,
-    };
+    const metadata = await response.json();
+    if (metadata.name !== pkgName || metadata.version !== version) {
+      return { status: "metadata_mismatch", code: 200, pkg: pkgName, version };
+    }
+    return { status: "already_published", code: 200, pkg: pkgName, version, metadata };
+  } catch (error) {
+    return { status: "network_error", error: error.message, pkg: pkgName, version };
   }
+}
+
+function sanitize(value, token) {
+  let result = String(value || "");
+  if (token) result = result.split(token).join("[REDACTED]");
+  return result.replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]");
 }
 
 export function verifyNpmAuth({ registry = "https://registry.npmjs.org" } = {}) {
@@ -51,24 +54,69 @@ export function verifyNpmAuth({ registry = "https://registry.npmjs.org" } = {}) 
   if (!token) {
     return { authenticated: false, error: "NODE_AUTH_TOKEN / NPM_TOKEN is not set in environment." };
   }
-
   try {
-    const whoami = execSync(`npm whoami --registry "${registry}"`, {
+    const username = execFileSync("npm", ["whoami", "--registry", registry], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        NODE_AUTH_TOKEN: token,
-      },
+      env: { ...process.env, NODE_AUTH_TOKEN: token },
     }).trim();
-
-    return { authenticated: true, username: whoami };
-  } catch (err) {
-    const stderr = err.stderr ? err.stderr.toString().trim() : err.message;
-    // Ensure no token is leaked
-    const sanitizedError = stderr.replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [REDACTED]");
-    return { authenticated: false, error: sanitizedError };
+    return { authenticated: true, username };
+  } catch (error) {
+    return {
+      authenticated: false,
+      error: sanitize(error.stderr?.toString() || error.message, token),
+    };
   }
+}
+
+export function verifyNpmAuthorization(username, { registry = "https://registry.npmjs.org" } = {}) {
+  const token = process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN;
+  const env = { ...process.env, NODE_AUTH_TOKEN: token };
+  try {
+    const owners = execFileSync("npm", ["owner", "ls", "safe-change", "--json", "--registry", registry], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env,
+    });
+    const ownerData = JSON.parse(owners);
+    const ownerNames = Array.isArray(ownerData)
+      ? ownerData.map((owner) => typeof owner === "string" ? owner : owner.name)
+      : Object.keys(ownerData);
+    if (!ownerNames.includes(username)) {
+      return { authorized: false, error: `npm user "${username}" is not an owner of safe-change.` };
+    }
+
+    const members = execFileSync("npm", ["org", "ls", "safe-change", "--json", "--registry", registry], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env,
+    });
+    const memberData = JSON.parse(members);
+    const memberNames = Array.isArray(memberData) ? memberData : Object.keys(memberData);
+    if (!memberNames.includes(username)) {
+      return { authorized: false, error: `npm user "${username}" is not a member of @safe-change.` };
+    }
+    return { authorized: true, username };
+  } catch (error) {
+    return {
+      authorized: false,
+      error: sanitize(error.stderr?.toString() || error.message, token),
+    };
+  }
+}
+
+export function classifyReleaseState(results) {
+  const root = results.find((result) => result.pkg === "safe-change");
+  const native = results.filter((result) => result.pkg !== "safe-change");
+  const errors = results.filter((result) =>
+    ["auth_error", "registry_error", "network_error", "metadata_mismatch"].includes(result.status)
+  );
+  if (errors.length > 0) return { mode: "invalid", errors };
+  const publishedNative = native.filter((result) => result.status === "already_published").length;
+  if (root.status === "not_published" && publishedNative === 0) return { mode: "full" };
+  if (root.status === "not_published" && publishedNative === native.length) return { mode: "root-recovery" };
+  if (root.status === "already_published" && publishedNative === native.length) return { mode: "complete" };
+  return { mode: "mixed" };
 }
 
 export async function preflightNpm({
@@ -78,90 +126,56 @@ export async function preflightNpm({
   registry = "https://registry.npmjs.org",
 } = {}) {
   const pkgPath = join(rootDir, "package.json");
-  if (!existsSync(pkgPath)) {
-    throw new Error(`Missing package.json at ${pkgPath}`);
-  }
-  const rootPkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-  const targetVersion = rootPkg.version;
+  if (!existsSync(pkgPath)) throw new Error("Missing root package.json.");
+  const targetVersion = JSON.parse(readFileSync(pkgPath, "utf-8")).version;
 
-  console.log(`Starting npm release preflight for v${targetVersion} on ${registry}...`);
-
-  // 1. Authentication check
-  let authUser = null;
+  let username = null;
   if (!skipAuth) {
-    const authResult = verifyNpmAuth({ registry });
-    if (!authResult.authenticated) {
-      if (dryRun) {
-        console.warn(`[WARN] npm authentication check skipped in dry-run: ${authResult.error}`);
-      } else {
-        throw new Error(`npm authentication preflight failed: ${authResult.error}`);
-      }
+    const auth = verifyNpmAuth({ registry });
+    if (!auth.authenticated) {
+      if (!dryRun) throw new Error(`npm authentication failed: ${auth.error}`);
     } else {
-      authUser = authResult.username;
-      console.log(`Verified npm credentials for user: ${authUser}`);
+      username = auth.username;
+      const authorization = verifyNpmAuthorization(username, { registry });
+      if (!authorization.authorized && !dryRun) {
+        throw new Error(`npm authorization failed: ${authorization.error}`);
+      }
     }
-  } else {
-    console.log("Skipping npm authentication check (--skip-auth).");
   }
 
-  // 2. Package versions check
-  console.log(`Checking existing versions across ${PACKAGES_TO_VERIFY.length} release packages...`);
-  const statusResults = [];
-  for (const pkg of PACKAGES_TO_VERIFY) {
-    const res = await checkPackageVersionStatus(pkg, targetVersion, registry);
-    statusResults.push(res);
+  const results = [];
+  for (const pkgName of PACKAGES_TO_VERIFY) {
+    results.push(await checkPackageVersionStatus(pkgName, targetVersion, registry));
+  }
+  const state = classifyReleaseState(results);
+  if (state.mode === "invalid") {
+    throw new Error(`Registry validation failed for ${state.errors.map((item) => item.pkg).join(", ")}.`);
+  }
+  if (state.mode === "mixed") {
+    throw new Error("Unsafe partial release state: only some native packages are published.");
+  }
+  if (state.mode === "complete") {
+    throw new Error(`Release v${targetVersion} is already complete and immutable.`);
   }
 
-  const alreadyPublished = statusResults.filter((r) => r.status === "already_published");
-  const errors = statusResults.filter((r) => r.status !== "not_published" && r.status !== "already_published");
-  const readyToPublish = statusResults.filter((r) => r.status === "not_published");
-
-  console.log("\nPackage status breakdown:");
-  for (const r of statusResults) {
-    console.log(`  - ${r.pkg}@${r.version}: ${r.status} (HTTP ${r.code || r.error || "N/A"})`);
-  }
-
-  if (errors.length > 0) {
-    const details = errors.map((e) => `${e.pkg} (${e.status}: ${e.code || e.error})`).join(", ");
-    throw new Error(`Registry communication failed for one or more packages: ${details}`);
-  }
-
-  if (alreadyPublished.length > 0) {
-    const existing = alreadyPublished.map((p) => `${p.pkg}@${p.version}`).join(", ");
-    throw new Error(
-      `Package version conflict: The following packages are already published to npm:\n  ${existing}\nnpm versions are immutable and cannot be republished. Please bump version.`
-    );
-  }
-
-  console.log(`\nAll ${readyToPublish.length} packages are available for initial publication of v${targetVersion}.`);
-  return {
-    success: true,
-    targetVersion,
-    user: authUser,
-    packagesReady: readyToPublish.map((p) => p.pkg),
-  };
+  console.log(`npm release state: ${state.mode}`);
+  return { success: true, targetVersion, user: username, mode: state.mode, results };
 }
 
 export async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
-  const skipAuth = args.includes("--skip-auth") || (!process.env.NODE_AUTH_TOKEN && !process.env.NPM_TOKEN && dryRun);
-
-  try {
-    const result = await preflightNpm({ dryRun, skipAuth });
-    console.log(`npm release preflight completed successfully for v${result.targetVersion}.`);
-    process.exit(0);
-  } catch (err) {
-    console.error(`\nPreflight Error: ${err.message}`);
-    process.exit(1);
-  }
+  const skipAuth = args.includes("--skip-auth") || (dryRun && !process.env.NODE_AUTH_TOKEN && !process.env.NPM_TOKEN);
+  const result = await preflightNpm({ dryRun, skipAuth });
+  console.log(`npm preflight completed for v${result.targetVersion} in ${result.mode} mode.`);
 }
 
 const isDirectRun = Boolean(
-  process.argv[1] &&
-    resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+  process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
 );
-
 if (isDirectRun) {
-  main();
+  main().catch((error) => {
+    console.error(`Preflight Error: ${error.message}`);
+    process.exit(1);
+  });
 }
