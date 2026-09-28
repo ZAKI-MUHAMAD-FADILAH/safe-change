@@ -149,6 +149,14 @@ safe-change diff --stat
 | `save [description]` | Record a baseline — runs all checks, hashes all files |
 | `check` | Compare current state to baseline — exit 1 if regression |
 | `diff [--stat]` | List files added, modified, deleted, and line change stats |
+| `assess` | Score change risk, enforce policy, and determine the minimum operating mode |
+| `lease acquire <session> <agent>` | Atomically acquire the repository write lease |
+| `lease status` | Inspect the active or expired write lease |
+| `lease release <session>` | Release a write lease only when session ownership matches |
+| `fingerprint` | Capture the current workspace identity and environment digest |
+| `fingerprint check` | Compare the current workspace against the baseline fingerprint |
+| `evidence <session>` | Create a source-free checksummed evidence bundle |
+| `audit verify` | Verify the tamper-evident session event chain |
 | `log` | Full history of baselines and check results |
 | `dashboard` | Open visual dashboard at `localhost:4242` |
 | `rules list` | Show active safety rules |

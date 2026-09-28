@@ -35,6 +35,14 @@ export type {
   ChangeMetrics,
   BudgetViolation,
   EnterpriseAssessment,
+  SecretType,
+  SecretFinding,
+  WorkspaceFingerprint,
+  WorkspaceDriftCategory,
+  WorkspaceDrift,
+  WriteLease,
+  AuditEvent,
+  EvidenceManifest,
 } from "./types/index.js";
 
 export { ExitCodes } from "./types/index.js";
@@ -88,3 +96,30 @@ export {
   modeForRisk,
   type AssessChangeInput,
 } from "./enterprise/risk-engine.js";
+export {
+  captureWorkspaceFingerprint,
+  compareWorkspaceFingerprints,
+} from "./integrity/fingerprint.js";
+export {
+  acquireWriteLease,
+  releaseWriteLease,
+  readWriteLease,
+  isLeaseExpired,
+  LeaseConflictError,
+} from "./integrity/lease.js";
+export {
+  appendAuditEvent,
+  readAuditEvents,
+  verifyAuditEvents,
+  AuditLogError,
+} from "./integrity/audit-log.js";
+export {
+  createEvidenceBundle,
+  persistVerificationSummary,
+  type VerificationSummary,
+} from "./integrity/evidence.js";
+export {
+  redactSecrets,
+  StreamingSecretRedactor,
+  type RedactionResult,
+} from "./security/secret-redactor.js";

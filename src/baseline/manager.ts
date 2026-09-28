@@ -8,7 +8,10 @@ import type {
   FileStatus,
   GitState,
   SafeChangeConfig,
+  SecretType,
+  WorkspaceFingerprint,
 } from "../types/index.js";
+import { captureWorkspaceFingerprint } from "../integrity/fingerprint.js";
 
 const STATE_DIR = ".safe-change";
 const BASELINE_FILE = "baseline.json";
@@ -56,6 +59,10 @@ export async function saveBaseline(
 ): Promise<string> {
   const stateDir = join(repoRoot, STATE_DIR);
   await mkdir(stateDir, { recursive: true });
+  const workspaceFingerprint = await captureWorkspaceFingerprint(
+    repoRoot,
+    config
+  );
 
   const baseline: Baseline = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -66,6 +73,7 @@ export async function saveBaseline(
     excludedPaths: [".safe-change/"],
     checks: [...checks],
     checksConfigHash: computeConfigHash(config),
+    workspaceFingerprint,
   };
 
   const content = JSON.stringify(baseline, null, 2) + "\n";
@@ -282,11 +290,29 @@ function validateBaseline(data: unknown, filePath: string): Baseline {
       outputTruncated: Boolean(c["outputTruncated"]),
       stdout: typeof c["stdout"] === "string" ? (c["stdout"] as string) : "",
       stderr: typeof c["stderr"] === "string" ? (c["stderr"] as string) : "",
+      outputBlocked: Boolean(c["outputBlocked"]),
+      detectedSecretTypes: Array.isArray(c["detectedSecretTypes"])
+        ? (c["detectedSecretTypes"].map(String) as SecretType[])
+        : [],
     });
   }
 
   if (typeof obj["checksConfigHash"] !== "string") {
     throw new BaselineError("Baseline missing checksConfigHash.");
+  }
+
+  let workspaceFingerprint: WorkspaceFingerprint | undefined;
+  if (obj["workspaceFingerprint"] !== undefined) {
+    const fingerprint = obj["workspaceFingerprint"];
+    if (
+      typeof fingerprint !== "object" ||
+      fingerprint === null ||
+      Array.isArray(fingerprint) ||
+      typeof (fingerprint as Record<string, unknown>)["digest"] !== "string"
+    ) {
+      throw new BaselineError("Baseline has invalid workspaceFingerprint.");
+    }
+    workspaceFingerprint = fingerprint as WorkspaceFingerprint;
   }
 
   return {
@@ -298,6 +324,7 @@ function validateBaseline(data: unknown, filePath: string): Baseline {
     excludedPaths: [".safe-change/"],
     checks: safeChecks,
     checksConfigHash: obj["checksConfigHash"] as string,
+    ...(workspaceFingerprint ? { workspaceFingerprint } : {}),
   };
 }
 
