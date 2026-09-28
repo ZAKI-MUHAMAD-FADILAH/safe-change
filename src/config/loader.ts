@@ -1,6 +1,17 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { SafeChangeConfig, CheckDefinition } from "../types/index.js";
+import type {
+  SafeChangeConfig,
+  CheckDefinition,
+  ChangeBudget,
+  EnterpriseMode,
+  EnterprisePolicy,
+} from "../types/index.js";
+import {
+  DEFAULT_CHANGE_BUDGET,
+  DEFAULT_ENTERPRISE_POLICY,
+  ENTERPRISE_MODES,
+} from "../enterprise/policy.js";
 
 const CONFIG_FILENAME = ".safe-change.json";
 const DEFAULT_TIMEOUT = 60;
@@ -111,6 +122,112 @@ function validateConfig(data: unknown): SafeChangeConfig {
     checks,
     ...(logRetention !== undefined ? { logRetention } : {}),
     ...(dashboardPort !== undefined ? { dashboardPort } : {}),
+    ...(obj["enterprisePolicy"] !== undefined
+      ? { enterprisePolicy: validateEnterprisePolicy(obj["enterprisePolicy"]) }
+      : {}),
+  };
+}
+
+function validateEnterprisePolicy(data: unknown): EnterprisePolicy {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new ConfigError(`"enterprisePolicy" must be an object.`);
+  }
+  const obj = data as Record<string, unknown>;
+  if (obj["policyVersion"] !== 1) {
+    throw new ConfigError(`enterprisePolicy.policyVersion must be 1.`);
+  }
+
+  const booleanField = <K extends keyof EnterprisePolicy>(
+    key: K,
+    fallback: EnterprisePolicy[K]
+  ): EnterprisePolicy[K] => {
+    const value = obj[key];
+    if (value === undefined) return fallback;
+    if (typeof value !== "boolean") {
+      throw new ConfigError(`enterprisePolicy.${String(key)} must be a boolean.`);
+    }
+    return value as EnterprisePolicy[K];
+  };
+
+  const minimumMode =
+    obj["minimumMode"] ?? DEFAULT_ENTERPRISE_POLICY.minimumMode;
+  if (
+    typeof minimumMode !== "string" ||
+    !ENTERPRISE_MODES.includes(minimumMode as EnterpriseMode)
+  ) {
+    throw new ConfigError(
+      `enterprisePolicy.minimumMode must be one of: ${ENTERPRISE_MODES.join(", ")}.`
+    );
+  }
+
+  const allowForcePush = booleanField("allowForcePush", false);
+  const allowDestructiveGit = booleanField("allowDestructiveGit", false);
+  if (allowForcePush !== false || allowDestructiveGit !== false) {
+    throw new ConfigError(
+      "Enterprise policy cannot enable force push or destructive Git operations."
+    );
+  }
+
+  return {
+    policyVersion: 1,
+    minimumMode: minimumMode as EnterpriseMode,
+    requireBaseline: booleanField("requireBaseline", true),
+    requireTests: booleanField("requireTests", true),
+    requireCoverage: booleanField("requireCoverage", false),
+    requireDependencyAudit: booleanField("requireDependencyAudit", false),
+    requireDiffReview: booleanField("requireDiffReview", true),
+    allowForcePush: false,
+    allowDestructiveGit: false,
+    changeBudget: validateChangeBudget(obj["changeBudget"]),
+  };
+}
+
+function validateChangeBudget(data: unknown): ChangeBudget {
+  if (data === undefined) return DEFAULT_CHANGE_BUDGET;
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new ConfigError(`enterprisePolicy.changeBudget must be an object.`);
+  }
+  const obj = data as Record<string, unknown>;
+  const integer = (key: keyof ChangeBudget, fallback: number): number => {
+    const value = obj[key];
+    if (value === undefined) return fallback;
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+      throw new ConfigError(
+        `enterprisePolicy.changeBudget.${String(key)} must be a non-negative integer.`
+      );
+    }
+    return value;
+  };
+  const allowLockfileChanges =
+    obj["allowLockfileChanges"] ?? DEFAULT_CHANGE_BUDGET.allowLockfileChanges;
+  if (typeof allowLockfileChanges !== "boolean") {
+    throw new ConfigError(
+      "enterprisePolicy.changeBudget.allowLockfileChanges must be a boolean."
+    );
+  }
+
+  return {
+    maxFilesChanged: integer(
+      "maxFilesChanged",
+      DEFAULT_CHANGE_BUDGET.maxFilesChanged
+    ),
+    maxLinesAdded: integer(
+      "maxLinesAdded",
+      DEFAULT_CHANGE_BUDGET.maxLinesAdded
+    ),
+    maxLinesDeleted: integer(
+      "maxLinesDeleted",
+      DEFAULT_CHANGE_BUDGET.maxLinesDeleted
+    ),
+    maxPublicApisChanged: integer(
+      "maxPublicApisChanged",
+      DEFAULT_CHANGE_BUDGET.maxPublicApisChanged
+    ),
+    maxDeletedFiles: integer(
+      "maxDeletedFiles",
+      DEFAULT_CHANGE_BUDGET.maxDeletedFiles
+    ),
+    allowLockfileChanges,
   };
 }
 

@@ -64,8 +64,18 @@ Status labels: Done | In Progress | Planned
 - Commercial AGPL-3.0 copyleft boundaries clarified
 - Unified version synchronization across Rust crate and 7 npm platform packages
 
-## v0.4.0 -- Advanced Observability & Collaboration (Planned)
+## v0.4.0 -- Executable Enterprise Enforcement Platform (In Progress)
 
+- Risk scoring engine and automatic operating-mode selection (foundation complete)
+- Machine-readable enterprise policy and change-budget enforcement (foundation complete)
+- Anti-policy-downgrade detector and approval gate (textual foundation complete)
+- AST-aware semantic diff
+- Multi-agent write lease and workspace fingerprint engine
+- Cryptographic evidence bundles and deterministic replay
+- Command sandbox with executable and environment allowlists
+- Secret-output blocker
+- Expiring exception and approval engine
+- Enterprise agent certification engine
 - File Change Drawer with syntax-highlighted diffs
 - Multi-Agent Presence Badge and agent identification
 - safe-change rules publish and community rule packages

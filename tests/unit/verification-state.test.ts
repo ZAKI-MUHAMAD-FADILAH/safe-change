@@ -243,6 +243,53 @@ describe("Verification State Matrix & Fail-Closed Rules Evaluation", () => {
     }
   });
 
+  it("evaluates added checks as not-verified until a new baseline is recorded", async () => {
+    await repo.createConfig([
+      {
+        name: "existing-check",
+        executable: process.execPath,
+        args: ["-e", "process.exit(0)"],
+        timeout: 5,
+      },
+    ]);
+
+    const originalCwd = process.cwd();
+    process.chdir(repo.path);
+
+    try {
+      expect(
+        await runSave({ description: "baseline before added gate", format: "json" })
+      ).toBe(ExitCodes.OK);
+
+      await repo.createConfig([
+        {
+          name: "existing-check",
+          executable: process.execPath,
+          args: ["-e", "process.exit(0)"],
+          timeout: 5,
+        },
+        {
+          name: "new-security-check",
+          executable: process.execPath,
+          args: ["-e", "process.exit(0)"],
+          timeout: 5,
+        },
+      ]);
+
+      stdoutData = "";
+      expect(await runCheck({ format: "json" })).toBe(ExitCodes.OK);
+
+      const parsedCheck = JSON.parse(stdoutData);
+      expect(parsedCheck.configDrift.addedChecks).toEqual(["new-security-check"]);
+      expect(parsedCheck.verification.state).toBe("not-verified");
+      expect(parsedCheck.verification.reason).toContain(
+        "configuration changed since baseline"
+      );
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it("enforces fail-closed save rejection when rules.json is malformed", async () => {
     await repo.createConfig([]);
     const rulesDir = join(repo.path, ".safe-change");
