@@ -1,0 +1,190 @@
+import { readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import type { CheckDefinition, OutputFormat, SafeChangeConfig } from "../types/index.js";
+import { ExitCodes } from "../types/index.js";
+import { getRepositoryRoot } from "../git/inspector.js";
+import { renderError } from "../output/renderer.js";
+
+export interface InitOptions {
+  readonly format?: OutputFormat;
+  readonly overwrite?: boolean;
+}
+
+export interface AutoDetectedChecks {
+  readonly ecosystem: string;
+  readonly checks: CheckDefinition[];
+}
+
+export async function detectProjectChecks(repoRoot: string): Promise<AutoDetectedChecks> {
+  // 1. Node.js (package.json)
+  const pkgPath = join(repoRoot, "package.json");
+  if (existsSync(pkgPath)) {
+    try {
+      const raw = await readFile(pkgPath, "utf-8");
+      const pkg = JSON.parse(raw);
+      const scripts = typeof pkg.scripts === "object" && pkg.scripts !== null ? pkg.scripts : {};
+      const checks: CheckDefinition[] = [];
+
+      if (typeof scripts.test === "string" && !scripts.test.includes("no test specified")) {
+        checks.push({
+          name: "test",
+          executable: "npm",
+          args: ["test"],
+          timeout: 120,
+        });
+      }
+
+      if (typeof scripts.build === "string") {
+        checks.push({
+          name: "build",
+          executable: "npm",
+          args: ["run", "build"],
+          timeout: 60,
+        });
+      }
+
+      if (typeof scripts.lint === "string") {
+        checks.push({
+          name: "lint",
+          executable: "npm",
+          args: ["run", "lint"],
+          timeout: 45,
+        });
+      }
+
+      if (checks.length > 0) {
+        return { ecosystem: "Node.js / npm", checks };
+      }
+    } catch {
+      // ignore parse error, continue detection
+    }
+  }
+
+  // 2. Rust (Cargo.toml)
+  const cargoPath = join(repoRoot, "Cargo.toml");
+  if (existsSync(cargoPath)) {
+    return {
+      ecosystem: "Rust / Cargo",
+      checks: [
+        { name: "test", executable: "cargo", args: ["test"], timeout: 180 },
+        { name: "check", executable: "cargo", args: ["check"], timeout: 60 },
+      ],
+    };
+  }
+
+  // 3. Go (go.mod)
+  const goModPath = join(repoRoot, "go.mod");
+  if (existsSync(goModPath)) {
+    return {
+      ecosystem: "Go",
+      checks: [
+        { name: "test", executable: "go", args: ["test", "./..."], timeout: 120 },
+      ],
+    };
+  }
+
+  // 4. Python (pyproject.toml, pytest.ini, requirements.txt)
+  if (
+    existsSync(join(repoRoot, "pyproject.toml")) ||
+    existsSync(join(repoRoot, "pytest.ini")) ||
+    existsSync(join(repoRoot, "requirements.txt"))
+  ) {
+    return {
+      ecosystem: "Python",
+      checks: [
+        { name: "test", executable: "pytest", args: [], timeout: 120 },
+      ],
+    };
+  }
+
+  return { ecosystem: "Generic (file guardrails only)", checks: [] };
+}
+
+export async function runInit(options: InitOptions = {}): Promise<number> {
+  const format = options.format ?? "terminal";
+
+  let repoRoot: string;
+  try {
+    repoRoot = await getRepositoryRoot(process.cwd());
+  } catch {
+    process.stderr.write(
+      renderError(
+        format,
+        "Not a Git repository. safe-change requires a Git repository.",
+        ExitCodes.NOT_GIT_REPO
+      )
+    );
+    return ExitCodes.NOT_GIT_REPO;
+  }
+
+  const configPath = join(repoRoot, ".safe-change.json");
+  if (existsSync(configPath) && !options.overwrite) {
+    const msg = "Configuration file .safe-change.json already exists. Use --overwrite to regenerate.";
+    process.stderr.write(renderError(format, msg, ExitCodes.COLLISION_DETECTED));
+    return ExitCodes.COLLISION_DETECTED;
+  }
+
+  const detected = await detectProjectChecks(repoRoot);
+
+  const config: SafeChangeConfig = {
+    version: 1,
+    logRetention: 100,
+    checks: detected.checks,
+  };
+
+  await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
+
+  // Ensure .safe-change/ is in .gitignore
+  const gitignorePath = join(repoRoot, ".gitignore");
+  let gitignoreUpdated = false;
+  try {
+    if (existsSync(gitignorePath)) {
+      const gitignoreContent = await readFile(gitignorePath, "utf-8");
+      if (!gitignoreContent.includes(".safe-change")) {
+        const trailingNewline = gitignoreContent.endsWith("\n") ? "" : "\n";
+        await writeFile(gitignorePath, `${gitignoreContent}${trailingNewline}.safe-change/\n`, "utf-8");
+        gitignoreUpdated = true;
+      }
+    } else {
+      await writeFile(gitignorePath, ".safe-change/\n", "utf-8");
+      gitignoreUpdated = true;
+    }
+  } catch {
+    // Non-fatal if gitignore write fails
+  }
+
+  if (format === "json") {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          success: true,
+          ecosystem: detected.ecosystem,
+          configPath,
+          checks: detected.checks,
+          gitignoreUpdated,
+        },
+        null,
+        2
+      ) + "\n"
+    );
+  } else {
+    process.stdout.write("\nsafe-change initialized successfully!\n\n");
+    process.stdout.write(`  Ecosystem:   ${detected.ecosystem}\n`);
+    process.stdout.write(`  Config:      .safe-change.json (${detected.checks.length} check(s) configured)\n`);
+    for (const c of detected.checks) {
+      process.stdout.write(`    - ${c.name}: ${c.executable} ${c.args.join(" ")} (timeout: ${c.timeout}s)\n`);
+    }
+    if (detected.checks.length === 0) {
+      process.stdout.write("    (No automated test runner detected; safe-change will enforce file integrity guardrails)\n");
+    }
+    if (gitignoreUpdated) {
+      process.stdout.write("  Gitignore:   Added .safe-change/ to .gitignore\n");
+    } else {
+      process.stdout.write("  Gitignore:   .safe-change/ is already excluded\n");
+    }
+    process.stdout.write("\nNext step: Run 'safe-change save \"initial baseline\"' before editing code.\n\n");
+  }
+
+  return ExitCodes.OK;
+}

@@ -372,7 +372,8 @@ export function renderDiffSummary(
           : null,
         hasBaseline: diff.hasBaseline,
         files: diff.files,
-        lineDiffAvailable: false,
+        lineDiffAvailable: diff.lineDiffAvailable,
+        lineStats: diff.lineStats ?? null,
         note: diff.note,
       },
       null,
@@ -431,6 +432,24 @@ export function renderDiffSummary(
     }
   }
   lines.push(c(DIM, `    Unchanged: ${fc.unchangedCount}`));
+
+  // Line stats
+  if (diff.lineStats && (diff.lineStats.linesAdded > 0 || diff.lineStats.linesRemoved > 0)) {
+    lines.push("");
+    lines.push(c(BOLD, "  Line statistics (working tree vs HEAD):"));
+    lines.push(
+      `    ${c(GREEN, `+${diff.lineStats.linesAdded} line(s) added`)}   ${c(
+        RED,
+        `-${diff.lineStats.linesRemoved} line(s) removed`
+      )}`
+    );
+    if (diff.lineStats.statText) {
+      lines.push("");
+      for (const statLine of sanitize(diff.lineStats.statText).trim().split("\n")) {
+        lines.push(c(DIM, `    ${statLine}`));
+      }
+    }
+  }
 
   lines.push("");
   lines.push(

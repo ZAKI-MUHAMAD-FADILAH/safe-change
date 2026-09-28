@@ -1,8 +1,9 @@
-import type { OutputFormat, DiffSummary } from "../types/index.js";
+import type { OutputFormat, DiffSummary, DiffLineStats } from "../types/index.js";
 import { ExitCodes } from "../types/index.js";
 import {
   getRepositoryRoot,
   getFileEntries,
+  getDiffText,
 } from "../git/inspector.js";
 import { loadBaseline } from "../baseline/manager.js";
 import { compareFiles } from "../comparator/engine.js";
@@ -10,6 +11,7 @@ import { renderDiffSummary, renderError } from "../output/renderer.js";
 
 export interface DiffOptions {
   readonly format: OutputFormat;
+  readonly stat?: boolean;
 }
 
 export async function runDiff(options: DiffOptions): Promise<number> {
@@ -86,17 +88,33 @@ export async function runDiff(options: DiffOptions): Promise<number> {
     fileChanges = { added, modified, deleted, unchangedCount };
   }
 
-  // 5. Construct diff summary (Option B: hash-based baseline with honest file changes)
+  // 5. Compute line statistics for changed files
+  let lineStats: DiffLineStats | undefined;
+  try {
+    const diffTextResult = await getDiffText(repoRoot);
+    if (diffTextResult.linesAdded > 0 || diffTextResult.linesRemoved > 0 || options.stat) {
+      lineStats = {
+        linesAdded: diffTextResult.linesAdded,
+        linesRemoved: diffTextResult.linesRemoved,
+        statText: options.stat ? diffTextResult.text : undefined,
+      };
+    }
+  } catch {
+    lineStats = undefined;
+  }
+
+  // 6. Construct diff summary
   const summary: DiffSummary = {
     files: fileChanges,
     hasBaseline: baseline !== null,
-    lineDiffAvailable: false,
+    lineDiffAvailable: lineStats !== undefined,
     note: baseline
       ? "Line diff unavailable: safe-change stores file integrity hashes rather than file contents at baseline. Run 'git diff' to inspect uncommitted changes in your working tree."
       : "No baseline found. Run 'safe-change save' to create a baseline.",
+    ...(lineStats ? { lineStats } : {}),
   };
 
-  // 6. Render output
+  // 7. Render output
   process.stdout.write(renderDiffSummary(format, summary, baseline));
 
   return ExitCodes.OK;

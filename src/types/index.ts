@@ -233,11 +233,18 @@ export interface RuleEvaluationResult {
 
 // Diff output
 
+export interface DiffLineStats {
+  readonly linesAdded: number;
+  readonly linesRemoved: number;
+  readonly statText?: string;
+}
+
 export interface DiffSummary {
   readonly files: FileChanges;
   readonly hasBaseline: boolean;
-  readonly lineDiffAvailable: false;
+  readonly lineDiffAvailable: boolean;
   readonly note: string;
+  readonly lineStats?: DiffLineStats;
 }
 
 // Exit codes

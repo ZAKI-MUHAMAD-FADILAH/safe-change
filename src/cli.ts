@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { OutputFormat } from "./types/index.js";
 import { ExitCodes } from "./types/index.js";
 import type { InstallerScope } from "./installer/core/path-safety.js";
+import { runInit } from "./commands/init.js";
 import { runSave } from "./commands/save.js";
 import { runCheck } from "./commands/check.js";
 import { runDiff } from "./commands/diff.js";
@@ -42,6 +43,7 @@ interface ParsedArgs {
     overwrite: boolean;
     dryRun: boolean;
     nonInteractive: boolean;
+    stat: boolean;
   };
   logOptions: {
     last?: number;
@@ -69,6 +71,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       overwrite: false,
       dryRun: false,
       nonInteractive: false,
+      stat: false,
     },
     logOptions: {},
     dashboardOptions: {},
@@ -88,6 +91,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       result.flags.version = true;
     } else if (arg === "--verbose") {
       result.flags.verbose = true;
+    } else if (arg === "--stat") {
+      result.flags.stat = true;
     } else if (arg === "--overwrite") {
       result.flags.overwrite = true;
     } else if (arg === "--dry-run") {
@@ -197,9 +202,10 @@ const HELP_TEXT = `
 safe-change -- A safety net for AI-assisted coding.
 
 Usage:
+  safe-change init [options]       Auto-detect test runners and create configuration.
   safe-change save [description]   Record a baseline of the repository and verification results.
   safe-change check                Compare current state against the baseline.
-  safe-change diff                 Show a summary of changes since the baseline.
+  safe-change diff [options]       Show a summary of changes since the baseline.
   safe-change log [options]        Show or export persistent safety log.
   safe-change rules [action]       Manage safety rules (list, add, remove, validate).
   safe-change dashboard [options]  Start local web dashboard at localhost:4242.
@@ -226,6 +232,7 @@ Options:
   --scope <project|global>  Installation scope (default: project).
   --global, -g              Shorthand for --scope global.
   --project, -p             Shorthand for --scope project.
+  --stat                    Show working tree line changes in safe-change diff.
   --last <n>                Show n most recent log entries (default: 10).
   --all                     Show all log entries.
   --export <file>           Export full log to a JSON file.
@@ -285,6 +292,14 @@ async function main(): Promise<void> {
   let exitCode: number;
 
   switch (parsed.command) {
+    case "init": {
+      exitCode = await runInit({
+        format,
+        overwrite: parsed.flags.overwrite,
+      });
+      break;
+    }
+
     case "save": {
       const description = parsed.positional.join(" ") || "unnamed baseline";
       exitCode = await runSave({ description, format });
@@ -297,7 +312,7 @@ async function main(): Promise<void> {
     }
 
     case "diff": {
-      exitCode = await runDiff({ format });
+      exitCode = await runDiff({ format, stat: parsed.flags.stat });
       break;
     }
 

@@ -109,52 +109,30 @@ safe-change --version
 
 ## Quick start
 
-**1. Create `.safe-change.json` in your project root**
-
-```json
-{
-  "version": 1,
-  "checks": [
-    {
-      "name": "build",
-      "executable": "npm",
-      "args": ["run", "build"],
-      "timeout": 60
-    },
-    {
-      "name": "test",
-      "executable": "npm",
-      "args": ["test"],
-      "timeout": 120
-    }
-  ]
-}
-```
-
-**2. Add `.safe-change/` to your `.gitignore`**
+**1. Initialize your project in 1 second**
 
 ```bash
-echo ".safe-change/" >> .gitignore
+safe-change init
 ```
 
-> safe-change stores baseline snapshots, rules, and history logs in `.safe-change/`. Keeping this local ensures machine-specific state and file hashes never leak into commits or pull requests.
+> Automatically inspects your repository (Node.js, Rust, Go, Python, Makefile), generates `.safe-change.json` with detected test runners, and excludes `.safe-change/` in `.gitignore`.
 
-**3. Save a baseline before your agent starts**
+**2. Save a baseline before your agent starts**
 
 ```bash
 safe-change save "before refactor"
 ```
 
-**4. Check for regressions after your agent finishes**
+**3. Check for regressions after your agent finishes**
 
 ```bash
 safe-change check
 ```
 
-**5. Inspect which files changed**
+**4. Inspect what changed (files and line counts)**
 
 ```bash
-safe-change diff
+safe-change diff --stat
 ```
 
 <br/>
@@ -167,9 +145,10 @@ safe-change diff
 
 | Command | What it does |
 |---|---|
+| `init` | Auto-detect test runners, create `.safe-change.json`, and configure `.gitignore` |
 | `save [description]` | Record a baseline — runs all checks, hashes all files |
 | `check` | Compare current state to baseline — exit 1 if regression |
-| `diff` | List files added, modified, or deleted since baseline |
+| `diff [--stat]` | List files added, modified, deleted, and line change stats |
 | `log` | Full history of baselines and check results |
 | `dashboard` | Open visual dashboard at `localhost:4242` |
 | `rules list` | Show active safety rules |
@@ -378,6 +357,7 @@ See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 | [docs/rules.md](docs/rules.md) | Safety rules reference |
 | [docs/dashboard.md](docs/dashboard.md) | Dashboard guide |
 | [docs/persistent-log.md](docs/persistent-log.md) | Persistent safety log |
+| [docs/runtime-verification.md](docs/runtime-verification.md) | Multi-agent runtime verification matrix |
 | [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md) | Canonical agent skill |
 
 <br/>
@@ -466,7 +446,7 @@ GNU Affero General Public License v3.0 only — SPDX: `AGPL-3.0-only`
 
 See [LICENSE](LICENSE) and [LICENSE_CHANGE.md](LICENSE_CHANGE.md).
 
-**For commercial and enterprise users:** AGPL-3.0 is a strong copyleft license. If you modify safe-change and expose it as part of a network service (e.g., a hosted CI/CD pipeline or internal developer platform accessible over a network), you are required to make the complete source code of the modified version available under AGPL-3.0. Using safe-change unmodified as a local CLI tool does not trigger this requirement. If your organization needs a commercial license without copyleft obligations, contact the maintainer.
+**For commercial and enterprise users:** AGPL-3.0 is a strong copyleft license that protects against proprietary hosted cloud forks. **Using safe-change unmodified as a developer CLI tool, MCP server, or in proprietary enterprise CI/CD pipelines does NOT trigger copyleft obligations.** Your proprietary code remains 100% proprietary. Only organizations modifying safe-change and serving it over a network as a hosted SaaS product are required to release their modifications under AGPL-3.0. If your organization requires a commercial license without copyleft obligations, contact the maintainer.
 
 Copyright © 2026 ZACK.PRATAMA — PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)
 
