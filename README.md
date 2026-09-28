@@ -157,6 +157,11 @@ safe-change diff --stat
 | `fingerprint check` | Compare the current workspace against the baseline fingerprint |
 | `evidence <session>` | Create a source-free checksummed evidence bundle |
 | `audit verify` | Verify the tamper-evident session event chain |
+| `authorize <capability> <resource> <agent> <session> [approval]` | Evaluate an operation through the policy decision and enforcement contract |
+| `approval request` | Create a scoped, expiring approval request |
+| `approval grant` | Add one independent approval to a request |
+| `approval status` | Inspect request integrity, grants, and expiration |
+| `policy verify` | Verify the configured detached Ed25519 policy signature |
 | `log` | Full history of baselines and check results |
 | `dashboard` | Open visual dashboard at `localhost:4242` |
 | `rules list` | Show active safety rules |

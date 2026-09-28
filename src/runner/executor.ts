@@ -1,7 +1,12 @@
 import { spawn } from "node:child_process";
-import type { CheckDefinition, CheckResult } from "../types/index.js";
+import type {
+  CheckDefinition,
+  CheckResult,
+  CommandSandboxPolicy,
+} from "../types/index.js";
 import { terminateProcessTree, BoundedTailBuffer } from "./process-controller.js";
 import { StreamingSecretRedactor } from "../security/secret-redactor.js";
+import { evaluateCommandSandbox } from "../enforcement/sandbox.js";
 
 const DEFAULT_OUTPUT_LIMIT = 100 * 1024; // 100 KB per stream
 const DIAGNOSTIC_TAIL_LIMIT = 8 * 1024; // 8 KB tail kept for diagnostics
@@ -11,6 +16,7 @@ export interface ExecutorOptions {
   readonly outputLimit?: number; // bytes
   readonly maxBuffer?: number; // bytes (bound for output/tail)
   readonly tailLimit?: number; // bytes for diagnostic tail buffer
+  readonly sandboxPolicy?: CommandSandboxPolicy;
 }
 
 /**
@@ -29,7 +35,34 @@ export async function executeCheck(
   check: CheckDefinition,
   options: ExecutorOptions
 ): Promise<CheckResult> {
-  const outputLimit = options.outputLimit ?? options.maxBuffer ?? DEFAULT_OUTPUT_LIMIT;
+  const sandboxDecision = options.sandboxPolicy
+    ? evaluateCommandSandbox(check, options.sandboxPolicy)
+    : null;
+  if (sandboxDecision && !sandboxDecision.allowed) {
+    return {
+      name: check.name,
+      executable: check.executable,
+      args: check.args,
+      timeout: check.timeout,
+      exitCode: null,
+      passed: false,
+      durationMs: 0,
+      timedOut: false,
+      outputBytes: 0,
+      outputTruncated: false,
+      stdout: "",
+      stderr: `Command blocked by enforcement policy: ${sandboxDecision.reasons.join(
+        " "
+      )}`,
+      outputBlocked: false,
+      detectedSecretTypes: [],
+    };
+  }
+  const outputLimit =
+    options.outputLimit ??
+    options.sandboxPolicy?.maxOutputBytes ??
+    options.maxBuffer ??
+    DEFAULT_OUTPUT_LIMIT;
   const tailLimit = options.tailLimit ?? (options.maxBuffer !== undefined ? Math.min(options.maxBuffer, DIAGNOSTIC_TAIL_LIMIT) : DIAGNOSTIC_TAIL_LIMIT);
   const timeoutMs = check.timeout * 1000;
 
@@ -94,6 +127,7 @@ export async function executeCheck(
     try {
       child = spawn(check.executable, [...check.args], {
         cwd: options.cwd,
+        env: sandboxDecision?.environment ?? process.env,
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
         windowsHide: true,

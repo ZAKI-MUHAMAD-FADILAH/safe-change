@@ -11,13 +11,12 @@ export interface SafeChangeConfig {
   readonly logRetention?: number;
   readonly dashboardPort?: number;
   readonly enterprisePolicy?: EnterprisePolicy;
+  readonly enforcementPolicy?: EnforcementPolicy;
+  readonly policySignature?: PolicySignature;
 }
 
 export type EnterpriseMode =
-  | "standard"
-  | "enhanced"
-  | "high-assurance"
-  | "critical-change";
+  "standard" | "enhanced" | "high-assurance" | "critical-change";
 
 export interface ChangeBudget {
   readonly maxFilesChanged: number;
@@ -39,6 +38,96 @@ export interface EnterprisePolicy {
   readonly allowForcePush: false;
   readonly allowDestructiveGit: false;
   readonly changeBudget: ChangeBudget;
+}
+
+export type Capability =
+  | "repository:read"
+  | "source:write"
+  | "tests:execute"
+  | "dependency:modify"
+  | "ci:modify"
+  | "git:commit"
+  | "git:push"
+  | "release:publish"
+  | "policy:modify"
+  | "secret:read";
+
+export interface AgentCapabilityPolicy {
+  readonly agent: string;
+  readonly allow: readonly Capability[];
+  readonly deny: readonly Capability[];
+  readonly resourcePatterns: readonly string[];
+  readonly expiresAt: string | null;
+}
+
+export interface CommandSandboxPolicy {
+  readonly allowedExecutables: readonly string[];
+  readonly deniedArguments: readonly string[];
+  readonly allowedEnvironment: readonly string[];
+  readonly inheritEnvironment: boolean;
+  readonly networkPolicy: "inherit" | "deny";
+  readonly maxOutputBytes: number;
+}
+
+export interface ApprovalPolicy {
+  readonly thresholds: Readonly<Partial<Record<Capability, number>>>;
+  readonly prohibitSelfApproval: boolean;
+  readonly maximumExceptionTtlSeconds: number;
+}
+
+export interface EnforcementPolicy {
+  readonly policyVersion: 1;
+  readonly defaultDecision: "deny";
+  readonly requireSignedPolicy: boolean;
+  readonly agents: readonly AgentCapabilityPolicy[];
+  readonly commandSandbox: CommandSandboxPolicy;
+  readonly approvals: ApprovalPolicy;
+}
+
+export interface PolicySignature {
+  readonly algorithm: "ed25519";
+  readonly keyId: string;
+  readonly publicKeyPem: string;
+  readonly policyDigest: string;
+  readonly signatureBase64: string;
+}
+
+export interface OperationRequest {
+  readonly sessionId: string;
+  readonly agentName: string;
+  readonly capability: Capability;
+  readonly resource: string;
+  readonly approvalRequestId?: string;
+}
+
+export interface PolicyDecision {
+  readonly decision: "allow" | "deny" | "require-approval";
+  readonly reasons: readonly string[];
+  readonly capability: Capability;
+  readonly resource: string;
+  readonly policyDigest: string;
+  readonly approvalRequestId: string | null;
+}
+
+export interface ApprovalGrant {
+  readonly approver: string;
+  readonly grantedAt: string;
+  readonly previousDigest: string | null;
+  readonly grantDigest: string;
+}
+
+export interface ApprovalRequest {
+  readonly schemaVersion: 1;
+  readonly id: string;
+  readonly capability: Capability;
+  readonly resource: string;
+  readonly requester: string;
+  readonly sessionId: string;
+  readonly reason: string;
+  readonly requestedAt: string;
+  readonly expiresAt: string;
+  readonly requestDigest: string;
+  readonly grants: readonly ApprovalGrant[];
 }
 
 export type RiskCategory =
@@ -140,11 +229,7 @@ export interface LogEntry {
 // Git state
 
 export type FileStatus =
-  | "clean"
-  | "modified"
-  | "staged"
-  | "untracked"
-  | "deleted";
+  "clean" | "modified" | "staged" | "untracked" | "deleted";
 
 export interface FileEntry {
   readonly tracked: boolean;
@@ -343,7 +428,8 @@ export interface BranchMismatch {
   readonly currentBranch: string;
 }
 
-export type VerificationState = "verified" | "failed" | "not-verified" | "unavailable";
+export type VerificationState =
+  "verified" | "failed" | "not-verified" | "unavailable";
 
 export interface VerificationInfo {
   readonly state: VerificationState;
@@ -403,11 +489,7 @@ export interface SafeChangeRule {
 }
 
 export type RulesLoadStatus =
-  | "not-configured"
-  | "loaded"
-  | "empty"
-  | "invalid"
-  | "evaluation-error";
+  "not-configured" | "loaded" | "empty" | "invalid" | "evaluation-error";
 
 export interface RulesState {
   readonly status: RulesLoadStatus;

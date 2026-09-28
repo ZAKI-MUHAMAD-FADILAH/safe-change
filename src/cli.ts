@@ -14,6 +14,9 @@ import { runLease } from "./commands/lease.js";
 import { runFingerprint } from "./commands/fingerprint.js";
 import { runEvidence } from "./commands/evidence.js";
 import { runAudit } from "./commands/audit.js";
+import { runAuthorize } from "./commands/authorize.js";
+import { runApproval } from "./commands/approval.js";
+import { runPolicyVerify } from "./commands/policy.js";
 import { runLog } from "./commands/log.js";
 import { runInstall } from "./installer/commands/install.js";
 import { runUpdate } from "./installer/commands/update.js";
@@ -220,6 +223,10 @@ Usage:
   safe-change fingerprint [check]  Capture or compare the workspace fingerprint.
   safe-change evidence <session>   Create a checksummed evidence bundle for a session.
   safe-change audit verify         Verify the tamper-evident local audit log.
+  safe-change authorize <capability> <resource> <agent> <session> [approval]
+                                  Evaluate one operation through the policy decision point.
+  safe-change approval <action>    Request, grant, or inspect an expiring approval.
+  safe-change policy verify        Verify the configured Ed25519 policy signature.
   safe-change log [options]        Show or export persistent safety log.
   safe-change rules [action]       Manage safety rules (list, add, remove, validate).
   safe-change dashboard [options]  Start local web dashboard at localhost:4242.
@@ -381,6 +388,46 @@ async function main(): Promise<void> {
         break;
       }
       exitCode = await runAudit({ format });
+      break;
+    }
+
+    case "authorize": {
+      exitCode = await runAuthorize({
+        capability: parsed.positional[0],
+        resource: parsed.positional[1],
+        agentName: parsed.positional[2],
+        sessionId: parsed.positional[3],
+        approvalRequestId: parsed.positional[4],
+        format,
+      });
+      break;
+    }
+
+    case "approval": {
+      const action = (parsed.positional[0] ?? "status") as
+        | "request"
+        | "grant"
+        | "status";
+      if (!["request", "grant", "status"].includes(action)) {
+        process.stderr.write(`Unknown approval action: ${action}\n`);
+        exitCode = ExitCodes.CONFIG_ERROR;
+        break;
+      }
+      exitCode = await runApproval({
+        action,
+        values: parsed.positional.slice(1),
+        format,
+      });
+      break;
+    }
+
+    case "policy": {
+      if ((parsed.positional[0] ?? "verify") !== "verify") {
+        process.stderr.write("Only `safe-change policy verify` is supported.\n");
+        exitCode = ExitCodes.CONFIG_ERROR;
+        break;
+      }
+      exitCode = await runPolicyVerify({ format });
       break;
     }
 

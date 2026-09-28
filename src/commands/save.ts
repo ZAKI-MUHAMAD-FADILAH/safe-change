@@ -106,7 +106,10 @@ export async function runSave(options: SaveOptions): Promise<number> {
   // 4. Execute verification checks
   let checkResults;
   try {
-    checkResults = await executeAllChecks(config.checks, { cwd: repoRoot }, (name, index, total) => {
+    checkResults = await executeAllChecks(config.checks, {
+      cwd: repoRoot,
+      sandboxPolicy: config.enforcementPolicy?.commandSandbox,
+    }, (name, index, total) => {
       if (format === "terminal") {
         process.stderr.write(`  Running check ${index + 1}/${total}: ${name}\r`);
       }
