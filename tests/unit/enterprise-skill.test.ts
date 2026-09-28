@@ -64,7 +64,9 @@ describe("enterprise agent skill policy", () => {
         path.join(PROFILE_DIR, `${agent}.md`),
         "utf8"
       );
-      expect(profile.startsWith(`## Agent Profile: ${agent}\n`)).toBe(true);
+      expect(profile).toMatch(
+        new RegExp(`^## Agent Profile: ${agent}\\r?\\n`)
+      );
       expect(profile).toContain("### Activation");
       expect(profile).toContain("### Tool Strategy");
       expect(profile).toContain("### Agent-Specific Constraints");
