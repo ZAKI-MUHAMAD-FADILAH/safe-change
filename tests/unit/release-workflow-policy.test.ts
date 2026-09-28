@@ -21,6 +21,11 @@ describe("release workflow production policy", () => {
     expect(workflow.split(guard)).toHaveLength(3);
   });
 
+  it("binds npm preflight to the protected production environment", () => {
+    const preflight = workflow.split("  preflight:")[1]?.split("  build-native:")[0] ?? "";
+    expect(preflight).toContain("environment: npm-production");
+  });
+
   it("generates a CycloneDX SBOM for release evidence", () => {
     expect(workflow).toContain("npm sbom --sbom-format cyclonedx");
     expect(workflow).toContain("safe-change-sbom.cdx.json");
