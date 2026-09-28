@@ -1,0 +1,9 @@
+# Repository-wide ownership
+* @zackpratamaa
+
+# Security-sensitive release and automation controls
+/.github/workflows/ @zackpratamaa
+/scripts/preflight-npm.mjs @zackpratamaa
+/scripts/publish-orchestrator.mjs @zackpratamaa
+/scripts/validate-release.mjs @zackpratamaa
+/SECURITY.md @zackpratamaa

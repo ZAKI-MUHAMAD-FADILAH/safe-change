@@ -21,6 +21,11 @@ describe("release workflow production policy", () => {
     expect(workflow.split(guard)).toHaveLength(3);
   });
 
+  it("generates a CycloneDX SBOM for release evidence", () => {
+    expect(workflow).toContain("npm sbom --sbom-format cyclonedx");
+    expect(workflow).toContain("safe-change-sbom.cdx.json");
+  });
+
   it("publishes through the orchestrator instead of npm publish in YAML", () => {
     expect(workflow).not.toMatch(/run:\s+npm publish/);
     expect(workflow).toContain("publish-orchestrator.mjs --phase native");

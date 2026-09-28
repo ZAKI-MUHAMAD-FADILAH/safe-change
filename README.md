@@ -358,6 +358,10 @@ See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 | [docs/dashboard.md](docs/dashboard.md) | Dashboard guide |
 | [docs/persistent-log.md](docs/persistent-log.md) | Persistent safety log |
 | [docs/runtime-verification.md](docs/runtime-verification.md) | Multi-agent runtime verification matrix |
+| [docs/enterprise-rollout.md](docs/enterprise-rollout.md) | Enterprise rollout and acceptance guide |
+| [docs/operations-runbook.md](docs/operations-runbook.md) | Operations, incident, and rollback runbook |
+| [SUPPORT.md](SUPPORT.md) | Support and severity policy |
+| [SECURITY.md](SECURITY.md) | Security policy and reporting |
 | [skills/safe-change/SKILL.md](skills/safe-change/SKILL.md) | Canonical agent skill |
 
 <br/>

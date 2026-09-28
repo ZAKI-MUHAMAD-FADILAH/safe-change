@@ -34,6 +34,16 @@ jobs:
       - name: Validate version parity across packages and Cargo crate
         run: node scripts/sync-version.mjs --check
 
+      - name: Generate CycloneDX software bill of materials
+        run: npm sbom --sbom-format cyclonedx > safe-change-sbom.cdx.json
+
+      - name: Upload software bill of materials
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: safe-change-sbom
+          path: safe-change-sbom.cdx.json
+          if-no-files-found: error
+
       - name: Ensure working tree is clean after sync check
         run: git diff --exit-code
 

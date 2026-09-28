@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-29
+
 ### Added
 - Native binary load and smoke verification script `scripts/verify-built-native.mjs` executing in GitHub Actions.
 - Comprehensive verification state matrix tests covering `pass-pass`, `fail-pass`, `pass-fail`, `fail-fail`, timeout permutations, zero checks, and configuration drift.
@@ -16,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified release orchestrator workflow `.github/workflows/release.yml` with OIDC provenance, concurrency protection, and manual dry-run dispatch.
 - Release metadata and tag validation tool `scripts/validate-release.mjs` and npm credential/version preflight script `scripts/preflight-npm.mjs`.
 - Ordered native-first and root-last publication orchestrator `scripts/publish-orchestrator.mjs` with registry visibility polling.
+- Enterprise rollout guide, operations runbook, support policy, code of conduct, and repository CODEOWNERS.
+- CycloneDX software bill of materials generation in CI and release artifacts.
 
 ### Changed
 - Hardened production release policy so only pushed SemVer tags can publish; manual dispatch is permanently non-publishing.

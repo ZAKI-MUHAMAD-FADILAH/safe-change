@@ -90,7 +90,7 @@ Publication executes in strictly enforced stages:
 
 | Stage | Action | Verification / Gate |
 | :--- | :--- | :--- |
-| **1. Preflight** | `validate-release.mjs` & `preflight-npm.mjs` | Fails immediately if versions mismatch, token is missing/invalid, or any package version already exists on npm. |
+| **1. Preflight** | `validate-release.mjs` & `preflight-npm.mjs` | Fails immediately if versions mismatch, credentials or authorization are invalid, or registry state is unsafe. It supports a verified `root-recovery` state when all native packages are already published and the root package is not. |
 | **2. Native Matrix Build** | Compile on 4 distinct runners: `ubuntu-latest`, `windows-latest`, `macos-latest`, `macos-15-intel` | Fallback tests, Rust unit tests, NAPI release build, native binary load smoke tests. |
 | **3. Root Build & Tarball** | Compile TypeScript, run tests, coverage, dependency audit, tarball smoke test | Generates and signs `root-package-tarball`. |
 | **4. Native Publish** | Publish `@safe-change/linux-x64-gnu`, `@safe-change/win32-x64-msvc`, `@safe-change/darwin-arm64`, `@safe-change/darwin-x64` | Polls npm registry until every platform package is HTTP 200 visible. |
@@ -108,7 +108,7 @@ Because multi-package publication across npm is inherently non-atomic:
    - The root package job is canceled, preventing broken installations where users receive a new root package without corresponding native modules.
 2. **Failure during Root Publication (after Native Publication succeeds)**:
    - Native packages remain safely on npm (immutable).
-   - Maintainers can review the root build logs, resolve any transient network or npm timeout issues, and execute a controlled root publication retry using `workflow_dispatch` without republishing immutable native versions.
+   - Maintainers can review the root build logs, resolve any transient network or npm timeout issues, and rerun the original tag workflow. Preflight enters `root-recovery` mode and the orchestrator skips immutable native versions.
 3. **Rollback Limitations**:
    - npm does not allow overwriting published versions or unpublishing packages older than 72 hours.
    - If a published version contains critical defects, do NOT attempt force-publishing. Follow standard SemVer patch procedure: increment patch version (e.g. `0.3.2`), resolve the defect, and publish a new release.
