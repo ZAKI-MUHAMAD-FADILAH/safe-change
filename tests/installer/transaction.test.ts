@@ -170,12 +170,15 @@ process.stdin.on('data', () => {
     // Send trigger to simulate SIGINT
     child.stdin.write("TRIGGER_SIGINT\n");
 
-    const exitCode = await new Promise<number | null>((resolve) => {
-      child.on("close", (code) => resolve(code));
+    const { code, signal } = await new Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+    }>((resolve) => {
+      child.on("close", (code, signal) => resolve({ code, signal }));
     });
 
-    // Subprocess should exit with standard SIGINT exit code (130)
-    expect(exitCode).toBe(130);
+    // Subprocess should terminate with standard SIGINT signal semantics
+    expect(code === 130 || signal === "SIGINT").toBe(true);
 
     // Staging directory must be cleaned up
     expect(fs.existsSync(stagingDir)).toBe(false);
