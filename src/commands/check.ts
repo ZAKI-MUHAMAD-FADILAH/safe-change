@@ -97,7 +97,10 @@ export async function runCheck(options: CheckOptions): Promise<number> {
   // 5. Execute current checks
   let currentResults;
   try {
-    currentResults = await executeAllChecks(config.checks, { cwd: repoRoot }, (name, index, total) => {
+    currentResults = await executeAllChecks(config.checks, {
+      cwd: repoRoot,
+      sandboxPolicy: config.enforcementPolicy?.commandSandbox,
+    }, (name, index, total) => {
       if (format === "terminal") {
         process.stderr.write(`  Running check ${index + 1}/${total}: ${name}\r`);
       }

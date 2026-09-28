@@ -44,5 +44,67 @@
       "maxDeletedFiles": 0,
       "allowLockfileChanges": false
     }
+  },
+  "enforcementPolicy": {
+    "policyVersion": 1,
+    "defaultDecision": "deny",
+    "requireSignedPolicy": false,
+    "agents": [
+      {
+        "agent": "codex",
+        "allow": [
+          "repository:read",
+          "source:write",
+          "tests:execute",
+          "dependency:modify",
+          "ci:modify",
+          "git:commit",
+          "git:push",
+          "release:publish",
+          "policy:modify"
+        ],
+        "deny": ["secret:read"],
+        "resourcePatterns": ["**"],
+        "expiresAt": null
+      }
+    ],
+    "commandSandbox": {
+      "allowedExecutables": ["node", "npm", "npx"],
+      "deniedArguments": [
+        "--force",
+        "--force-with-lease",
+        "--hard",
+        "--no-verify"
+      ],
+      "allowedEnvironment": [
+        "PATH",
+        "HOME",
+        "USERPROFILE",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "NPM_CONFIG_CACHE",
+        "NODE_OPTIONS",
+        "CI"
+      ],
+      "inheritEnvironment": false,
+      "networkPolicy": "inherit",
+      "maxOutputBytes": 102400
+    },
+    "approvals": {
+      "thresholds": {
+        "dependency:modify": 1,
+        "ci:modify": 1,
+        "release:publish": 2,
+        "policy:modify": 2
+      },
+      "prohibitSelfApproval": true,
+      "maximumExceptionTtlSeconds": 3600
+    }
   }
 }

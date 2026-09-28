@@ -302,6 +302,20 @@ Before writing, after long-running commands, and immediately before final verifi
 
 Verification output is secret-scanned before it is retained. If a credential pattern is detected, the value must be redacted, the check must fail, and the result must identify only the secret class. Never reconstruct or repeat the detected value.
 
+## Capability and Approval Enforcement
+
+Before any write, dependency change, CI modification, Git mutation, policy change, or release operation:
+
+- Evaluate the exact capability and resource with `safe-change authorize <capability> <resource> <agent-name> <session-id> [approval-request-id]`.
+- Treat `deny` and `require-approval` as blocking decisions. Never switch tools, shells, APIs, or transports to bypass the decision.
+- Use the narrowest resource path and capability that represents the requested operation.
+- Never request or grant `secret:read` merely to make a task proceed.
+- When approval is required, create a scoped request with a reason and bounded TTL. The requester must not approve its own operation.
+- Bind approvals to the exact capability, resource, requester, and session. Do not reuse an approval for another artifact, path, version, or operation.
+- Verify signed policy state with `safe-change policy verify` when signature enforcement is enabled.
+
+Configured verification commands run through the command sandbox. An executable or argument outside policy must be blocked before spawn. Only allowlisted environment variables may be inherited when environment isolation is enabled. A requested network-denial policy must fail closed when no mandatory isolation provider is available.
+
 ## Test Integrity Requirements
 
 Tests must validate externally meaningful behavior or a necessary internal contract. Do not create artificial tests whose only purpose is to inflate coverage. Do not replace strong assertions with snapshots or weak truthiness checks. For defect fixes, include a regression test that fails before the fix when practical. For safety boundaries, test rejection and failure paths as well as success paths.

@@ -73,9 +73,11 @@ Status labels: Done | In Progress | Planned
 - Multi-agent write lease and workspace fingerprint engine (integrity foundation complete)
 - Checksummed evidence bundles and tamper-evident audit chain (integrity foundation complete)
 - Cryptographic signing and deterministic replay
-- Command sandbox with executable and environment allowlists
 - Secret-output blocker (streaming foundation complete)
-- Expiring exception and approval engine
+- Capability-based agent permissions and PDP/PEP authorization (foundation complete)
+- Command sandbox with executable, argument, environment, output, and network fail-closed policy (foundation complete)
+- Ed25519 signed policy root verification (foundation complete; external trust key required for activation)
+- Expiring multi-party approval engine with self-approval prevention (foundation complete)
 - Enterprise agent certification engine
 - File Change Drawer with syntax-highlighted diffs
 - Multi-Agent Presence Badge and agent identification

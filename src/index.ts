@@ -43,6 +43,16 @@ export type {
   WriteLease,
   AuditEvent,
   EvidenceManifest,
+  Capability,
+  AgentCapabilityPolicy,
+  CommandSandboxPolicy,
+  ApprovalPolicy,
+  EnforcementPolicy,
+  PolicySignature,
+  OperationRequest,
+  PolicyDecision,
+  ApprovalGrant,
+  ApprovalRequest,
 } from "./types/index.js";
 
 export { ExitCodes } from "./types/index.js";
@@ -123,3 +133,22 @@ export {
   StreamingSecretRedactor,
   type RedactionResult,
 } from "./security/secret-redactor.js";
+export {
+  evaluateOperation,
+  isCapability,
+} from "./enforcement/decision.js";
+export {
+  createApprovalRequest,
+  readApprovalRequest,
+  grantApproval,
+  verifyApprovalRequest,
+} from "./enforcement/approvals.js";
+export {
+  enforcementPolicyDigest,
+  verifyPolicySignature,
+  type PolicySignatureVerification,
+} from "./enforcement/policy-signature.js";
+export {
+  evaluateCommandSandbox,
+  type SandboxDecision,
+} from "./enforcement/sandbox.js";

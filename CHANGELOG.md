@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tamper-evident append-only audit events linked by sequence number, previous digest, payload digest, and event digest.
 - Streaming secret-output blocker for GitHub and npm tokens, private keys, cloud access keys, authorization headers, credentialed connection strings, and generic secret assignments.
 - Integrity commands: `lease`, `fingerprint`, `evidence`, and `audit verify`.
+- Capability-based agent authorization with explicit allow, deny, resource scope, expiration, and default-deny policy.
+- Policy Decision Point and Policy Enforcement Point command contract through `safe-change authorize`.
+- Expiring multi-party approval requests with distinct approvers, self-approval prevention, operation binding, request digests, and tamper-evident grant chains.
+- Command sandbox enforcing executable allowlists, denied arguments, environment-variable allowlists, bounded output, direct process spawning, and fail-closed unsupported network-denial requests.
+- Detached Ed25519 policy-root verification with policy digest binding and configuration-level fail-closed enforcement when signatures are mandatory.
+- Enforcement commands: `authorize`, `approval request|grant|status`, and `policy verify`.
 
 ## [0.3.1] - 2026-09-29
 

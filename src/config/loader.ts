@@ -6,12 +6,19 @@ import type {
   ChangeBudget,
   EnterpriseMode,
   EnterprisePolicy,
+  EnforcementPolicy,
+  PolicySignature,
 } from "../types/index.js";
 import {
   DEFAULT_CHANGE_BUDGET,
   DEFAULT_ENTERPRISE_POLICY,
   ENTERPRISE_MODES,
 } from "../enterprise/policy.js";
+import {
+  validateEnforcementPolicy,
+  validatePolicySignature,
+} from "../enforcement/config.js";
+import { verifyPolicySignature } from "../enforcement/policy-signature.js";
 
 const CONFIG_FILENAME = ".safe-change.json";
 const DEFAULT_TIMEOUT = 60;
@@ -117,6 +124,32 @@ function validateConfig(data: unknown): SafeChangeConfig {
     dashboardPort = obj["dashboardPort"];
   }
 
+  let enforcementPolicy: EnforcementPolicy | undefined;
+  let policySignature: PolicySignature | undefined;
+  try {
+    if (obj["enforcementPolicy"] !== undefined) {
+      enforcementPolicy = validateEnforcementPolicy(obj["enforcementPolicy"]);
+    }
+    if (obj["policySignature"] !== undefined) {
+      policySignature = validatePolicySignature(obj["policySignature"]);
+    }
+  } catch (error: unknown) {
+    throw new ConfigError(
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+  if (enforcementPolicy?.requireSignedPolicy) {
+    const verification = verifyPolicySignature(
+      enforcementPolicy,
+      policySignature
+    );
+    if (!verification.valid) {
+      throw new ConfigError(
+        `Signed enforcement policy required: ${verification.reason}`
+      );
+    }
+  }
+
   return {
     version: 1,
     checks,
@@ -125,6 +158,8 @@ function validateConfig(data: unknown): SafeChangeConfig {
     ...(obj["enterprisePolicy"] !== undefined
       ? { enterprisePolicy: validateEnterprisePolicy(obj["enterprisePolicy"]) }
       : {}),
+    ...(enforcementPolicy ? { enforcementPolicy } : {}),
+    ...(policySignature ? { policySignature } : {}),
   };
 }
 
