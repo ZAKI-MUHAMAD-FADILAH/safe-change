@@ -28,4 +28,4 @@ Anyone wishing to inspect the repository under its earlier MIT License may view 
 ## Copyright Notice
 
 safe-change is copyright:
-Copyright (c) 2026 ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)
+Copyright (c) 2026 ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELLIGENCE INDONESIA (SAFE-CHANGE)

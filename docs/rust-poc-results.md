@@ -3,7 +3,7 @@
 Status: R.1 Approved, R.2 Production Layer Implemented (Environment-Limited Local Verification)  
 Tanggal: 2026-09-27  
 Lisensi: AGPL-3.0-only  
-Atribusi: ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)
+Atribusi: ZACK.PRATAMA PT ZYNTRIX ARTIFICIAL INTELLIGENCE INDONESIA (SAFE-CHANGE)
 
 ## 1. Ringkasan Eksekutif
 

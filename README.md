@@ -448,7 +448,7 @@ See [LICENSE](LICENSE) and [LICENSE_CHANGE.md](LICENSE_CHANGE.md).
 
 **For commercial and enterprise users:** AGPL-3.0 is a strong copyleft license that protects against proprietary hosted cloud forks. **Using safe-change unmodified as a developer CLI tool, MCP server, or in proprietary enterprise CI/CD pipelines does NOT trigger copyleft obligations.** Your proprietary code remains 100% proprietary. Only organizations modifying safe-change and serving it over a network as a hosted SaaS product are required to release their modifications under AGPL-3.0. If your organization requires a commercial license without copyleft obligations, contact the maintainer.
 
-Copyright © 2026 ZACK.PRATAMA — PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)
+Copyright © 2026 ZACK.PRATAMA — PT ZYNTRIX ARTIFICIAL INTELLIGENCE INDONESIA (SAFE-CHANGE)
 
 <div align="center">
 
