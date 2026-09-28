@@ -191,6 +191,12 @@ safe-change install all
 
 > **Note on verification status:** All agents currently ship with `filesystem-validated` status, meaning safe-change has been verified to correctly install, read, and remove skill files at each agent's expected path. Full runtime verification (confirming that each agent actively discovers and invokes the skill during a live session) is tracked per-agent and will land in subsequent releases. If you encounter an agent that does not pick up the installed skill, please [open an issue](https://github.com/zackpratamaa/safe-change/issues).
 
+### Enterprise skill policy
+
+Each installation deterministically combines the canonical safety contract with a validated profile for the selected agent. The policy includes Standard, High Assurance, and Incident modes; microscopic syntax-boundary review; fail-closed evidence rules; prompt-injection boundaries; concurrent-drift detection; test-integrity controls; release gates; and a required verification report.
+
+The ownership manifest records canonical, profile, and composed SHA-256 values. `safe-change status` therefore detects drift in either the shared policy or the agent-specific profile. See [docs/enterprise-skill-policy.md](docs/enterprise-skill-policy.md).
+
 <br/>
 
 ---
@@ -359,6 +365,7 @@ See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 | [docs/persistent-log.md](docs/persistent-log.md) | Persistent safety log |
 | [docs/runtime-verification.md](docs/runtime-verification.md) | Multi-agent runtime verification matrix |
 | [docs/enterprise-rollout.md](docs/enterprise-rollout.md) | Enterprise rollout and acceptance guide |
+| [docs/enterprise-skill-policy.md](docs/enterprise-skill-policy.md) | Canonical policy, composition, assurance modes, and profile invariants |
 | [docs/operations-runbook.md](docs/operations-runbook.md) | Operations, incident, and rollback runbook |
 | [SUPPORT.md](SUPPORT.md) | Support and severity policy |
 | [SECURITY.md](SECURITY.md) | Security policy and reporting |

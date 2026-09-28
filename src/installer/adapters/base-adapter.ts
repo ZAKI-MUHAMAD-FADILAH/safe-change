@@ -36,6 +36,10 @@ import {
 } from "../core/ownership.js";
 import { InstallationTransaction } from "../core/transaction.js";
 import { RollbackSession } from "../core/rollback.js";
+import {
+  composeAgentSkill,
+  type SkillComposition,
+} from "../skills/composer.js";
 
 export const SKILL_RELATIVE_PATH = "SKILL.md";
 
@@ -116,11 +120,14 @@ export abstract class BaseAdapter implements AgentAdapter {
    * Bundles or returns the content of the canonical skill file.
    */
   public bundleSkill(): string {
+    return this.composeSkill().content;
+  }
+
+  public composeSkill(): SkillComposition {
     if (!fs.existsSync(this.canonicalSkillPath)) {
       throw new Error(`Canonical skill source not found: '${this.canonicalSkillPath}'.`);
     }
-    assertNoSymlinkOrJunction(this.canonicalSkillPath);
-    return fs.readFileSync(this.canonicalSkillPath, "utf8");
+    return composeAgentSkill(this.canonicalSkillPath, this.agentId);
   }
 
   /**
@@ -131,7 +138,7 @@ export abstract class BaseAdapter implements AgentAdapter {
     expectedSha256: string;
     actualSha256: string | null;
   } {
-    const expectedSha256 = fileSha256(this.canonicalSkillPath);
+    const expectedSha256 = this.composeSkill().composedSha256;
     if (!fs.existsSync(targetFilePath)) {
       return { matches: false, expectedSha256, actualSha256: null };
     }
@@ -213,8 +220,8 @@ export abstract class BaseAdapter implements AgentAdapter {
       };
     }
 
-    assertNoSymlinkOrJunction(this.canonicalSkillPath);
-    const canonicalSha256 = fileSha256(this.canonicalSkillPath);
+    const composition = this.composeSkill();
+    const canonicalSha256 = composition.composedSha256;
 
     // Path safety validation
     try {
@@ -253,7 +260,7 @@ export abstract class BaseAdapter implements AgentAdapter {
     const collision = inspectCollision({
       targetPath: targetDir,
       expectedType: "directory",
-      sourceSkillFile: this.canonicalSkillPath,
+      expectedSourceSha256: composition.composedSha256,
       relativeSkillFileName: SKILL_RELATIVE_PATH,
     });
 
@@ -327,7 +334,7 @@ export abstract class BaseAdapter implements AgentAdapter {
 
       const tx = new InstallationTransaction({ targetDir });
       try {
-        tx.stageCopy(this.canonicalSkillPath, SKILL_RELATIVE_PATH);
+        tx.stageFile(SKILL_RELATIVE_PATH, composition.content);
         tx.commit();
       } catch (err) {
         tx.abort();
@@ -358,6 +365,13 @@ export abstract class BaseAdapter implements AgentAdapter {
         scope,
         targetDir,
         installedFiles: [SKILL_RELATIVE_PATH],
+        metadata: {
+          policyVersion: composition.policyVersion,
+          canonicalSha256: composition.canonicalSha256,
+          profileSha256: composition.profileSha256,
+          composedSha256: composition.composedSha256,
+          agentProfile: this.agentId,
+        },
       });
       writeOwnershipManifest(targetDir, manifest);
 
@@ -569,12 +583,18 @@ export abstract class BaseAdapter implements AgentAdapter {
     const targetDir = this.resolveTargetDir({ scope, workspaceRoot, homeDir });
 
     let canonicalSha256: string | null = null;
+    let profileSha256: string | null = null;
+    let composedSha256: string | null = null;
     if (fs.existsSync(this.canonicalSkillPath)) {
       try {
-        assertNoSymlinkOrJunction(this.canonicalSkillPath);
-        canonicalSha256 = fileSha256(this.canonicalSkillPath);
+        const composition = this.composeSkill();
+        canonicalSha256 = composition.canonicalSha256;
+        profileSha256 = composition.profileSha256;
+        composedSha256 = composition.composedSha256;
       } catch {
         canonicalSha256 = null;
+        profileSha256 = null;
+        composedSha256 = null;
       }
     }
 
@@ -587,6 +607,8 @@ export abstract class BaseAdapter implements AgentAdapter {
         manifest: null,
         hasDrift: false,
         canonicalSha256,
+        profileSha256,
+        composedSha256,
         installedSha256: null,
       };
     }
@@ -606,7 +628,7 @@ export abstract class BaseAdapter implements AgentAdapter {
     let hasDrift = false;
     let driftDetails: { modifiedFiles: string[]; missingFiles: string[] } | undefined;
 
-    if (canonicalSha256 && installedSha256 && canonicalSha256 !== installedSha256) {
+    if (composedSha256 && installedSha256 && composedSha256 !== installedSha256) {
       hasDrift = true;
     }
 
@@ -630,6 +652,8 @@ export abstract class BaseAdapter implements AgentAdapter {
       hasDrift,
       driftDetails,
       canonicalSha256,
+      profileSha256,
+      composedSha256,
       installedSha256,
     };
   }

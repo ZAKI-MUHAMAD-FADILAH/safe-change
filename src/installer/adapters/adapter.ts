@@ -72,6 +72,8 @@ export interface AdapterStatus {
     missingFiles: string[];
   };
   canonicalSha256: string | null;
+  profileSha256?: string | null;
+  composedSha256?: string | null;
   installedSha256: string | null;
 }
 

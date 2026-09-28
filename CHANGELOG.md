@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.1] - 2026-09-29
 
 ### Added
+- Enterprise agent skill policy with Standard, High Assurance, and Incident operating modes, microscopic token-level review, fail-closed stop conditions, prompt-injection boundaries, concurrent-drift controls, test-integrity protections, release gates, and a mandatory evidence report.
+- Deterministic per-agent skill composition for all 10 supported coding agents, with canonical, profile, and composed SHA-256 metadata recorded in ownership manifests.
+- Strict agent profile inventory, composition regression tests, policy schema, and enterprise skill architecture documentation.
 - Native binary load and smoke verification script `scripts/verify-built-native.mjs` executing in GitHub Actions.
 - Comprehensive verification state matrix tests covering `pass-pass`, `fail-pass`, `pass-fail`, `fail-fail`, timeout permutations, zero checks, and configuration drift.
 - Fail-closed rules tests asserting rejection of missing version, unsupported version, and malformed rule objects.
@@ -22,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CycloneDX software bill of materials generation in CI and release artifacts.
 
 ### Changed
+- Skill installation now appends a validated agent-specific profile while preserving byte-for-byte legacy behavior when no profile exists; status checks detect drift in either the canonical policy or profile.
 - Hardened production release policy so only pushed SemVer tags can publish; manual dispatch is permanently non-publishing.
 - Release publication now uses exact verified tarball files with SHA-256 reporting instead of publishing from a fresh source directory.
 - npm preflight now distinguishes full release, safe root recovery, completed release, and unsafe mixed registry states.

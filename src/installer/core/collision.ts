@@ -40,6 +40,7 @@ export interface CollisionInspectOptions {
   targetPath: string;
   expectedType?: "directory" | "file";
   sourceSkillFile?: string;
+  expectedSourceSha256?: string;
   relativeSkillFileName?: string; // e.g. "SKILL.md"
   manifestFileName?: string;      // e.g. ".safe-change-manifest.json"
 }
@@ -71,6 +72,7 @@ export function inspectCollision(options: CollisionInspectOptions): CollisionIns
     targetPath,
     expectedType = "directory",
     sourceSkillFile,
+    expectedSourceSha256,
     relativeSkillFileName = "SKILL.md",
     manifestFileName = ".safe-change-manifest.json",
   } = options;
@@ -172,17 +174,19 @@ export function inspectCollision(options: CollisionInspectOptions): CollisionIns
 
   // Check content identity
   let isIdentical = false;
-  if (sourceSkillFile && fs.existsSync(sourceSkillFile)) {
-    const sourceHash = computeFileSha256(sourceSkillFile);
-    if (sourceHash) {
-      const targetFilePath = isDirectory
-        ? path.join(resolvedTarget, relativeSkillFileName)
-        : resolvedTarget;
+  const sourceHash =
+    expectedSourceSha256 ??
+    (sourceSkillFile && fs.existsSync(sourceSkillFile)
+      ? computeFileSha256(sourceSkillFile)
+      : null);
+  if (sourceHash) {
+    const targetFilePath = isDirectory
+      ? path.join(resolvedTarget, relativeSkillFileName)
+      : resolvedTarget;
 
-      const targetHash = computeFileSha256(targetFilePath);
-      if (targetHash && sourceHash === targetHash) {
-        isIdentical = true;
-      }
+    const targetHash = computeFileSha256(targetFilePath);
+    if (targetHash && sourceHash === targetHash) {
+      isIdentical = true;
     }
   }
 
