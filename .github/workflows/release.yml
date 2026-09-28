@@ -1,0 +1,237 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (validate, build, and pack without publishing to npm)"
+        type: boolean
+        required: true
+        default: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  preflight:
+    name: Release Validation & npm Preflight
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.2.0
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release metadata and version parity
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            node scripts/validate-release.mjs --allow-unreleased
+          else
+            node scripts/validate-release.mjs
+          fi
+
+      - name: Preflight npm credentials and package version status
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            node scripts/preflight-npm.mjs --dry-run
+          else
+            node scripts/preflight-npm.mjs
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build-native:
+    name: Build & Verify Native (${{ matrix.target }})
+    needs: preflight
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64-gnu
+          - os: windows-latest
+            target: win32-x64-msvc
+          - os: macos-latest
+            target: darwin-arm64
+          - os: macos-15-intel
+            target: darwin-x64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Configure git for tests
+        run: |
+          git config --global user.email "ci@safe-change.local"
+          git config --global user.name "CI Runner"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.2.0
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Verify TypeScript fallback without native binary
+        run: npm test
+        env:
+          SAFE_CHANGE_NATIVE_DISABLED: "1"
+
+      - name: Run Rust unit tests
+        run: cargo test --manifest-path crates/safe-change-native/Cargo.toml
+
+      - name: Build Native Module for ${{ matrix.target }}
+        run: npx napi build --platform --release --cargo-cwd crates/safe-change-native --output-dir crates/safe-change-native
+
+      - name: Verify generated native binary exists
+        run: node scripts/verify-built-native.mjs crates/safe-change-native/*.node
+
+      - name: Verify native module load and execution
+        run: npm test
+
+      - name: Upload native artifact for ${{ matrix.target }}
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: native-binary-${{ matrix.target }}
+          path: crates/safe-change-native/*.node
+          if-no-files-found: error
+
+  build-root:
+    name: Build & Pack Root Package
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.2.0
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run build
+        run: npm run build
+
+      - name: Run test suite with coverage
+        run: npm run test:coverage
+
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Version parity check
+        run: node scripts/sync-version.mjs --check
+
+      - name: Smoke test package tarball
+        run: node scripts/smoke-test-tarball.mjs
+
+      - name: Pack root distribution tarball
+        run: npm pack
+
+      - name: Upload root tarball artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: root-package-tarball
+          path: safe-change-*.tgz
+          if-no-files-found: error
+
+  publish-native:
+    name: Publish Native Platform Packages
+    needs: [preflight, build-native]
+    runs-on: ubuntu-latest
+    environment: npm-production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.2.0
+        with:
+          node-version: 20.x
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download all native artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: artifacts
+
+      - name: Orchestrate native platform package publication
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            node scripts/publish-orchestrator.mjs --phase native --dry-run
+          else
+            node scripts/publish-orchestrator.mjs --phase native
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-root:
+    name: Publish Root safe-change Package
+    needs: [preflight, build-root, publish-native]
+    runs-on: ubuntu-latest
+    environment: npm-production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.2.0
+        with:
+          node-version: 20.x
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download root tarball artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: root-package-tarball
+          path: .
+
+      - name: Orchestrate root package publication
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            node scripts/publish-orchestrator.mjs --phase root --dry-run
+          else
+            node scripts/publish-orchestrator.mjs --phase root
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -17,17 +17,18 @@ This structure eliminates the need for end users to have a Rust toolchain, C++ c
 
 ## 2. GitHub Actions Build and Publish Pipeline
 
-Compilation and distribution are automated via `.github/workflows/native-build.yml`:
+Compilation and testing are automated via continuous integration, while production distribution is orchestrated exclusively by the release pipeline:
 
-1. **Matrix Compilation**:
-   - The `build-and-test` job executes on three runner environments: `ubuntu-latest`, `windows-latest`, and `macos-latest`.
-   - Each runner compiles TypeScript, verifies TypeScript fallback (`SAFE_CHANGE_NATIVE_DISABLED=1`), executes Rust unit tests (`cargo test`), builds the native extension via `npx napi build --platform --release`, and runs the full test suite with the native extension loaded.
-   - Compiled `.node` artifacts are uploaded to GitHub Actions artifact storage.
+1. **Continuous Integration Matrix (`.github/workflows/native-build.yml`)**:
+   - The `build-and-test` job executes across four runner environments: `ubuntu-latest` (`linux-x64-gnu`), `windows-latest` (`win32-x64-msvc`), `macos-latest` (`darwin-arm64`), and `macos-15-intel` (`darwin-x64`).
+   - Each runner compiles TypeScript, verifies TypeScript fallback (`SAFE_CHANGE_NATIVE_DISABLED=1`), executes Rust unit tests (`cargo test`), builds the native extension via `npx napi build --platform --release`, and verifies the native binary via `scripts/verify-built-native.mjs`.
+   - CI runs are strictly non-publishing.
 
-2. **Automated Publishing on Release Tags**:
-   - When a Git tag matching `v*` is pushed, the `publish-native` job runs after all matrix builds pass.
-   - Artifacts are downloaded and copied into corresponding directories under `npm/<platform>/`.
-   - Each platform package is published to the npm registry with public access using the repository secret `NPM_TOKEN`.
+2. **Unified Release Pipeline (`.github/workflows/release.yml`)**:
+   - Triggered on tag pushes matching `v*` or via manual `workflow_dispatch` with dry-run support.
+   - Executes release validation and npm preflight before initiating build jobs.
+   - Compiles native binaries, packages tarballs, and publishes platform packages to the npm registry with `--access public --provenance`.
+   - Requires all four active native platform packages to be verified visible on the npm registry before publishing the root `safe-change` package.
 
 ---
 

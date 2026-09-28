@@ -41,7 +41,10 @@
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\"",
     "version:sync": "node scripts/sync-version.mjs",
-    "version:check": "node scripts/sync-version.mjs --check"
+    "version:check": "node scripts/sync-version.mjs --check",
+    "release:validate": "node scripts/validate-release.mjs",
+    "release:preflight": "node scripts/preflight-npm.mjs",
+    "release:dry-run": "node scripts/publish-orchestrator.mjs --dry-run"
   },
   "keywords": [
     "ai",

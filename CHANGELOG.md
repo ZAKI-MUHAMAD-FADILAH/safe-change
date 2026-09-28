@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fail-closed rules tests asserting rejection of missing version, unsupported version, and malformed rule objects.
 - Bounded tail buffer unit tests verifying strict memory caps on large MCP output streams.
 - Version parity verification check mode (`--check`) in `scripts/sync-version.mjs` and dedicated regression test suite.
+- Unified release orchestrator workflow `.github/workflows/release.yml` with OIDC provenance, concurrency protection, and manual dry-run dispatch.
+- Release metadata and tag validation tool `scripts/validate-release.mjs` and npm credential/version preflight script `scripts/preflight-npm.mjs`.
+- Ordered native-first and root-last publication orchestrator `scripts/publish-orchestrator.mjs` with registry visibility polling.
 
 ### Changed
 - Explicit `.gitignore` management: `safe-change init` preserves user `.gitignore` by default; updates to `.gitignore` now strictly require the explicit `--update-gitignore` flag.
