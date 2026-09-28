@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - @modelcontextprotocol/sdk added as dependency
 
-## [0.1.1] - 2025-01-27
+## [0.1.1] - 2026-09-27
 
 ### Added
 - Support for 9 additional AI coding agents:

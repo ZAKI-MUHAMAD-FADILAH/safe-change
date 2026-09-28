@@ -193,7 +193,7 @@ safe-change install all
 | Gemini CLI | `gemini-cli` | `.gemini/skills/safe-change/` | `~/.gemini/skills/safe-change/` |
 | GitHub Copilot | `github-copilot` | `.github/skills/safe-change/` | `~/.github/skills/safe-change/` |
 
-All agents ship with `filesystem-validated` status. Runtime verification is ongoing.
+> **Note on verification status:** All agents currently ship with `filesystem-validated` status, meaning safe-change has been verified to correctly install, read, and remove skill files at each agent's expected path. Full runtime verification (confirming that each agent actively discovers and invokes the skill during a live session) is tracked per-agent and will land in subsequent releases. If you encounter an agent that does not pick up the installed skill, please [open an issue](https://github.com/zackpratamaa/safe-change/issues).
 
 <br/>
 
@@ -276,7 +276,23 @@ safe-change dashboard
 # Press Ctrl+C to stop.
 ```
 
-Fully offline. Binds to `localhost` only — never exposed to the network. Shows:
+Fully offline. Binds to `127.0.0.1` only — never exposed to the network.
+
+**Port configuration:**
+
+```bash
+# Override via CLI flag
+safe-change dashboard --port 8080
+```
+
+```json
+// Or set in .safe-change.json
+{ "dashboardPort": 8080 }
+```
+
+If the configured port is already in use, the server exits with an error. Choose an available port and retry.
+
+**Panels:**
 
 - Current baseline status and metadata
 - Full history log with timestamps and descriptions
@@ -430,6 +446,8 @@ safe-change is and will always be free and open-source under AGPL-3.0. Sponsorsh
 GNU Affero General Public License v3.0 only — SPDX: `AGPL-3.0-only`
 
 See [LICENSE](LICENSE) and [LICENSE_CHANGE.md](LICENSE_CHANGE.md).
+
+**For commercial and enterprise users:** AGPL-3.0 is a strong copyleft license. If you modify safe-change and expose it as part of a network service (e.g., a hosted CI/CD pipeline or internal developer platform accessible over a network), you are required to make the complete source code of the modified version available under AGPL-3.0. Using safe-change unmodified as a local CLI tool does not trigger this requirement. If your organization needs a commercial license without copyleft obligations, contact the maintainer.
 
 Copyright © 2026 ZACK.PRATAMA — PT ZYNTRIX ARTIFICIAL INTELIGENCE INDONESIA (SAFE-CHANGE)
 

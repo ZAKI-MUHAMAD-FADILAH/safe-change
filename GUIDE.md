@@ -45,6 +45,10 @@ To use `safe-change` as a command, either:
 - Run directly: `node /path/to/safe-change/dist/cli.js`
 - Or link globally: `npm link` (from the safe-change directory)
 
+### Native binary (optional)
+
+The `crates/safe-change-native/` directory contains an experimental Rust module for performance-critical file hashing. The prebuilt platform-specific packages (`@safe-change/darwin-arm64`, `@safe-change/win32-x64-msvc`, etc.) are not yet published to npm. Running `npm run build:native` requires a local Rust toolchain (rustc, cargo) and is entirely optional. The TypeScript CLI works without the native module.
+
 ### Configure your project
 
 Create a `.safe-change.json` file in your project root:
@@ -103,6 +107,12 @@ This records:
 - Git state (branch, commit, clean/dirty status)
 
 It works with dirty working trees. It never commits, stashes, or resets anything.
+
+### Branch-switching behavior
+
+A baseline is a point-in-time snapshot of the current working tree and check results. It does not record which Git branch was active when it was saved. If you `save` a baseline on `feature/auth`, then switch to `main`, then run `check`, the comparison will run against the `main` working tree using a baseline that was recorded on `feature/auth`. The results may be misleading because the file contents differ between branches for reasons unrelated to any agent's work.
+
+Best practice: always run `save` and `check` on the same branch. If you switch branches, run `safe-change save` again before resuming agent work.
 
 ### 2. Let the agent work
 
