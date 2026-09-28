@@ -27,7 +27,7 @@ jobs:
           - os: macos-latest
             target: darwin-arm64
             pkg_name: "@safe-change/darwin-arm64"
-          - os: macos-13
+          - os: macos-15-intel
             target: darwin-x64
             pkg_name: "@safe-change/darwin-x64"
 
