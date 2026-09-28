@@ -209,6 +209,10 @@ export async function runCheck(options: CheckOptions): Promise<number> {
     verificationState = "not-verified";
     verificationReason =
       "All check definitions changed since baseline; results not comparable";
+  } else if (report.configDrift.detected) {
+    verificationState = "not-verified";
+    verificationReason =
+      "Verification configuration changed since baseline; results are not fully comparable";
   } else {
     verificationState = "verified";
     verificationReason = "All verification checks passed without regressions";

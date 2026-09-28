@@ -27,6 +27,14 @@ export type {
   RulesConfigFile,
   RuleViolation,
   RuleEvaluationResult,
+  EnterpriseMode,
+  ChangeBudget,
+  EnterprisePolicy,
+  RiskCategory,
+  RiskSignal,
+  ChangeMetrics,
+  BudgetViolation,
+  EnterpriseAssessment,
 } from "./types/index.js";
 
 export { ExitCodes } from "./types/index.js";
@@ -68,3 +76,15 @@ export {
   globToRegex,
   evaluateRules,
 } from "./rules/engine.js";
+export {
+  DEFAULT_CHANGE_BUDGET,
+  DEFAULT_ENTERPRISE_POLICY,
+  ENTERPRISE_MODES,
+  maxMode,
+} from "./enterprise/policy.js";
+export {
+  assessChange,
+  evaluateChangeBudget,
+  modeForRisk,
+  type AssessChangeInput,
+} from "./enterprise/risk-engine.js";

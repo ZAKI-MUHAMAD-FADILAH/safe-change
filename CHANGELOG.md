@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Executable enterprise risk engine with deterministic 0-100 scoring and Standard, Enhanced, High Assurance, and Critical Change mode selection.
+- `safe-change assess` command for baseline-aware risk classification, change-budget enforcement, mandatory evidence configuration, and approval gating.
+- Machine-readable `enterprisePolicy` configuration with fail-closed constants that reject force-push and destructive-Git enablement.
+- Anti-policy-downgrade detection for skipped tests, removed assertions, weakened coverage, `continue-on-error`, disabled security/provenance checks, floating GitHub Action references, and force-push commands.
+- Enterprise enforcement documentation and unit coverage for risk boundaries, mode floors, budget dimensions, mandatory gates, and destructive-policy rejection.
+
 ## [0.3.1] - 2026-09-29
 
 ### Added

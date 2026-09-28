@@ -9,6 +9,7 @@ import { runInit } from "./commands/init.js";
 import { runSave } from "./commands/save.js";
 import { runCheck } from "./commands/check.js";
 import { runDiff } from "./commands/diff.js";
+import { runAssess } from "./commands/assess.js";
 import { runLog } from "./commands/log.js";
 import { runInstall } from "./installer/commands/install.js";
 import { runUpdate } from "./installer/commands/update.js";
@@ -210,6 +211,7 @@ Usage:
   safe-change save [description]   Record a baseline of the repository and verification results.
   safe-change check                Compare current state against the baseline.
   safe-change diff [options]       Show a summary of changes since the baseline.
+  safe-change assess               Score risk, enforce change budget, and detect policy downgrades.
   safe-change log [options]        Show or export persistent safety log.
   safe-change rules [action]       Manage safety rules (list, add, remove, validate).
   safe-change dashboard [options]  Start local web dashboard at localhost:4242.
@@ -319,6 +321,11 @@ async function main(): Promise<void> {
 
     case "diff": {
       exitCode = await runDiff({ format, stat: parsed.flags.stat });
+      break;
+    }
+
+    case "assess": {
+      exitCode = await runAssess({ format });
       break;
     }
 

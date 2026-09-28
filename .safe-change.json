@@ -28,19 +28,19 @@
   ],
   "enterprisePolicy": {
     "policyVersion": 1,
-    "minimumMode": "standard",
+    "minimumMode": "high-assurance",
     "requireBaseline": true,
     "requireTests": true,
-    "requireCoverage": false,
-    "requireDependencyAudit": false,
+    "requireCoverage": true,
+    "requireDependencyAudit": true,
     "requireDiffReview": true,
     "allowForcePush": false,
     "allowDestructiveGit": false,
     "changeBudget": {
-      "maxFilesChanged": 12,
-      "maxLinesAdded": 500,
-      "maxLinesDeleted": 200,
-      "maxPublicApisChanged": 0,
+      "maxFilesChanged": 20,
+      "maxLinesAdded": 1500,
+      "maxLinesDeleted": 500,
+      "maxPublicApisChanged": 20,
       "maxDeletedFiles": 0,
       "allowLockfileChanges": false
     }

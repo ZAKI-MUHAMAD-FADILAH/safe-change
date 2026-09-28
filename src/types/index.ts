@@ -10,6 +10,86 @@ export interface SafeChangeConfig {
   readonly checks: readonly CheckDefinition[];
   readonly logRetention?: number;
   readonly dashboardPort?: number;
+  readonly enterprisePolicy?: EnterprisePolicy;
+}
+
+export type EnterpriseMode =
+  | "standard"
+  | "enhanced"
+  | "high-assurance"
+  | "critical-change";
+
+export interface ChangeBudget {
+  readonly maxFilesChanged: number;
+  readonly maxLinesAdded: number;
+  readonly maxLinesDeleted: number;
+  readonly maxPublicApisChanged: number;
+  readonly maxDeletedFiles: number;
+  readonly allowLockfileChanges: boolean;
+}
+
+export interface EnterprisePolicy {
+  readonly policyVersion: 1;
+  readonly minimumMode: EnterpriseMode;
+  readonly requireBaseline: boolean;
+  readonly requireTests: boolean;
+  readonly requireCoverage: boolean;
+  readonly requireDependencyAudit: boolean;
+  readonly requireDiffReview: boolean;
+  readonly allowForcePush: false;
+  readonly allowDestructiveGit: false;
+  readonly changeBudget: ChangeBudget;
+}
+
+export type RiskCategory =
+  | "documentation"
+  | "test"
+  | "source"
+  | "dependency"
+  | "ci"
+  | "file-deletion"
+  | "authentication"
+  | "migration"
+  | "release"
+  | "guardrail-downgrade";
+
+export interface RiskSignal {
+  readonly category: RiskCategory;
+  readonly score: number;
+  readonly paths: readonly string[];
+  readonly reason: string;
+}
+
+export interface ChangeMetrics {
+  readonly filesChanged: number;
+  readonly filesDeleted: number;
+  readonly linesAdded: number;
+  readonly linesDeleted: number;
+  readonly publicApisChanged: number;
+  readonly lockfilesChanged: readonly string[];
+}
+
+export interface BudgetViolation {
+  readonly field: keyof ChangeBudget;
+  readonly actual: number | boolean;
+  readonly allowed: number | boolean;
+  readonly message: string;
+}
+
+export interface EnterpriseAssessment {
+  readonly schemaVersion: 1;
+  readonly generatedAt: string;
+  readonly riskScore: number;
+  readonly automaticMode: EnterpriseMode;
+  readonly requiredMode: EnterpriseMode;
+  readonly signals: readonly RiskSignal[];
+  readonly metrics: ChangeMetrics;
+  readonly budgetPassed: boolean;
+  readonly budgetViolations: readonly BudgetViolation[];
+  readonly policyBlockers: readonly string[];
+  readonly approvalRequired: boolean;
+  readonly verificationState: "not-verified";
+  readonly evidenceLimitations: readonly string[];
 }
 
 // Safety log
