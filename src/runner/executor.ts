@@ -7,6 +7,7 @@ import type {
 import { terminateProcessTree, BoundedTailBuffer } from "./process-controller.js";
 import { StreamingSecretRedactor } from "../security/secret-redactor.js";
 import { evaluateCommandSandbox } from "../enforcement/sandbox.js";
+import { resolveSafeCommand } from "../sandbox/resolver.js";
 
 const DEFAULT_OUTPUT_LIMIT = 100 * 1024; // 100 KB per stream
 const DIAGNOSTIC_TAIL_LIMIT = 8 * 1024; // 8 KB tail kept for diagnostics
@@ -125,7 +126,12 @@ export async function executeCheck(
 
     let child;
     try {
-      child = spawn(check.executable, [...check.args], {
+      const resolved = resolveSafeCommand(
+        check.executable,
+        check.args,
+        options.cwd
+      );
+      child = spawn(resolved.executable, [...resolved.args], {
         cwd: options.cwd,
         env: sandboxDecision?.environment ?? process.env,
         stdio: ["ignore", "pipe", "pipe"],
