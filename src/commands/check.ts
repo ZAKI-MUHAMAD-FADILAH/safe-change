@@ -4,6 +4,7 @@ import { loadConfig } from "../config/loader.js";
 import {
   getRepositoryRoot,
   getFileEntries,
+  getGitState,
 } from "../git/inspector.js";
 import { loadBaseline } from "../baseline/manager.js";
 import { executeAllChecks } from "../runner/executor.js";
@@ -109,6 +110,26 @@ export async function runCheck(options: CheckOptions): Promise<number> {
 
   // 6. Build and render report
   let report = buildReport(baseline, currentResults, currentFiles, config);
+
+  // Check branch mismatch
+  try {
+    const gitState = await getGitState(repoRoot);
+    if (
+      baseline.git.headBranch &&
+      gitState.headBranch &&
+      baseline.git.headBranch !== gitState.headBranch
+    ) {
+      report = {
+        ...report,
+        branchMismatch: {
+          baselineBranch: baseline.git.headBranch,
+          currentBranch: gitState.headBranch,
+        },
+      };
+    }
+  } catch {
+    // Git inspection error should not prevent check report
+  }
 
   // Evaluate safety rules
   try {

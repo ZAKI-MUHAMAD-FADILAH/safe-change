@@ -92,7 +92,18 @@ The safe-change installer manages agent skills under rigorous security boundarie
 ### Scope isolation and path safety
 
 - **Project Scope**: Confined strictly inside the Git repository workspace root (`<workspaceRoot>/.agents/skills/safe-change/`). Path resolution normalizes and canonicalizes all paths. Relative path traversals (`..`), drive letter escapes on Windows, and root escapes on POSIX systems are strictly blocked.
-- **Global Scope**: Confined strictly to an explicit allowlist within the user's home directory (`<homedir>/.gemini/config/skills/safe-change/`). Absolute paths outside the allowlist, root paths (`/` or `C:\`), and sensitive directories (`~/.ssh`, `~/.bashrc`, or system folders) are rejected.
+- **Global Scope**: Confined strictly to an explicit allowlist of authorized agent skill directories within the user's home directory:
+  - Antigravity: `<homedir>/.gemini/config/skills/safe-change/`
+  - Claude Code: `<homedir>/.claude/skills/safe-change/`
+  - Cursor: `<homedir>/.cursor/skills/safe-change/`
+  - OpenAI Codex: `<homedir>/.codex/skills/safe-change/`
+  - Cline: `<homedir>/.cline/skills/safe-change/`
+  - Kimi Code: `<homedir>/.kimi-code/skills/safe-change/`
+  - Amp: `<homedir>/.config/agents/skills/safe-change/`
+  - OpenCode: `<homedir>/.config/opencode/skills/safe-change/`
+  - Gemini CLI: `<homedir>/.gemini/skills/safe-change/`
+  - GitHub Copilot: `<homedir>/.github/skills/safe-change/`
+  Absolute paths outside the allowlist, root paths (`/` or `C:\`), and sensitive directories (`~/.ssh`, `~/.bashrc`, or system folders) are strictly rejected.
 - **Symlink and Junction Defense**: Both target directories and canonical source files are inspected with `lstat`. Any symbolic link or Windows directory junction is rejected with exit code 9 (`INCOMPATIBLE_TARGET`) to prevent directory traversal attacks or symlink swapping.
 
 ### Ownership markers and integrity manifests

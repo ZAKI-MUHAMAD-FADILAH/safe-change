@@ -188,6 +188,23 @@ export function renderCheckReport(
     lines.push("");
   }
 
+  // Branch mismatch warning
+  if (report.branchMismatch) {
+    lines.push(
+      c(
+        YELLOW,
+        `  Branch mismatch: Active branch (${report.branchMismatch.currentBranch}) differs from baseline (${report.branchMismatch.baselineBranch}).`
+      )
+    );
+    lines.push(
+      c(
+        YELLOW,
+        "  File changes and check results may reflect branch differences rather than agent edits."
+      )
+    );
+    lines.push("");
+  }
+
   // Check results table
   if (report.results.length > 0) {
     const nameWidth = Math.max(

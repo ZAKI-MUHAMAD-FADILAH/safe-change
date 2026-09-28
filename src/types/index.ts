@@ -162,6 +162,11 @@ export interface CheckReportSummary {
   readonly definitionChanged: number;
 }
 
+export interface BranchMismatch {
+  readonly baselineBranch: string;
+  readonly currentBranch: string;
+}
+
 export interface CheckReport {
   readonly schemaVersion: 2;
   readonly generatedAt: string;
@@ -175,6 +180,7 @@ export interface CheckReport {
   readonly summary: CheckReportSummary;
   readonly exitCode: number;
   readonly ruleViolations?: readonly RuleViolation[];
+  readonly branchMismatch?: BranchMismatch | null;
 }
 
 // Safety rules

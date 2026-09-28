@@ -152,39 +152,86 @@ export function openBrowser(url: string): void {
 export async function startDashboardServer(
   options: DashboardServerOptions = {}
 ): Promise<DashboardServerInstance> {
-  const server = await createDashboardServer(options);
+  let initialPort = options.port;
+  const isExplicitPort = options.port !== undefined;
 
-  let targetPort = options.port;
-  if (targetPort === undefined) {
+  if (initialPort === undefined) {
     const repoRoot = options.repoRoot ?? process.cwd();
     try {
       const config = await loadConfig(repoRoot);
-      targetPort = config.dashboardPort ?? DEFAULT_DASHBOARD_PORT;
+      initialPort = config.dashboardPort ?? DEFAULT_DASHBOARD_PORT;
     } catch {
-      targetPort = DEFAULT_DASHBOARD_PORT;
+      initialPort = DEFAULT_DASHBOARD_PORT;
     }
   }
 
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(targetPort, LOCALHOST_HOST, () => {
-      server.removeListener("error", reject);
-      resolve();
-    });
-  });
+  const maxAttempts = isExplicitPort ? 1 : 10;
+  let server: Server | null = null;
+  let boundPort = initialPort;
 
-  const addr = server.address() as AddressInfo;
-  const actualPort = addr.port;
-  const url = `http://${LOCALHOST_HOST}:${actualPort}`;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidatePort = initialPort === 0 ? 0 : initialPort + attempt;
+    const candidateServer = await createDashboardServer(options);
+
+    const result = await new Promise<{ ok: boolean; err?: Error }>((resolve) => {
+      const onError = (err: NodeJS.ErrnoException) => {
+        candidateServer.removeListener("listening", onListening);
+        if (err.code === "EADDRINUSE" && attempt + 1 < maxAttempts) {
+          resolve({ ok: false });
+        } else if (err.code === "EADDRINUSE") {
+          resolve({
+            ok: false,
+            err: new Error(
+              `Port ${candidatePort} is already in use. Specify a different port using '--port <number>' or configure 'dashboardPort' in .safe-change.json.`
+            ),
+          });
+        } else {
+          resolve({ ok: false, err });
+        }
+      };
+
+      const onListening = () => {
+        candidateServer.removeListener("error", onError);
+        resolve({ ok: true });
+      };
+
+      candidateServer.once("error", onError);
+      candidateServer.once("listening", onListening);
+      candidateServer.listen(candidatePort, LOCALHOST_HOST);
+    });
+
+    if (result.ok) {
+      server = candidateServer;
+      const addr = server.address() as AddressInfo;
+      boundPort = addr.port;
+      break;
+    }
+
+    try {
+      candidateServer.close();
+    } catch {
+      // ignore
+    }
+
+    if (result.err) {
+      throw result.err;
+    }
+  }
+
+  if (!server) {
+    throw new Error(`Failed to bind dashboard server after ${maxAttempts} attempts.`);
+  }
+
+  const url = `http://${LOCALHOST_HOST}:${boundPort}`;
 
   return {
     server,
-    port: actualPort,
+    port: boundPort,
     host: LOCALHOST_HOST,
     url,
     close: () =>
       new Promise<void>((resolve, reject) => {
-        server.close((err) => (err ? reject(err) : resolve()));
+        server!.close((err) => (err ? reject(err) : resolve()));
       }),
   };
 }
