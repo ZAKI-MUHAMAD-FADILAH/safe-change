@@ -78,7 +78,6 @@ setInterval(() => {}, 500);
       `
 const { spawn } = require('child_process');
 const child = spawn(process.execPath, [process.argv[2], process.argv[3]], {
-  detached: process.platform !== 'win32',
   stdio: 'ignore'
 });
 setInterval(() => {}, 500);

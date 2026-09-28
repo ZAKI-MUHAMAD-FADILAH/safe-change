@@ -238,7 +238,7 @@ describe("MCP internal helpers", () => {
 
   it("runCli terminates subprocess and reports timedOut true when execution exceeds timeout", async () => {
     const tempDir = await createTempDir();
-    const result = await runCli(["status"], tempDir, 50); // 50ms timeout
+    const result = await runCli(["status"], tempDir, 5); // 5ms timeout to ensure timeout triggers on all runners
     expect(result.timedOut).toBe(true);
   });
 });

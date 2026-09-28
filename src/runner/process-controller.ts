@@ -52,6 +52,13 @@ export function terminateProcessTree(
     }
   }
 
+  // Also signal direct descendants by PPID if pkill is available (without using shell)
+  try {
+    spawnSync("pkill", ["-TERM", "-P", String(pid)], { stdio: "ignore" });
+  } catch {
+    // pkill may not be present on minimal environments
+  }
+
   const killTimer = setTimeout(() => {
     try {
       process.kill(-pid, "SIGKILL");
@@ -61,6 +68,11 @@ export function terminateProcessTree(
       } catch {
         // Process may already have terminated
       }
+    }
+    try {
+      spawnSync("pkill", ["-KILL", "-P", String(pid)], { stdio: "ignore" });
+    } catch {
+      // Ignored
     }
   }, gracePeriodMs);
 
