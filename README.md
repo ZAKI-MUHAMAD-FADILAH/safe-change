@@ -115,7 +115,7 @@ safe-change --version
 safe-change init
 ```
 
-> Automatically inspects your repository (Node.js, Rust, Go, Python, Makefile), generates `.safe-change.json` with detected test runners, and excludes `.safe-change/` in `.gitignore`.
+> Automatically inspects your repository (Node.js, Rust, Go, Python, Makefile), generates `.safe-change.json` with detected test runners, and optionally updates `.gitignore` when `--update-gitignore` is specified.
 
 **2. Save a baseline before your agent starts**
 
@@ -145,7 +145,7 @@ safe-change diff --stat
 
 | Command | What it does |
 |---|---|
-| `init` | Auto-detect test runners, create `.safe-change.json`, and configure `.gitignore` |
+| `init` | Auto-detect test runners, create `.safe-change.json` (use `--update-gitignore` to update `.gitignore`) |
 | `save [description]` | Record a baseline — runs all checks, hashes all files |
 | `check` | Compare current state to baseline — exit 1 if regression |
 | `diff [--stat]` | List files added, modified, deleted, and line change stats |

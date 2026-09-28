@@ -47,9 +47,9 @@ async function main() {
       encoding: "utf-8",
       shell: isWin,
     });
-    console.log(`Output: ${versionOutput.trim()}`);
-    if (!versionOutput.includes("0.3.0")) {
-      throw new Error(`Unexpected version: ${versionOutput}`);
+    const pkgJson = JSON.parse(await import("node:fs/promises").then((fs) => fs.readFile(join(repoRoot, "package.json"), "utf-8")));
+    if (!versionOutput.includes(pkgJson.version)) {
+      throw new Error(`Unexpected version: ${versionOutput}, expected ${pkgJson.version}`);
     }
 
     // 4. Initialize git repo in temp project

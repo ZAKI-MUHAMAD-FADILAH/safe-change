@@ -131,7 +131,7 @@ Always classify verification outcomes into one of these four distinct states:
 | State | Definition | safe-change Equivalent |
 |---|---|---|
 | **Verified** | Configured check passed both at baseline and currently, or a previously failing check was resolved. | `pass-pass`, `fail-pass` |
-| **Failed** | A check that passed at baseline now fails or times out (regression), or a pre-existing failure remains broken. | `pass-fail` (exit 1), `pass-timeout` (exit 1), `fail-fail` (exit 0) |
+| **Failed** | A check that passed at baseline now fails or times out (regression), or a pre-existing failure remains unresolved. | `pass-fail` (exit 1), `pass-timeout` (exit 1), `fail-fail` (exit 0), `fail-timeout` (exit 0), `timeout-fail` (exit 0), `timeout-timeout` (exit 0) |
 | **Not Verified** | No checks are configured in `.safe-change.json`, or a check definition was modified since baseline (commands or parameters changed). | `unverified`, `definition-changed` (config drift) |
 | **Unavailable** | The `safe-change` executable is not installed or not discoverable on PATH. | Command execution failure |
 

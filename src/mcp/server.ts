@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -131,28 +131,49 @@ function toolToCommand(toolName: string): string[] | null {
   }
 }
 
-const DEFAULT_TIMEOUT_MS = 120_000;
+export const DEFAULT_TIMEOUT_MS = 120_000;
+export const DEFAULT_MAX_OUTPUT_BYTES = 512 * 1024;
 
-interface ToolCallResult {
+export interface ToolCallResult {
   stdout: string;
   stderr: string;
   exitCode: number | null;
   timedOut: boolean;
+  stdoutBytes?: number;
+  stderrBytes?: number;
+  stdoutTruncated?: boolean;
+  stderrTruncated?: boolean;
 }
 
-import { terminateProcessTree } from "../runner/process-controller.js";
+import {
+  terminateProcessTree,
+  BoundedTailBuffer,
+} from "../runner/process-controller.js";
 
-function runCli(
+export function runCli(
   args: string[],
   cwd: string,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  maxOutputBytes: number = DEFAULT_MAX_OUTPUT_BYTES
 ): Promise<ToolCallResult> {
   return new Promise((resolve) => {
-    const cliPath = join(
+    let cliPath = join(
       dirname(fileURLToPath(import.meta.url)),
       "..",
       "cli.js"
     );
+    if (!existsSync(cliPath)) {
+      const distCandidate = join(
+        dirname(fileURLToPath(import.meta.url)),
+        "..",
+        "..",
+        "dist",
+        "cli.js"
+      );
+      if (existsSync(distCandidate)) {
+        cliPath = distCandidate;
+      }
+    }
 
     const child = spawn(process.execPath, [cliPath, ...args], {
       cwd,
@@ -162,8 +183,8 @@ function runCli(
       env: { ...process.env, NO_COLOR: "1" },
     });
 
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
+    const stdoutBuffer = new BoundedTailBuffer(maxOutputBytes);
+    const stderrBuffer = new BoundedTailBuffer(maxOutputBytes);
     let timedOut = false;
     let resolved = false;
 
@@ -177,23 +198,25 @@ function runCli(
       if (resolved) return;
       resolved = true;
       clearTimeout(timeoutTimer);
+      const stderrTail = stderrBuffer.getTailString();
       resolve({
-        stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
-        stderr:
-          Buffer.concat(stderrChunks).toString("utf-8") ||
-          extraError ||
-          "",
+        stdout: stdoutBuffer.getTailString(),
+        stderr: stderrTail || extraError || "",
         exitCode,
         timedOut,
+        stdoutBytes: stdoutBuffer.totalBytes,
+        stderrBytes: stderrBuffer.totalBytes,
+        stdoutTruncated: stdoutBuffer.isTruncated,
+        stderrTruncated: stderrBuffer.isTruncated,
       });
     }
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdoutChunks.push(chunk);
+      stdoutBuffer.push(chunk);
     });
 
     child.stderr.on("data", (chunk: Buffer) => {
-      stderrChunks.push(chunk);
+      stderrBuffer.push(chunk);
     });
 
     child.on("error", (err: NodeJS.ErrnoException) => {
@@ -291,4 +314,4 @@ export async function startServer(): Promise<void> {
   );
 }
 
-export { TOOLS, toolToCommand, runCli };
+export { TOOLS, toolToCommand };

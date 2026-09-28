@@ -180,24 +180,35 @@ export async function runCheck(options: CheckOptions): Promise<number> {
   const hasBlockingRuleViolations = (report.ruleViolations ?? []).some(
     (v) => v.severity === "error"
   );
+  const hasStillFailing = report.summary.stillFailing > 0;
+  const hasCurrentFailures = report.results.some(
+    (r) => r.now === "fail" || r.now === "timeout"
+  );
 
   if (hasNewFailures || hasBlockingRuleViolations) {
     verificationState = "failed";
     verificationReason = hasBlockingRuleViolations
       ? "Safety rule violation detected"
       : "Regression detected in check results";
+  } else if (hasStillFailing || hasCurrentFailures) {
+    verificationState = "failed";
+    verificationReason =
+      "Pre-existing check failure remains unresolved from baseline";
   } else if (configuredChecksCount === 0 && activeRulesCount === 0) {
     verificationState = "not-verified";
-    verificationReason = "Zero checks and zero rules configured; file changes tracked only";
+    verificationReason =
+      "Zero checks and zero rules configured; file changes tracked only";
   } else if (configuredChecksCount === 0) {
     verificationState = "not-verified";
-    verificationReason = "No verification checks configured; file changes and rules only";
+    verificationReason =
+      "No verification checks configured; file changes and rules only";
   } else if (
     executedChecksCount > 0 &&
     report.summary.definitionChanged === executedChecksCount
   ) {
     verificationState = "not-verified";
-    verificationReason = "All check definitions changed since baseline; results not comparable";
+    verificationReason =
+      "All check definitions changed since baseline; results not comparable";
   } else {
     verificationState = "verified";
     verificationReason = "All verification checks passed without regressions";

@@ -38,7 +38,7 @@ Compilation and distribution are automated via `.github/workflows/native-build.y
   ```json
   {
     "name": "@safe-change/win32-x64-msvc",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "os": ["win32"],
     "cpu": ["x64"],
     "main": "safe-change-native.node"
@@ -52,17 +52,24 @@ Compilation and distribution are automated via `.github/workflows/native-build.y
 
 ## 4. Supported Platforms
 
-The following platforms are targeted:
+The following platforms are actively built, tested, and distributed:
 
-| Package Name | Operating System | Architecture | Toolchain / Libc |
-| --- | --- | --- | --- |
-| `@safe-change/win32-x64-msvc` | Windows | x64 | MSVC |
-| `@safe-change/win32-arm64-msvc` | Windows | ARM64 | MSVC |
-| `@safe-change/darwin-x64` | macOS | x64 | Intel / Mach-O |
-| `@safe-change/darwin-arm64` | macOS | ARM64 | Apple Silicon |
-| `@safe-change/linux-x64-gnu` | Linux | x64 | glibc |
-| `@safe-change/linux-arm64-gnu` | Linux | ARM64 | glibc |
-| `@safe-change/linux-x64-musl` | Linux | x64 | musl (e.g. Alpine) |
+| Package Name | Operating System | Architecture | Toolchain / Libc | Distribution Status |
+| --- | --- | --- | --- | --- |
+| `@safe-change/win32-x64-msvc` | Windows | x64 | MSVC | Active |
+| `@safe-change/darwin-x64` | macOS | x64 | Intel / Mach-O | Active |
+| `@safe-change/darwin-arm64` | macOS | ARM64 | Apple Silicon | Active |
+| `@safe-change/linux-x64-gnu` | Linux | x64 | glibc | Active |
+
+### Planned Platforms
+
+The following platforms have repository package structures prepared but are not actively built or included in root `optionalDependencies` pending dedicated CI builder runners:
+
+| Package Name | Operating System | Architecture | Toolchain / Libc | Status |
+| --- | --- | --- | --- | --- |
+| `@safe-change/win32-arm64-msvc` | Windows | ARM64 | MSVC | Planned / Experimental |
+| `@safe-change/linux-arm64-gnu` | Linux | ARM64 | glibc | Planned / Experimental |
+| `@safe-change/linux-x64-musl` | Linux | x64 | musl (e.g. Alpine) | Planned / Experimental |
 
 ---
 
@@ -70,7 +77,7 @@ The following platforms are targeted:
 
 If no native package is available for the current host environment, or if native execution is explicitly disabled via the `SAFE_CHANGE_NATIVE_DISABLED=1` environment variable:
 - The loader in `src/native/index.ts` catches import failures gracefully and returns `null`.
-- Core modules ([src/installer/core/path-safety.ts](file:///c:/Users/zakim/OneDrive/Desktop/safe-change/src/installer/core/path-safety.ts) and [src/installer/core/transaction.ts](file:///c:/Users/zakim/OneDrive/Desktop/safe-change/src/installer/core/transaction.ts)) automatically fall back to pure TypeScript implementations using standard Node.js APIs (`node:fs`, `node:path`).
+- Core modules ([src/installer/core/path-safety.ts](../src/installer/core/path-safety.ts) and [src/installer/core/transaction.ts](../src/installer/core/transaction.ts)) automatically fall back to pure TypeScript implementations using standard Node.js APIs (`node:fs`, `node:path`).
 - All safety guarantees, boundary checks, collision detections, and rollback mechanisms continue to function identically.
 
 ---
@@ -84,6 +91,6 @@ To add support for a new operating system or architecture:
 2. **Create npm Platform Directory**:
    Create `npm/<new-platform>/` containing `package.json` specifying `"os"` and `"cpu"`, along with a concise `README.md`.
 3. **Update Loader**:
-   Add `@safe-change/<new-platform>` to the `platforms` array in [src/native/index.ts](file:///c:/Users/zakim/OneDrive/Desktop/safe-change/src/native/index.ts).
+   Add the platform and architecture mapping in `getExpectedPlatformPackage()` in [src/native/index.ts](../src/native/index.ts).
 4. **Update CI Workflow**:
-   Add the target runner to `.github/workflows/native-build.yml` and add the mapping in the `publish-native` job.
+   Add the target runner to the matrix in `.github/workflows/native-build.yml` and add the mapping in the `publish-native` job.

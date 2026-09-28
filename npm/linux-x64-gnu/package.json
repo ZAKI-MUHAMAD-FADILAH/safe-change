@@ -1,6 +1,6 @@
 {
   "name": "@safe-change/linux-x64-gnu",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Native binary for safe-change on linux-x64-gnu",
   "os": [
     "linux"

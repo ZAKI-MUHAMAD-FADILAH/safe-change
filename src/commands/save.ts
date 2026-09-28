@@ -13,6 +13,7 @@ import {
 import { executeAllChecks } from "../runner/executor.js";
 import { renderSaveResult, renderError } from "../output/renderer.js";
 import { appendEntry, createLogEntry } from "../log/log-manager.js";
+import { loadRulesResult } from "../rules/manager.js";
 
 export interface SaveOptions {
   readonly description: string;
@@ -49,7 +50,41 @@ export async function runSave(options: SaveOptions): Promise<number> {
     return ExitCodes.CONFIG_ERROR;
   }
 
-  // 3. Inspect Git state and files
+  // 3. Load and validate safety rules (fail-closed)
+  let rulesState;
+  try {
+    rulesState = await loadRulesResult(repoRoot);
+  } catch (err: unknown) {
+    rulesState = {
+      status: "invalid" as const,
+      rules: [],
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (rulesState.status === "invalid") {
+    process.stderr.write(
+      renderError(
+        format,
+        `Invalid safety rules configuration: ${rulesState.error ?? "Failed to parse rules.json"}`,
+        ExitCodes.CONFIG_ERROR
+      )
+    );
+    return ExitCodes.CONFIG_ERROR;
+  }
+
+  if (rulesState.status === "evaluation-error") {
+    process.stderr.write(
+      renderError(
+        format,
+        `Safety rules evaluation error: ${rulesState.error ?? "Internal rules error"}`,
+        ExitCodes.INTERNAL_ERROR
+      )
+    );
+    return ExitCodes.INTERNAL_ERROR;
+  }
+
+  // 4. Inspect Git state and files
   let gitState;
   let files;
   try {
@@ -144,8 +179,6 @@ export async function runSave(options: SaveOptions): Promise<number> {
   const gitignoreOk = await isStateExcludedFromGit(repoRoot);
 
   // 8. Compute verification status
-  const { loadRulesResult } = await import("../rules/manager.js");
-  const rulesState = await loadRulesResult(repoRoot);
   const checksRun = checkResults.length;
   const checksPassed = checkResults.filter((r) => r.passed).length;
   const fileCount = Object.keys(files).length;

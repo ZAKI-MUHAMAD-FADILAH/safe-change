@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-29
+
+### Added
+- Native binary load and smoke verification script `scripts/verify-built-native.mjs` executing in GitHub Actions.
+- Comprehensive verification state matrix tests covering `pass-pass`, `fail-pass`, `pass-fail`, `fail-fail`, timeout permutations, zero checks, and configuration drift.
+- Fail-closed rules tests asserting rejection of missing version, unsupported version, and malformed rule objects.
+- Bounded tail buffer unit tests verifying strict memory caps on large MCP output streams.
+
+### Changed
+- Explicit `.gitignore` management: `safe-change init` preserves user `.gitignore` by default; updates to `.gitignore` now strictly require the explicit `--update-gitignore` flag.
+- Verification status correctness: Resolved false-positive `verified` status on pre-existing check failures (`fail-fail`, `fail-timeout`, `timeout-fail`, `timeout-timeout`); verification state now reports `failed` with diagnostic reason while keeping exit code 0 to maintain regression exit-code contracts.
+- Fail-closed rules evaluation on `save`: `safe-change save` validates `rules.json` schema and version (only version 1 is supported); invalid or malformed rules abort baseline creation with exit code 3 (`CONFIG_ERROR`) without leaking absolute filesystem paths.
+- Bounded MCP subprocess output: Replaced unbounded array chunk buffering in MCP server with `BoundedTailBuffer`, capping stdout and stderr memory growth during command execution while retaining trailing diagnostic tails.
+- Native distribution alignment: Aligned active binary distribution and `optionalDependencies` to the four fully built and tested targets (`linux-x64-gnu`, `win32-x64-msvc`, `darwin-arm64`, `darwin-x64`).
+- CI hardening: Pinned `dtolnay/rust-toolchain` to immutable commit SHA `e752f9b88cf4da61b07241285223c6c06a374668` in GitHub Actions and added post-build native module load verification steps.
+- Removed private filesystem and `file:///` URI references across documentation.
+
 ## [0.3.0] - 2026-09-28
 
 ### Added

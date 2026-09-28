@@ -117,7 +117,7 @@ export async function loadRulesResult(repoRoot: string): Promise<RulesState> {
     return {
       status: "invalid",
       rules: [],
-      error: `Failed to read rules file at ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
+      error: `Failed to read rules file: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 
@@ -136,12 +136,28 @@ export async function loadRulesResult(repoRoot: string): Promise<RulesState> {
     return {
       status: "invalid",
       rules: [],
-      error: "Rules configuration must be an object containing a 'rules' array",
+      error: "Rules configuration must be an object containing 'version' and 'rules'",
     };
   }
 
-  const rulesRecord = parsed as { rules?: unknown };
-  if (!Array.isArray(rulesRecord.rules)) {
+  const rawConfig = parsed as { version?: unknown; rules?: unknown };
+  if (rawConfig.version === undefined) {
+    return {
+      status: "invalid",
+      rules: [],
+      error: "Rules configuration missing 'version' property",
+    };
+  }
+
+  if (rawConfig.version !== 1) {
+    return {
+      status: "invalid",
+      rules: [],
+      error: `Unsupported rules version: expected 1, got ${String(rawConfig.version)}`,
+    };
+  }
+
+  if (!Array.isArray(rawConfig.rules)) {
     return {
       status: "invalid",
       rules: [],
@@ -149,13 +165,13 @@ export async function loadRulesResult(repoRoot: string): Promise<RulesState> {
     };
   }
 
-  if (rulesRecord.rules.length === 0) {
+  if (rawConfig.rules.length === 0) {
     return { status: "empty", rules: [] };
   }
 
   const validatedRules: SafeChangeRule[] = [];
-  for (let i = 0; i < rulesRecord.rules.length; i++) {
-    const candidate = rulesRecord.rules[i];
+  for (let i = 0; i < rawConfig.rules.length; i++) {
+    const candidate = rawConfig.rules[i];
     const validation = validateRule(candidate);
     if (!validation.valid) {
       const candidateId =

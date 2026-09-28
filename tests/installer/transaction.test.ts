@@ -183,4 +183,21 @@ process.stdin.on('data', () => {
     // Staging directory must be cleaned up
     expect(fs.existsSync(stagingDir)).toBe(false);
   });
+
+
+  it("throws when stageFile is called on committed or aborted transaction", () => {
+    const targetDir = path.join(tempDir, "closed-target");
+    const tx = new InstallationTransaction({ targetDir });
+    tx.stageFile("SKILL.md", "content");
+    tx.commit();
+
+    expect(() => tx.stageFile("another.txt", "content")).toThrowError(/already been committed/);
+    expect(() => tx.commit()).toThrowError(/already been committed/);
+
+    const tx2 = new InstallationTransaction({ targetDir: path.join(tempDir, "abort-target") });
+    tx2.abort();
+    expect(() => tx2.stageFile("file.txt", "content")).toThrowError(/aborted/);
+    // Multiple abort calls are idempotent
+    expect(() => tx2.abort()).not.toThrow();
+  });
 });
