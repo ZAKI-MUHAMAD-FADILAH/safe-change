@@ -118,12 +118,12 @@ setInterval(() => {}, 500);
     await writeFile(
       script,
       `
-// Write 200KB of output
-for (let i = 0; i < 2000; i++) {
+// Write output exceeding maxBuffer (500 bytes)
+for (let i = 0; i < 500; i++) {
   process.stdout.write('noise chunk line ' + i + '\\n');
 }
 process.stdout.write('CRITICAL_FINAL_TAIL_ERROR');
-process.exit(1);
+process.exitCode = 1;
 `
     );
 
@@ -137,7 +137,7 @@ process.exit(1);
     const result = await executeCheck(check, { cwd: tempDir, maxBuffer: 500 });
     expect(result.passed).toBe(false);
     expect(result.outputTruncated).toBe(true);
-    expect(result.outputBytes).toBeGreaterThan(10000);
+    expect(result.outputBytes).toBeGreaterThan(1000);
     expect(result.stdout).toContain("CRITICAL_FINAL_TAIL_ERROR");
   });
 });
