@@ -144,7 +144,19 @@ To prevent unbounded disk consumption, safe-change automatically rotates log ent
 
 - The default retention limit is **100 entries**.
 - When an operation appends the 101st entry, the oldest entry is removed atomically.
-- The retention limit is preserved in `.safe-change/log.json` under `retentionMaxEntries`.
+- You can customize the retention limit by setting `"logRetention"` in your `.safe-change.json`:
+
+```json
+{
+  "version": 1,
+  "logRetention": 250,
+  "checks": [
+    { "name": "test", "executable": "npm", "args": ["test"] }
+  ]
+}
+```
+
+For aggressive CI workflows or large team projects, set `logRetention` higher (e.g. 500 or 1000) to preserve extended audit history.
 
 ## Export and Backup
 

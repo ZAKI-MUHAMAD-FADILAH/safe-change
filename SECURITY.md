@@ -2,11 +2,14 @@
 
 ## Status
 
-safe-change v0.1 is locally implemented and tested. This document describes the security boundaries as they exist in the current implementation. It will be updated when the CLI is published as a package.
+safe-change v0.2.0 is publicly released on npm and actively maintained. This document describes the security boundaries, threat models, and operational invariants implemented in the system.
 
 ## Supported versions
 
-No released package version exists yet. When releases begin, this section will list supported versions and their security-update policy.
+| Version | Supported | Security Update Policy |
+| :--- | :--- | :--- |
+| `0.2.x` | Yes | Active patches and security fixes |
+| `< 0.2.0` | No | Upgrade to latest release |
 
 ## Reporting a vulnerability
 
@@ -62,6 +65,26 @@ Each command runs with:
 - Baseline files store file hashes (sha256), not file contents. This privacy-preserving design minimizes disk footprint and prevents accidental leakage of secrets or source code into tool state.
 - Process stdout/stderr is captured in bounded buffers for diagnostic display. safe-change does NOT perform automated secret or token detection; configured checks should avoid emitting sensitive credentials.
 
+### Configuration trust model (`.safe-change.json`)
+
+The `.safe-change.json` file defines the verification commands executed during `save` and `check`. While safe-change enforces non-shell process spawning (`child_process.spawn`) without shell expansion (preventing argument injection or shell chaining), **the commands themselves run with the full privileges of the executing user.**
+
+**Threat Vector (Confused Deputy):** An attacker submitting a pull request could modify `.safe-change.json` to specify a harmful executable or script. If a reviewer executes `safe-change check` locally or in an unisolated CI environment without inspecting changes to `.safe-change.json`, that executable would run on their machine.
+
+**Mitigation & Operational Rules:**
+- Treat `.safe-change.json` with the exact same trust and scrutiny as a `Makefile`, `package.json` scripts, `build.gradle`, or CI workflow file.
+- Never run `safe-change save` or `safe-change check` on untrusted repositories or pull requests before reviewing `.safe-change.json` changes.
+
+### Dashboard HTTP server security architecture
+
+safe-change includes an embedded local dashboard (`safe-change dashboard`) powered by Node.js's native `node:http` standard library. The server design adheres to strict defensive security constraints:
+
+1. **Zero-Dependency Supply Chain Isolation:** Rather than importing large external web framework dependency trees (which introduce dependency confusion and supply chain attack surfaces), the server is built entirely with Node.js built-ins (`node:http`, `node:fs/promises`, `node:path`).
+2. **Loopback Only (`127.0.0.1`):** The server explicitly binds to IPv4 loopback `127.0.0.1`. It is strictly unreachable from external network interfaces or local network peers.
+3. **Fixed Route Allowlist:** Only 5 static endpoints are served (`/`, `/api/status`, `/api/log`, `/api/config`, `/api/rules`). Any other path immediately returns a 404 response.
+4. **No Path Traversal or Arbitrary File Serving:** The dashboard does not accept file paths as query parameters or URL path components. All returned JSON data is assembled in-memory from validated internal data structures, and the HTML template is rendered entirely from an embedded in-memory string. No dynamic disk file-serving logic exists.
+5. **Strict Method Restriction:** The server only accepts `GET` requests. Any `POST`, `PUT`, `DELETE`, or other HTTP method is immediately rejected with `405 Method Not Allowed`.
+
 ## Installer security model
 
 The safe-change installer manages agent skills under rigorous security boundaries.
@@ -111,8 +134,9 @@ A safe-change baseline is not a general-purpose backup. It stores hashes for com
 
 safe-change does not redact secrets, API keys, or sensitive credentials from process output or terminal displays. Ensure configured test commands do not print credentials.
 
-## Before package release
-
-- Implement and test the private vulnerability reporting link.
-- Review the package entry points, dependencies, file access, process execution, and published package contents.
-- Replace the "no released version" notice with an accurate supported-versions policy.
+## Release verification
+ 
+The following security verifications were completed prior to releasing v0.2.0:
+- Private vulnerability reporting link configured.
+- Package entry points, zero-dependency model, and publication file allowlists verified.
+- Supported-versions policy defined and documented.

@@ -73,6 +73,15 @@ Exit 1 — 1 new regression detected.
 Previously passing check now fails: unit-tests
 ```
 
+### What files are tracked and hashed?
+
+safe-change records SHA-256 cryptographic hashes for codebase verification while respecting repository boundaries:
+
+- **Included:** All files tracked by Git (`git ls-files`) plus untracked working-tree files recognized by Git (`git status -uall`).
+- **Excluded:** Anything matched by `.gitignore` (e.g., `node_modules/`, `dist/`, build artifacts, cache folders) is completely ignored and never hashed. The `.safe-change/` directory is always excluded.
+- **Binary files:** Read as raw binary streams and hashed directly with SHA-256 without distortion or character decoding.
+- **Symlinks:** Inspected with `lstat` and hashed by their link target string (`readlink`) without following or dereferencing paths outside the repository.
+
 <br/>
 
 ---
@@ -122,19 +131,27 @@ safe-change --version
 }
 ```
 
-**2. Save a baseline before your agent starts**
+**2. Add `.safe-change/` to your `.gitignore`**
+
+```bash
+echo ".safe-change/" >> .gitignore
+```
+
+> safe-change stores baseline snapshots, rules, and history logs in `.safe-change/`. Keeping this local ensures machine-specific state and file hashes never leak into commits or pull requests.
+
+**3. Save a baseline before your agent starts**
 
 ```bash
 safe-change save "before refactor"
 ```
 
-**3. Check for regressions after your agent finishes**
+**4. Check for regressions after your agent finishes**
 
 ```bash
 safe-change check
 ```
 
-**4. Inspect which files changed**
+**5. Inspect which files changed**
 
 ```bash
 safe-change diff
@@ -247,20 +264,20 @@ Automatically enforce guardrails on every `safe-change check`.
 ```bash
 safe-change rules add no-delete-migrations
 safe-change rules add no-modify-lockfile
-safe-change rules add max-files-changed --limit 50 --severity warn
+safe-change rules add max-files-changed
 safe-change rules add require-tests-pass
 ```
 
 | Rule ID | What it enforces |
 |---|---|
-| `no-delete-migrations` | Blocks deletion of `**/migrations/**` |
-| `no-delete-env` | Blocks deletion of `**/.env*` |
-| `no-modify-lockfile` | Blocks lockfile modification |
-| `max-files-changed` | Fails or warns when too many files change |
-| `max-deleted-files` | Fails or warns when too many files are deleted |
-| `require-tests-pass` | Requires a named check to have passed at baseline |
+| `no-delete-migrations` | Blocks deletion of `**/migrations/**` (severity: error) |
+| `no-delete-env` | Blocks deletion of `**/.env*` (severity: error) |
+| `no-modify-lockfile` | Blocks lockfile modification (severity: warn) |
+| `max-files-changed` | Fails or warns when changed files exceed threshold (default: 50, warn) |
+| `max-deleted-files` | Blocks bulk accidental deletions (default: 10, error) |
+| `require-tests-pass` | Enforces that the check named `"test"` in your config passes (exit code 0, error) |
 
-Rule violations with `severity: error` set exit code 1, same as a regression.
+Rule violations with `severity: error` set exit code 1, same as a regression. Built-in rules provide production defaults. Custom thresholds, custom target patterns, or custom check names can be configured by editing `.safe-change/rules.json` or passing a JSON rule file via `safe-change rules add <file.json>`. See [docs/rules.md](docs/rules.md) for full rule condition specifications.
 
 <br/>
 
@@ -317,6 +334,8 @@ safe-change is built to never be the cause of a regression.
 | No shell expansion | Commands are spawned directly. No shell interpolation. |
 | No AI dependency | No model, no API key, no account required |
 | Bounded execution | Configurable timeouts on all check processes |
+
+> **Security Warning — Configuration Trust Boundary:** `.safe-change.json` specifies executable commands and arguments that safe-change invokes during `save` and `check`. While safe-change uses direct process spawning without shell expansion (mitigating shell injection), commands execute with your current user privileges. Treat `.safe-change.json` with the same scrutiny as a `Makefile`, `package.json` scripts, or CI workflow — **never run `safe-change save` or `safe-change check` on untrusted or unreviewed configurations from third-party pull requests.**
 
 See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 

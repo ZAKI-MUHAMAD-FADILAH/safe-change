@@ -102,9 +102,18 @@ safe-change save "login and dashboard work"
 ```
 
 This records:
-- Every tracked and untracked file with its hash
+- Every tracked file in the Git index (`git ls-files`) with its SHA-256 hash
+- Every untracked file recognized by Git (`git status -uall`) with its SHA-256 hash
 - The results of all configured checks
 - Git state (branch, commit, clean/dirty status)
+
+**What is excluded from hashing:**
+- Everything matched by `.gitignore` (e.g. `node_modules/`, `dist/`, build outputs, cache directories) is completely ignored and never read or hashed.
+- The `.safe-change/` directory is always excluded.
+- Binary files are read as raw binary buffers and hashed directly with SHA-256.
+- Symbolic links are hashed by their link target string (`readlink`) without following or dereferencing targets outside repository boundaries.
+
+**Security Note:** `.safe-change.json` defines executable commands. Never run `safe-change save` or `check` on untrusted repositories or pull requests before reviewing `.safe-change.json`.
 
 It works with dirty working trees. It never commits, stashes, or resets anything.
 

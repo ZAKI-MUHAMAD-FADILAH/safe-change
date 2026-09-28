@@ -31,15 +31,28 @@ src/
   baseline/manager.ts      Baseline read/write with atomic operations
   runner/executor.ts       Process execution with timeouts and bounds
   comparator/engine.ts     Baseline vs. current comparison
+  log/log-manager.ts       Persistent safety log management
+  rules/                   Safety rules engine and built-in rules
+  dashboard/               Local dashboard embedded HTTP server and UI
+  installer/               Agent skill installer and multi-agent adapters
+  mcp/                     Model Context Protocol server
   output/renderer.ts       Terminal and JSON output formatting
-  commands/
-    save.ts                save command handler
-    check.ts               check command handler
-    diff.ts                diff command handler
+  commands/                CLI subcommand implementations
+crates/
+  safe-change-native/      Optional native Rust extension for file hashing
+experiments/
+  rust-filesystem/         R&D performance benchmarks and filesystem spikes
+plugins/
+  antigravity/             Packaging bundle for Google Antigravity extension
+skills/
+  safe-change/             Canonical agent skill instruction file (SKILL.md)
 tests/
   unit/                    Unit tests per module
   integration/             Integration and acceptance tests
-  helpers/                 Test utilities (temp Git repos)
+  installer/               Installer safety, collision, and rollback tests
+  mcp/                     MCP protocol integration tests
+  native/                  Native binary loading and fallback tests
+  helpers/                 Test utilities (temporary Git repositories)
 ```
 
 ## Contribution guidelines
