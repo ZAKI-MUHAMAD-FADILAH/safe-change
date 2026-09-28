@@ -23,6 +23,78 @@ export function validateTagFormat(tag) {
   return { valid: true, version };
 }
 
+export function extractChangelogSection(content, targetVersion) {
+  const lines = content.split(/\r?\n/);
+  let inTargetSection = false;
+  const sectionLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("## ")) {
+      const heading = trimmed.slice(3).trim();
+      if (inTargetSection) {
+        break;
+      }
+
+      const isTarget =
+        targetVersion.toLowerCase() === "unreleased"
+          ? heading.toLowerCase().startsWith("[unreleased]")
+          : heading.startsWith(`[${targetVersion}]`);
+
+      if (isTarget) {
+        inTargetSection = true;
+        continue;
+      }
+    }
+
+    if (inTargetSection) {
+      sectionLines.push(line);
+    }
+  }
+
+  if (!inTargetSection) {
+    return null;
+  }
+
+  let strippedText = "";
+  let insideComment = false;
+
+  for (const line of sectionLines) {
+    let index = 0;
+    let lineOut = "";
+    while (index < line.length) {
+      if (!insideComment) {
+        const commentStart = line.indexOf("<!--", index);
+        if (commentStart === -1) {
+          lineOut += line.slice(index);
+          break;
+        }
+        lineOut += line.slice(index, commentStart);
+        const commentEnd = line.indexOf("-->", commentStart + 4);
+        if (commentEnd === -1) {
+          insideComment = true;
+          break;
+        }
+        index = commentEnd + 3;
+      } else {
+        const commentEnd = line.indexOf("-->", index);
+        if (commentEnd === -1) {
+          break;
+        }
+        insideComment = false;
+        index = commentEnd + 3;
+      }
+    }
+    const trimmedOut = lineOut.trim();
+    if (trimmedOut.length > 0) {
+      strippedText += (strippedText.length > 0 ? "\n" : "") + trimmedOut;
+    }
+  }
+
+  return strippedText.trim();
+}
+
 export function validateRelease({
   rootDir = resolve("."),
   tag,
@@ -171,20 +243,17 @@ export function validateRelease({
     errors.push(`Missing CHANGELOG.md.`);
   } else {
     const changelogContent = readFileSync(changelogPath, "utf-8");
-    const releaseSectionRegex = new RegExp(`##\\s*\\[${expectedVersion.replace(/\./g, "\\.")}\\](?:\\s*-\\s*\\S+)?([\\s\\S]*?)(?=##\\s*\\[|$)`);
-    const match = changelogContent.match(releaseSectionRegex);
+    const sectionBody = extractChangelogSection(changelogContent, expectedVersion);
 
-    if (match) {
-      const sectionBody = match[1].replace(/<!--[\s\S]*?-->/g, "").trim();
-      if (!sectionBody || sectionBody.length === 0) {
+    if (sectionBody !== null) {
+      if (sectionBody.length === 0) {
         errors.push(`CHANGELOG.md release section for [${expectedVersion}] is empty.`);
       }
     } else {
       if (allowUnreleased) {
-        const unreleasedMatch = changelogContent.match(/##\s*\[Unreleased\]([\s\S]*?)(?=##\s*\[|$)/i);
-        if (unreleasedMatch) {
-          const unreleasedBody = unreleasedMatch[1].replace(/<!--[\s\S]*?-->/g, "").trim();
-          if (!unreleasedBody || unreleasedBody.length === 0) {
+        const unreleasedBody = extractChangelogSection(changelogContent, "Unreleased");
+        if (unreleasedBody !== null) {
+          if (unreleasedBody.length === 0) {
             errors.push(`CHANGELOG.md has neither [${expectedVersion}] nor non-empty [Unreleased] section.`);
           } else {
             warnings.push(

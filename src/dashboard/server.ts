@@ -70,9 +70,9 @@ export async function createDashboardServer(
             };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(data));
-      } catch (err: unknown) {
+      } catch {
         res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: String(err) }));
+        res.end(JSON.stringify({ error: "Failed to read baseline status" }));
       }
       return;
     }
@@ -82,9 +82,9 @@ export async function createDashboardServer(
         const entries = await readEntries(repoRoot);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(entries));
-      } catch (err: unknown) {
+      } catch {
         res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: String(err) }));
+        res.end(JSON.stringify({ error: "Failed to read log entries" }));
       }
       return;
     }
