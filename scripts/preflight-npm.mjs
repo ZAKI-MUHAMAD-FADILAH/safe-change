@@ -55,7 +55,9 @@ export function verifyNpmAuth({ registry = "https://registry.npmjs.org" } = {}) 
     return { authenticated: false, error: "NODE_AUTH_TOKEN / NPM_TOKEN is not set in environment." };
   }
   try {
-    const username = execFileSync("npm", ["whoami", "--registry", registry], {
+    const registryHost = new URL(registry).host;
+    const authArg = `--//${registryHost}/:_authToken=${token}`;
+    const username = execFileSync("npm", ["whoami", "--registry", registry, authArg], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, NODE_AUTH_TOKEN: token },
@@ -72,8 +74,9 @@ export function verifyNpmAuth({ registry = "https://registry.npmjs.org" } = {}) 
 export function verifyNpmAuthorization(username, { registry = "https://registry.npmjs.org" } = {}) {
   const token = process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN;
   const env = { ...process.env, NODE_AUTH_TOKEN: token };
+  const authArg = token ? [`--//${new URL(registry).host}/:_authToken=${token}`] : [];
   try {
-    const owners = execFileSync("npm", ["owner", "ls", "safe-change", "--json", "--registry", registry], {
+    const owners = execFileSync("npm", ["owner", "ls", "safe-change", "--json", "--registry", registry, ...authArg], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
       env,
@@ -86,7 +89,7 @@ export function verifyNpmAuthorization(username, { registry = "https://registry.
       return { authorized: false, error: `npm user "${username}" is not an owner of safe-change.` };
     }
 
-    const members = execFileSync("npm", ["org", "ls", "safe-change", "--json", "--registry", registry], {
+    const members = execFileSync("npm", ["org", "ls", "safe-change", "--json", "--registry", registry, ...authArg], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
       env,
