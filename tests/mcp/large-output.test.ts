@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { tmpdir } from "node:os";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { runCli } from "../../src/mcp/server.js";
 
 describe("MCP Large Output Memory Bounding", () => {
@@ -31,18 +33,25 @@ describe("MCP Large Output Memory Bounding", () => {
 
   it("resolves exactly once on non-zero CLI error exit and retains stderr tail", async () => {
     let callCount = 0;
-    // Calling save in a directory that is not a git repository will fail with NOT_GIT_REPO (code 4)
-    const result = await runCli(
-      ["save"],
-      tmpdir(),
-      5000,
-      128
-    );
+    const gitlessDir = mkdtempSync(join(tmpdir(), "safe-change-mcp-gitless-"));
 
-    callCount++;
-    expect(callCount).toBe(1);
-    expect(result.exitCode).toBe(4);
-    expect(result.stderr).toContain("Not a Git repository");
-    expect(result.timedOut).toBe(false);
+    try {
+      // Use an isolated directory and a generous timeout so loaded CI runners do not turn
+      // the expected CLI error into an unrelated process timeout.
+      const result = await runCli(
+        ["save"],
+        gitlessDir,
+        15000,
+        128
+      );
+
+      callCount++;
+      expect(callCount).toBe(1);
+      expect(result.exitCode).toBe(4);
+      expect(result.stderr).toContain("Not a Git repository");
+      expect(result.timedOut).toBe(false);
+    } finally {
+      rmSync(gitlessDir, { recursive: true, force: true });
+    }
   });
 });
