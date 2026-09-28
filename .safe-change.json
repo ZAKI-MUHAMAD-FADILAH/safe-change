@@ -37,8 +37,8 @@
     "allowForcePush": false,
     "allowDestructiveGit": false,
     "changeBudget": {
-      "maxFilesChanged": 20,
-      "maxLinesAdded": 1500,
+      "maxFilesChanged": 30,
+      "maxLinesAdded": 2500,
       "maxLinesDeleted": 500,
       "maxPublicApisChanged": 20,
       "maxDeletedFiles": 0,

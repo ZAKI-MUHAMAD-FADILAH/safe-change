@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import type { CheckDefinition, CheckResult } from "../types/index.js";
 import { terminateProcessTree, BoundedTailBuffer } from "./process-controller.js";
+import { StreamingSecretRedactor } from "../security/secret-redactor.js";
 
 const DEFAULT_OUTPUT_LIMIT = 100 * 1024; // 100 KB per stream
 const DIAGNOSTIC_TAIL_LIMIT = 8 * 1024; // 8 KB tail kept for diagnostics
@@ -36,6 +37,8 @@ export async function executeCheck(
     const startTime = performance.now();
     const stdoutBuffer = new BoundedTailBuffer(tailLimit);
     const stderrBuffer = new BoundedTailBuffer(tailLimit);
+    const stdoutRedactor = new StreamingSecretRedactor();
+    const stderrRedactor = new StreamingSecretRedactor();
     let timedOut = false;
     let resolved = false;
 
@@ -54,6 +57,15 @@ export async function executeCheck(
       cleanup();
 
       const durationMs = Math.round(performance.now() - startTime);
+      stdoutBuffer.append(stdoutRedactor.flush());
+      stderrBuffer.append(stderrRedactor.flush());
+      const detectedSecretTypes = [
+        ...new Set([
+          ...stdoutRedactor.detectedTypes,
+          ...stderrRedactor.detectedTypes,
+        ]),
+      ].sort();
+      const outputBlocked = detectedSecretTypes.length > 0;
       const totalBytes = stdoutBuffer.totalBytes + stderrBuffer.totalBytes;
       const isTruncated =
         stdoutBuffer.isTruncated ||
@@ -66,13 +78,15 @@ export async function executeCheck(
         args: check.args,
         timeout: check.timeout,
         exitCode,
-        passed: exitCode === 0 && !timedOut,
+        passed: exitCode === 0 && !timedOut && !outputBlocked,
         durationMs,
         timedOut,
         outputBytes: totalBytes,
         outputTruncated: isTruncated,
         stdout: stdoutBuffer.getTailString(),
         stderr: stderrBuffer.getTailString(),
+        outputBlocked,
+        detectedSecretTypes,
       });
     }
 
@@ -100,11 +114,11 @@ export async function executeCheck(
     timeoutTimer.unref();
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdoutBuffer.push(chunk);
+      stdoutBuffer.append(stdoutRedactor.push(chunk));
     });
 
     child.stderr.on("data", (chunk: Buffer) => {
-      stderrBuffer.push(chunk);
+      stderrBuffer.append(stderrRedactor.push(chunk));
     });
 
     child.on("error", (err: NodeJS.ErrnoException) => {

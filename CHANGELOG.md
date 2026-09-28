@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Machine-readable `enterprisePolicy` configuration with fail-closed constants that reject force-push and destructive-Git enablement.
 - Anti-policy-downgrade detection for skipped tests, removed assertions, weakened coverage, `continue-on-error`, disabled security/provenance checks, floating GitHub Action references, and force-push commands.
 - Enterprise enforcement documentation and unit coverage for risk boundaries, mode floors, budget dimensions, mandatory gates, and destructive-policy rejection.
+- Atomic multi-agent write leases with session ownership, expiration, baseline identity, starting HEAD, and workspace-fingerprint binding.
+- Workspace fingerprints covering Git HEAD, branch, hashed remote identity, configuration, rules, lockfiles, policy, canonical skill, agent profile, Node.js version, operating system, and architecture.
+- Source-free evidence bundles with baseline, diff, verification, environment, manifest, SHA-256 checksums, and aggregate evidence digest.
+- Tamper-evident append-only audit events linked by sequence number, previous digest, payload digest, and event digest.
+- Streaming secret-output blocker for GitHub and npm tokens, private keys, cloud access keys, authorization headers, credentialed connection strings, and generic secret assignments.
+- Integrity commands: `lease`, `fingerprint`, `evidence`, and `audit verify`.
 
 ## [0.3.1] - 2026-09-29
 

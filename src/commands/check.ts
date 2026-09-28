@@ -13,6 +13,11 @@ import { renderCheckReport, renderError } from "../output/renderer.js";
 import { updateLastEntry } from "../log/log-manager.js";
 import { loadRulesResult } from "../rules/manager.js";
 import { evaluateRules } from "../rules/engine.js";
+import {
+  captureWorkspaceFingerprint,
+  compareWorkspaceFingerprints,
+} from "../integrity/fingerprint.js";
+import { persistVerificationSummary } from "../integrity/evidence.js";
 
 export interface CheckOptions {
   readonly format: OutputFormat;
@@ -131,6 +136,33 @@ export async function runCheck(options: CheckOptions): Promise<number> {
     // Git inspection error should not prevent check report
   }
 
+  if (baseline.workspaceFingerprint) {
+    try {
+      const currentFingerprint = await captureWorkspaceFingerprint(
+        repoRoot,
+        config
+      );
+      report = {
+        ...report,
+        workspaceDrift: compareWorkspaceFingerprints(
+          baseline.workspaceFingerprint,
+          currentFingerprint
+        ),
+      };
+    } catch (error: unknown) {
+      process.stderr.write(
+        renderError(
+          format,
+          `Workspace fingerprint failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          ExitCodes.INTERNAL_ERROR
+        )
+      );
+      return ExitCodes.INTERNAL_ERROR;
+    }
+  }
+
   // Evaluate safety rules (fail-closed)
   const rulesState = await loadRulesResult(repoRoot);
   if (rulesState.status === "invalid") {
@@ -213,6 +245,11 @@ export async function runCheck(options: CheckOptions): Promise<number> {
     verificationState = "not-verified";
     verificationReason =
       "Verification configuration changed since baseline; results are not fully comparable";
+  } else if (report.workspaceDrift?.detected) {
+    verificationState = "not-verified";
+    verificationReason = `Workspace fingerprint drift detected: ${report.workspaceDrift.categories.join(
+      ", "
+    )}`;
   } else {
     verificationState = "verified";
     verificationReason = "All verification checks passed without regressions";
@@ -229,6 +266,21 @@ export async function runCheck(options: CheckOptions): Promise<number> {
       activeRulesCount,
     },
   };
+
+  try {
+    await persistVerificationSummary(repoRoot, report);
+  } catch (error: unknown) {
+    process.stderr.write(
+      renderError(
+        format,
+        `Failed to persist verification evidence: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        ExitCodes.INTERNAL_ERROR
+      )
+    );
+    return ExitCodes.INTERNAL_ERROR;
+  }
 
   // 7. Update safety log
   try {

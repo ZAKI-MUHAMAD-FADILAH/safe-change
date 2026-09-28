@@ -70,10 +70,11 @@ Status labels: Done | In Progress | Planned
 - Machine-readable enterprise policy and change-budget enforcement (foundation complete)
 - Anti-policy-downgrade detector and approval gate (textual foundation complete)
 - AST-aware semantic diff
-- Multi-agent write lease and workspace fingerprint engine
-- Cryptographic evidence bundles and deterministic replay
+- Multi-agent write lease and workspace fingerprint engine (integrity foundation complete)
+- Checksummed evidence bundles and tamper-evident audit chain (integrity foundation complete)
+- Cryptographic signing and deterministic replay
 - Command sandbox with executable and environment allowlists
-- Secret-output blocker
+- Secret-output blocker (streaming foundation complete)
 - Expiring exception and approval engine
 - Enterprise agent certification engine
 - File Change Drawer with syntax-highlighted diffs

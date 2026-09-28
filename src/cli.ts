@@ -10,6 +10,10 @@ import { runSave } from "./commands/save.js";
 import { runCheck } from "./commands/check.js";
 import { runDiff } from "./commands/diff.js";
 import { runAssess } from "./commands/assess.js";
+import { runLease } from "./commands/lease.js";
+import { runFingerprint } from "./commands/fingerprint.js";
+import { runEvidence } from "./commands/evidence.js";
+import { runAudit } from "./commands/audit.js";
 import { runLog } from "./commands/log.js";
 import { runInstall } from "./installer/commands/install.js";
 import { runUpdate } from "./installer/commands/update.js";
@@ -212,6 +216,10 @@ Usage:
   safe-change check                Compare current state against the baseline.
   safe-change diff [options]       Show a summary of changes since the baseline.
   safe-change assess               Score risk, enforce change budget, and detect policy downgrades.
+  safe-change lease <action>       Acquire, inspect, or release the repository write lease.
+  safe-change fingerprint [check]  Capture or compare the workspace fingerprint.
+  safe-change evidence <session>   Create a checksummed evidence bundle for a session.
+  safe-change audit verify         Verify the tamper-evident local audit log.
   safe-change log [options]        Show or export persistent safety log.
   safe-change rules [action]       Manage safety rules (list, add, remove, validate).
   safe-change dashboard [options]  Start local web dashboard at localhost:4242.
@@ -326,6 +334,53 @@ async function main(): Promise<void> {
 
     case "assess": {
       exitCode = await runAssess({ format });
+      break;
+    }
+
+    case "lease": {
+      const action = (parsed.positional[0] ?? "status") as
+        | "acquire"
+        | "status"
+        | "release";
+      if (!["acquire", "status", "release"].includes(action)) {
+        process.stderr.write(`Unknown lease action: ${action}\n`);
+        exitCode = ExitCodes.CONFIG_ERROR;
+        break;
+      }
+      exitCode = await runLease({
+        action,
+        sessionId: parsed.positional[1],
+        agentName: parsed.positional[2],
+        format,
+      });
+      break;
+    }
+
+    case "fingerprint": {
+      exitCode = await runFingerprint({
+        format,
+        compare: parsed.positional[0] === "check",
+        agentProfile: parsed.positional[1],
+      });
+      break;
+    }
+
+    case "evidence": {
+      exitCode = await runEvidence({
+        sessionId: parsed.positional[0],
+        agentProfile: parsed.positional[1],
+        format,
+      });
+      break;
+    }
+
+    case "audit": {
+      if ((parsed.positional[0] ?? "verify") !== "verify") {
+        process.stderr.write("Only `safe-change audit verify` is supported.\n");
+        exitCode = ExitCodes.CONFIG_ERROR;
+        break;
+      }
+      exitCode = await runAudit({ format });
       break;
     }
 

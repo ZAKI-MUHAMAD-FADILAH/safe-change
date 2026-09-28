@@ -113,6 +113,8 @@ export function compareChecks(
         stdout: current.stdout,
         stderr: current.stderr,
         exitCode: current.exitCode,
+        outputBlocked: current.outputBlocked,
+        detectedSecretTypes: current.detectedSecretTypes,
       });
       continue;
     }
@@ -136,6 +138,8 @@ export function compareChecks(
         stdout: current.stdout,
         stderr: current.stderr,
         exitCode: current.exitCode,
+        outputBlocked: current.outputBlocked,
+        detectedSecretTypes: current.detectedSecretTypes,
       });
       continue;
     }
@@ -154,6 +158,8 @@ export function compareChecks(
       stdout: current.stdout,
       stderr: current.stderr,
       exitCode: current.exitCode,
+      outputBlocked: current.outputBlocked,
+      detectedSecretTypes: current.detectedSecretTypes,
     });
   }
 

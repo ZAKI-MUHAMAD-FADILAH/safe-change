@@ -288,11 +288,19 @@ Report the blocker, preserve the workspace, and request the smallest decision ne
 
 Before writing, after long-running commands, and immediately before final verification:
 
+- Acquire one repository write lease for the editing session with `safe-change lease acquire <session-id> <agent-name>`.
+- Treat an active lease owned by another session as a blocking conflict. Never delete or overwrite its lease file.
+- Keep one stable session identifier from baseline creation through final evidence generation.
 - Re-read the target file or verify its expected hash.
 - Confirm branch and revision have not changed unexpectedly.
 - Confirm no new overlapping working-tree changes appeared.
 - Never overwrite a file based on a stale read.
 - Treat lock failure, ownership mismatch, or manifest drift as a blocker.
+- Run `safe-change fingerprint check` before final verification. Any workspace, configuration, dependency, policy, skill, profile, branch, remote, or environment drift requires investigation and usually a new baseline.
+- After verification, create the evidence bundle with `safe-change evidence <session-id>` and verify the audit chain with `safe-change audit verify`.
+- Release the write lease only after evidence is complete or the session is explicitly abandoned.
+
+Verification output is secret-scanned before it is retained. If a credential pattern is detected, the value must be redacted, the check must fail, and the result must identify only the secret class. Never reconstruct or repeat the detected value.
 
 ## Test Integrity Requirements
 

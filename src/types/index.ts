@@ -175,6 +175,8 @@ export interface CheckResult {
   readonly outputTruncated: boolean;
   readonly stdout: string; // bounded capture for diagnostic display
   readonly stderr: string; // bounded capture for diagnostic display
+  readonly outputBlocked?: boolean;
+  readonly detectedSecretTypes?: readonly SecretType[];
 }
 
 // Baseline
@@ -188,6 +190,98 @@ export interface Baseline {
   readonly excludedPaths: readonly string[];
   readonly checks: readonly CheckResult[];
   readonly checksConfigHash: string;
+  readonly workspaceFingerprint?: WorkspaceFingerprint;
+}
+
+export type SecretType =
+  | "github-token"
+  | "npm-token"
+  | "private-key"
+  | "aws-access-key"
+  | "authorization-header"
+  | "connection-string"
+  | "generic-secret";
+
+export interface SecretFinding {
+  readonly type: SecretType;
+  readonly start: number;
+  readonly end: number;
+}
+
+export interface WorkspaceFingerprint {
+  readonly schemaVersion: 1;
+  readonly capturedAt: string;
+  readonly digest: string;
+  readonly git: {
+    readonly headCommit: string | null;
+    readonly headBranch: string | null;
+    readonly remoteHash: string | null;
+  };
+  readonly configurationHash: string;
+  readonly rulesHash: string | null;
+  readonly lockfiles: Readonly<Record<string, string>>;
+  readonly policyVersion: number | null;
+  readonly skillHash: string | null;
+  readonly agentProfile: string | null;
+  readonly runtime: {
+    readonly nodeVersion: string;
+    readonly platform: NodeJS.Platform;
+    readonly architecture: string;
+  };
+}
+
+export type WorkspaceDriftCategory =
+  | "HEAD_DRIFT"
+  | "BRANCH_DRIFT"
+  | "REMOTE_DRIFT"
+  | "CONFIGURATION_DRIFT"
+  | "RULES_DRIFT"
+  | "DEPENDENCY_DRIFT"
+  | "POLICY_DRIFT"
+  | "SKILL_DRIFT"
+  | "AGENT_PROFILE_DRIFT"
+  | "ENVIRONMENT_DRIFT";
+
+export interface WorkspaceDrift {
+  readonly detected: boolean;
+  readonly categories: readonly WorkspaceDriftCategory[];
+  readonly expectedDigest: string;
+  readonly currentDigest: string;
+}
+
+export interface WriteLease {
+  readonly schemaVersion: 1;
+  readonly sessionId: string;
+  readonly agentName: string;
+  readonly baselineId: string | null;
+  readonly startingHead: string | null;
+  readonly workspaceFingerprint: string;
+  readonly leaseStartedAt: string;
+  readonly leaseExpiresAt: string;
+  readonly processId: number;
+}
+
+export interface AuditEvent {
+  readonly schemaVersion: 1;
+  readonly sequence: number;
+  readonly timestamp: string;
+  readonly type: string;
+  readonly sessionId: string | null;
+  readonly payloadDigest: string;
+  readonly previousDigest: string | null;
+  readonly eventDigest: string;
+}
+
+export interface EvidenceManifest {
+  readonly schemaVersion: 1;
+  readonly sessionId: string;
+  readonly createdAt: string;
+  readonly repositoryHash: string;
+  readonly baselineId: string;
+  readonly workspaceFingerprint: string;
+  readonly verificationState: VerificationState;
+  readonly files: readonly string[];
+  readonly evidenceDigest: string;
 }
 
 // Comparison results
@@ -216,6 +310,8 @@ export interface CheckComparison {
   readonly stdout?: string;
   readonly stderr?: string;
   readonly exitCode?: number | null;
+  readonly outputBlocked?: boolean;
+  readonly detectedSecretTypes?: readonly SecretType[];
 }
 
 export interface ConfigDrift {
@@ -273,6 +369,7 @@ export interface CheckReport {
   readonly branchMismatch?: BranchMismatch | null;
   readonly verification?: VerificationInfo;
   readonly rulesState?: RulesState;
+  readonly workspaceDrift?: WorkspaceDrift;
 }
 
 // Safety rules
