@@ -49,7 +49,7 @@ jobs:
           cache: "npm"
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@e752f9b88cf4da61b07241285223c6c06a374668 # stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
 
       - name: Install dependencies
         run: npm ci

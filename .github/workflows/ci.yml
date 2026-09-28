@@ -32,7 +32,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Validate version parity across packages and Cargo crate
-        run: node scripts/sync-version.mjs
+        run: node scripts/sync-version.mjs --check
 
       - name: Ensure working tree is clean after sync check
         run: git diff --exit-code
