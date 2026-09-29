@@ -102,16 +102,27 @@ jobs:
           SAFE_CHANGE_NATIVE_DISABLED: "1"
 
       - name: Run Rust unit tests
-        run: cargo test --manifest-path crates/safe-change-native/Cargo.toml
+        run: |
+          cd crates/safe-change-native
+          cargo test
+        shell: bash
 
       - name: Build Native Module for ${{ matrix.target }}
-        run: npx napi build --platform --release --cargo-cwd crates/safe-change-native --output-dir crates/safe-change-native
+        run: |
+          cd crates/safe-change-native
+          npx napi build --platform --release
+        shell: bash
 
       - name: Verify generated native binary exists
-        run: node scripts/verify-built-native.mjs crates/safe-change-native/*.node
+        run: |
+          ls -la crates/safe-change-native/*.node
+        shell: bash
 
       - name: Verify native module load and execution
-        run: npm test
+        run: |
+          node scripts/verify-built-native.mjs ${{ matrix.target }}
+          npx vitest run tests/native/
+        shell: bash
 
       - name: Upload native artifact for ${{ matrix.target }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -228,6 +239,32 @@ jobs:
         run: node scripts/publish-orchestrator.mjs --phase root
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: [preflight, build-root, publish-root]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Download root tarball artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: root-package-tarball
+          path: release-assets
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }} — General Availability & High Assurance Enterprise Platform" \
+            --generate-notes \
+            release-assets/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   dry-run-artifacts:
     name: Verify Exact Release Artifacts (Dry Run)
