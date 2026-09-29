@@ -217,6 +217,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     environment: npm-production
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -240,29 +243,12 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  create-github-release:
-    name: Create GitHub Release
-    needs: [preflight, build-root, publish-root]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Download root tarball artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: root-package-tarball
-          path: release-assets
-
       - name: Create GitHub Release
         run: |
           gh release create "${{ github.ref_name }}" \
             --title "${{ github.ref_name }} — General Availability & High Assurance Enterprise Platform" \
             --generate-notes \
-            release-assets/*
+            safe-change-*.tgz safe-change-sbom.cdx.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
