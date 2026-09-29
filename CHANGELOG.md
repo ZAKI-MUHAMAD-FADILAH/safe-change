@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Command sandbox enforcing executable allowlists, denied arguments, environment-variable allowlists, bounded output, direct process spawning, and fail-closed unsupported network-denial requests.
 - Detached Ed25519 policy-root verification with policy digest binding and configuration-level fail-closed enforcement when signatures are mandatory.
 - Enforcement commands: `authorize`, `approval request|grant|status`, and `policy verify`.
+- AST Semantic Diff Engine with TypeScript/JavaScript and JSON adapters, detecting unary negation inversion, guard removals, test skipping/weakening, catch block error swallowing, and semantic AST mutations.
+- Deterministic Replay Subsystem recording execution sessions, environment snapshots, toolchain digests, and verifying zero-drift across 13 distinct drift categories.
+- Cryptographic Attestation Framework implementing RFC 8785 JSON Canonicalization Scheme (JCS) and Ed25519 DSSE (Dead Simple Signing Envelope) in-toto attestations over verification evidence.
+- OS-Backed Command Sandbox with direct Node.js/npm executable resolution (preventing CVE-2024-27980 and command injection), process tree termination, temporary home isolation, and scrubbed environment allowlists.
+- Signed Approval Identity Registry with Ed25519 keypair generation, approver role assignment, expiration, revocation tracking, and cryptographic signature attachment to capability requests.
+- Verifiable Execution commands: `semantic-diff`, `replay`, `attest`, `identity`, `approval sign`, and `approval verify`.
 
 ## [0.3.1] - 2026-09-29
 

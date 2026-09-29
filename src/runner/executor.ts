@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type {
   CheckDefinition,
   CheckResult,
@@ -7,6 +10,9 @@ import type {
 import { terminateProcessTree, BoundedTailBuffer } from "./process-controller.js";
 import { StreamingSecretRedactor } from "../security/secret-redactor.js";
 import { evaluateCommandSandbox } from "../enforcement/sandbox.js";
+import { resolveSafeCommand } from "../sandbox/resolver.js";
+import { evaluateSandbox, getSandboxProvider } from "../sandbox/factory.js";
+import type { SandboxExecutionSpec } from "../sandbox/types.js";
 
 const DEFAULT_OUTPUT_LIMIT = 100 * 1024; // 100 KB per stream
 const DIAGNOSTIC_TAIL_LIMIT = 8 * 1024; // 8 KB tail kept for diagnostics
@@ -66,6 +72,39 @@ export async function executeCheck(
   const tailLimit = options.tailLimit ?? (options.maxBuffer !== undefined ? Math.min(options.maxBuffer, DIAGNOSTIC_TAIL_LIMIT) : DIAGNOSTIC_TAIL_LIMIT);
   const timeoutMs = check.timeout * 1000;
 
+  const sandboxSpec: SandboxExecutionSpec = {
+    executable: check.executable,
+    args: check.args,
+    cwd: options.cwd,
+    timeoutSeconds: check.timeout,
+    maxOutputBytes: outputLimit,
+    allowedEnv: options.sandboxPolicy?.allowedEnvironment ?? [],
+    inheritEnv: options.sandboxPolicy?.inheritEnvironment ?? true,
+    networkPolicy: options.sandboxPolicy?.networkPolicy ?? "inherit",
+    readOnlyWorkspace: false,
+  };
+  const capabilityReport = await evaluateSandbox(sandboxSpec);
+  if (capabilityReport.state === "BLOCKED") {
+    return {
+      name: check.name,
+      executable: check.executable,
+      args: check.args,
+      timeout: check.timeout,
+      exitCode: null,
+      passed: false,
+      durationMs: 0,
+      timedOut: false,
+      outputBytes: 0,
+      outputTruncated: false,
+      stdout: "",
+      stderr: `Command blocked by OS sandbox: ${capabilityReport.reasons.join(" ")}`,
+      outputBlocked: false,
+      detectedSecretTypes: [],
+    };
+  }
+  const tempHome = await mkdtemp(join(tmpdir(), "safe-change-sandbox-"));
+  const provider = getSandboxProvider();
+
   return new Promise<CheckResult>((resolve) => {
     const startTime = performance.now();
     const stdoutBuffer = new BoundedTailBuffer(tailLimit);
@@ -105,7 +144,7 @@ export async function executeCheck(
         stderrBuffer.isTruncated ||
         totalBytes > outputLimit;
 
-      resolve({
+      const result: CheckResult = {
         name: check.name,
         executable: check.executable,
         args: check.args,
@@ -120,14 +159,28 @@ export async function executeCheck(
         stderr: stderrBuffer.getTailString(),
         outputBlocked,
         detectedSecretTypes,
-      });
+      };
+      void rm(tempHome, { recursive: true, force: true }).finally(() =>
+        resolve(result)
+      );
     }
 
     let child;
     try {
-      child = spawn(check.executable, [...check.args], {
+      const resolvedCommand = resolveSafeCommand(
+        check.executable,
+        check.args,
+        options.cwd
+      );
+      const prepared = provider.prepareCommand(
+        sandboxSpec,
+        resolvedCommand.executable,
+        resolvedCommand.args,
+        tempHome
+      );
+      child = spawn(prepared.executable, [...prepared.args], {
         cwd: options.cwd,
-        env: sandboxDecision?.environment ?? process.env,
+        env: provider.prepareEnvironment(sandboxSpec, tempHome),
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
         windowsHide: true,

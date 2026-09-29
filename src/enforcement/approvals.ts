@@ -7,6 +7,7 @@ import type {
 } from "../types/index.js";
 import { stableDigest } from "../integrity/hash.js";
 import { appendAuditEvent } from "../integrity/audit-log.js";
+import type { SignedApprovalGrant } from "../identity/types.js";
 
 const ID_PATTERN = /^[A-Za-z0-9-]{8,80}$/;
 
@@ -155,5 +156,53 @@ export async function grantApproval(
     request.sessionId,
     { id, approver, requestDigest: request.requestDigest }
   );
+  return updated;
+}
+
+export async function appendSignedApprovalGrant(
+  repoRoot: string,
+  id: string,
+  grant: SignedApprovalGrant
+): Promise<ApprovalRequest> {
+  const request = await readApprovalRequest(repoRoot, id);
+  if (Date.parse(request.expiresAt) <= Date.now()) {
+    throw new Error("Approval request has expired.");
+  }
+  if (
+    grant.requestId !== request.id ||
+    grant.requestDigest !== request.requestDigest ||
+    grant.capability !== request.capability ||
+    grant.resource !== request.resource ||
+    grant.requester !== request.requester ||
+    grant.requesterSession !== request.sessionId
+  ) {
+    throw new Error("Signed approval grant does not match its request.");
+  }
+  const signedGrants = request.signedGrants ?? [];
+  if (
+    signedGrants.some(
+      (existing) =>
+        existing.approvalId === grant.approvalId ||
+        existing.approverKeyId === grant.approverKeyId ||
+        existing.nonce === grant.nonce
+    )
+  ) {
+    throw new Error("Duplicate or replayed signed approval grant.");
+  }
+  const updated: ApprovalRequest = {
+    ...request,
+    signedGrants: [...signedGrants, grant],
+  };
+  await writeFile(
+    approvalPath(repoRoot, id),
+    `${JSON.stringify(updated, null, 2)}\n`,
+    { encoding: "utf8", mode: 0o600 }
+  );
+  await appendAuditEvent(repoRoot, "SIGNED_APPROVAL_GRANTED", request.sessionId, {
+    id,
+    approvalId: grant.approvalId,
+    approverKeyId: grant.approverKeyId,
+    requestDigest: request.requestDigest,
+  });
   return updated;
 }

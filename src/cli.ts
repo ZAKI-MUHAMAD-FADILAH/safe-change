@@ -22,6 +22,10 @@ import { runInstall } from "./installer/commands/install.js";
 import { runUpdate } from "./installer/commands/update.js";
 import { runUninstall } from "./installer/commands/uninstall.js";
 import { runStatus } from "./installer/commands/status.js";
+import { runSemanticDiff } from "./commands/semantic-diff.js";
+import { runReplay } from "./commands/replay.js";
+import { runAttest } from "./commands/attest.js";
+import { runIdentity } from "./commands/identity.js";
 
 // Version
 
@@ -64,6 +68,15 @@ interface ParsedArgs {
     port?: number;
     noOpen?: boolean;
   };
+  options: {
+    baseCommit?: string;
+    file?: string;
+    keyId?: string;
+    privateKey?: string;
+    publicKey?: string;
+    reexecute?: boolean;
+    failOn?: "critical" | "high" | "medium" | "low";
+  };
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -85,6 +98,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     },
     logOptions: {},
     dashboardOptions: {},
+    options: {},
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -194,6 +208,46 @@ function parseArgs(argv: string[]): ParsedArgs {
       }
     } else if (arg === "--no-open") {
       result.dashboardOptions.noOpen = true;
+    } else if (arg === "--reexecute" || arg === "--strict") {
+      result.options.reexecute = true;
+    } else if (arg === "--fail-on") {
+      const value = args[++i];
+      if (!["critical", "high", "medium", "low"].includes(value ?? "")) {
+        process.stderr.write(
+          "Option --fail-on requires critical, high, medium, or low.\n"
+        );
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+      result.options.failOn = value as ParsedArgs["options"]["failOn"];
+    } else if (arg.startsWith("--fail-on=")) {
+      const value = arg.slice("--fail-on=".length);
+      if (!["critical", "high", "medium", "low"].includes(value)) {
+        process.stderr.write(
+          "Option --fail-on requires critical, high, medium, or low.\n"
+        );
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+      result.options.failOn = value as ParsedArgs["options"]["failOn"];
+    } else if (arg === "--base") {
+      result.options.baseCommit = args[++i];
+    } else if (arg.startsWith("--base=")) {
+      result.options.baseCommit = arg.slice("--base=".length);
+    } else if (arg === "--file") {
+      result.options.file = args[++i];
+    } else if (arg.startsWith("--file=")) {
+      result.options.file = arg.slice("--file=".length);
+    } else if (arg === "--key-id") {
+      result.options.keyId = args[++i];
+    } else if (arg.startsWith("--key-id=")) {
+      result.options.keyId = arg.slice("--key-id=".length);
+    } else if (arg === "--private-key") {
+      result.options.privateKey = args[++i];
+    } else if (arg.startsWith("--private-key=")) {
+      result.options.privateKey = arg.slice("--private-key=".length);
+    } else if (arg === "--public-key") {
+      result.options.publicKey = args[++i];
+    } else if (arg.startsWith("--public-key=")) {
+      result.options.publicKey = arg.slice("--public-key=".length);
     } else if (arg.startsWith("-")) {
       process.stderr.write(`Unknown flag: ${arg}\n`);
       process.stderr.write('Run "safe-change --help" for usage.\n');
@@ -226,6 +280,10 @@ Usage:
   safe-change authorize <capability> <resource> <agent> <session> [approval]
                                   Evaluate one operation through the policy decision point.
   safe-change approval <action>    Request, grant, or inspect an expiring approval.
+  safe-change identity <action>    Register, verify, or revoke trusted approver identities.
+  safe-change semantic-diff [opt]  Show AST semantic diff against base commit or file.
+  safe-change replay <action>      Record, verify, or inspect deterministic replay bundles.
+  safe-change attest <action>      Create, verify, or inspect cryptographic DSSE attestations.
   safe-change policy verify        Verify the configured Ed25519 policy signature.
   safe-change log [options]        Show or export persistent safety log.
   safe-change rules [action]       Manage safety rules (list, add, remove, validate).
@@ -407,8 +465,10 @@ async function main(): Promise<void> {
       const action = (parsed.positional[0] ?? "status") as
         | "request"
         | "grant"
-        | "status";
-      if (!["request", "grant", "status"].includes(action)) {
+        | "status"
+        | "sign"
+        | "verify";
+      if (!["request", "grant", "status", "sign", "verify"].includes(action)) {
         process.stderr.write(`Unknown approval action: ${action}\n`);
         exitCode = ExitCodes.CONFIG_ERROR;
         break;
@@ -417,6 +477,76 @@ async function main(): Promise<void> {
         action,
         values: parsed.positional.slice(1),
         format,
+      });
+      break;
+    }
+
+    case "identity": {
+      const action = (parsed.positional[0] ?? "list") as
+        | "keygen"
+        | "register"
+        | "verify"
+        | "revoke"
+        | "list";
+      if (!["keygen", "register", "verify", "revoke", "list"].includes(action)) {
+        process.stderr.write(`Unknown identity action: ${action}\n`);
+        exitCode = ExitCodes.CONFIG_ERROR;
+        break;
+      }
+      exitCode = await runIdentity({
+        action,
+        values: parsed.positional.slice(1),
+        format,
+      });
+      break;
+    }
+
+    case "semantic-diff": {
+      exitCode = await runSemanticDiff({
+        format,
+        baseCommit: parsed.options.baseCommit,
+        file: parsed.options.file,
+        failOn: parsed.options.failOn,
+      });
+      break;
+    }
+
+    case "replay": {
+      const action = (parsed.positional[0] ?? "verify") as
+        | "record"
+        | "verify"
+        | "inspect";
+      if (!["record", "verify", "inspect"].includes(action)) {
+        process.stderr.write(`Unknown replay action: ${action}\n`);
+        exitCode = ExitCodes.CONFIG_ERROR;
+        break;
+      }
+      exitCode = await runReplay({
+        action,
+        target: parsed.positional[1] ?? "",
+        format,
+        reexecute: parsed.options.reexecute,
+      });
+      break;
+    }
+
+    case "attest": {
+      const action = (parsed.positional[0] ?? "verify") as
+        | "create"
+        | "verify"
+        | "inspect";
+      if (!["create", "verify", "inspect"].includes(action)) {
+        process.stderr.write(`Unknown attest action: ${action}\n`);
+        exitCode = ExitCodes.CONFIG_ERROR;
+        break;
+      }
+      exitCode = await runAttest({
+        action,
+        target: parsed.positional[1] ?? "",
+        format,
+        keyId: parsed.options.keyId,
+        privateKeyPath: parsed.options.privateKey,
+        publicKeyPath: parsed.options.publicKey,
       });
       break;
     }

@@ -112,8 +112,7 @@ When `requireSignedPolicy` is true, missing, malformed, stale, or invalid signat
 ## Current boundaries
 
 - The authorization command is a machine-enforced contract for Safe-Change-aware clients; universal interception of arbitrary operating-system operations remains future work.
-- Network denial requires a future OS sandbox provider.
-- CPU, memory, filesystem namespace, and syscall isolation are not yet implemented.
-- Approval identities are not yet backed by SSO, hardware keys, or signed identity assertions.
+- Approver identity is backed by local identifiers or cryptographically signed Ed25519 identity assertions (see [Verifiable Execution Guide](file:///c:/Users/zakim/OneDrive/Desktop/safe-change/docs/verifiable-execution.md)).
+- Network denial and process isolation are handled via the OS Sandbox Provider layer (see [Verifiable Execution Architecture](file:///c:/Users/zakim/OneDrive/Desktop/safe-change/docs/verifiable-execution-architecture.md)).
 - Exceptions cannot override explicit capability denial.
 - Publishing, tagging, and release creation remain separately approval-gated operations.
