@@ -8,3 +8,8 @@ target/
 .DS_Store
 Thumbs.db
 release-artifacts/
+release-tarballs/
+root-package-tarball/
+artifacts/
+safe-change-*.tgz
+safe-change-sbom.cdx.json

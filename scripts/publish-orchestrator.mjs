@@ -93,10 +93,11 @@ export function copyNativeArtifacts(rootDir = resolve(".")) {
 
 export function createPackageTarball(pkgDir, outputDir) {
   mkdirSync(outputDir, { recursive: true });
+  const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
   const output = execFileSync(
-    "npm",
+    npmCmd,
     ["pack", "--json", "--pack-destination", outputDir],
-    { cwd: pkgDir, encoding: "utf-8" }
+    { cwd: pkgDir, encoding: "utf-8", shell: process.platform === "win32" }
   );
   const result = JSON.parse(output);
   if (!Array.isArray(result) || result.length !== 1 || !result[0].filename) {
@@ -151,9 +152,14 @@ export async function determineReleaseMode(
 }
 
 function publishTarball(tarballPath) {
-  execFileSync("npm", ["publish", tarballPath, "--access", "public", "--provenance"], {
+  const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+  const isCI = Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
+  const args = ["publish", tarballPath, "--access", "public"];
+  if (isCI) args.push("--provenance");
+  execFileSync(npmCmd, args, {
     stdio: "inherit",
     env: process.env,
+    shell: process.platform === "win32",
   });
 }
 
