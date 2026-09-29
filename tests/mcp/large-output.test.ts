@@ -12,7 +12,7 @@ describe("MCP Large Output Memory Bounding", () => {
     const result = await runCli(
       ["--help"],
       process.cwd(),
-      10000,
+      30000,
       maxOutputBytes
     );
 

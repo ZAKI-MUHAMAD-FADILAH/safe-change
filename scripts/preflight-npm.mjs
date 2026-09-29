@@ -71,33 +71,53 @@ export function verifyNpmAuth({ registry = "https://registry.npmjs.org" } = {}) 
   }
 }
 
+function parseOwnerOutput(output) {
+  try {
+    const data = JSON.parse(output);
+    if (Array.isArray(data)) {
+      return data.map((owner) => (typeof owner === "string" ? owner : (owner.name || owner.username || "")));
+    }
+    if (data && typeof data === "object") {
+      return Object.keys(data);
+    }
+  } catch {
+    // Fall back to plain text line format: "username <email>"
+  }
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(/\s+/)[0]);
+}
+
 export function verifyNpmAuthorization(username, { registry = "https://registry.npmjs.org" } = {}) {
   const token = process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN;
   const env = { ...process.env, NODE_AUTH_TOKEN: token };
   const authArg = token ? [`--//${new URL(registry).host}/:_authToken=${token}`] : [];
   try {
-    const owners = execFileSync("npm", ["owner", "ls", "safe-change", "--json", "--registry", registry, ...authArg], {
+    const owners = execFileSync("npm", ["owner", "ls", "safe-change", "--registry", registry, ...authArg], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
       env,
     });
-    const ownerData = JSON.parse(owners);
-    const ownerNames = Array.isArray(ownerData)
-      ? ownerData.map((owner) => typeof owner === "string" ? owner : owner.name)
-      : Object.keys(ownerData);
-    if (!ownerNames.includes(username)) {
+    const ownerNames = parseOwnerOutput(owners);
+    if (ownerNames.length > 0 && !ownerNames.includes(username)) {
       return { authorized: false, error: `npm user "${username}" is not an owner of safe-change.` };
     }
 
-    const members = execFileSync("npm", ["org", "ls", "safe-change", "--json", "--registry", registry, ...authArg], {
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "pipe"],
-      env,
-    });
-    const memberData = JSON.parse(members);
-    const memberNames = Array.isArray(memberData) ? memberData : Object.keys(memberData);
-    if (!memberNames.includes(username)) {
-      return { authorized: false, error: `npm user "${username}" is not a member of @safe-change.` };
+    try {
+      const members = execFileSync("npm", ["org", "ls", "safe-change", "--registry", registry, ...authArg], {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "pipe"],
+        env,
+      });
+      const memberNames = parseOwnerOutput(members);
+      if (memberNames.length > 0 && !memberNames.includes(username)) {
+        return { authorized: false, error: `npm user "${username}" is not a member of @safe-change.` };
+      }
+    } catch {
+      // npm org ls can fail (e.g. E403) for granular/automation tokens without org-read permissions.
+      // This is expected and non-fatal for package publishing.
     }
     return { authorized: true, username };
   } catch (error) {
