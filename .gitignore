@@ -7,3 +7,4 @@ target/
 *.node
 .DS_Store
 Thumbs.db
+release-artifacts/
