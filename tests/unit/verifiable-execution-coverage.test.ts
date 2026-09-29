@@ -14,6 +14,11 @@ import { LinuxSandboxProvider } from "../../src/sandbox/providers/linux-sandbox.
 import { PosixRestrictedProvider } from "../../src/sandbox/providers/posix.js";
 import { WindowsRestrictedProvider } from "../../src/sandbox/providers/windows.js";
 import { JsonSemanticAdapter } from "../../src/semantic/adapters/json-adapter.js";
+import { TypeScriptSemanticAdapter } from "../../src/semantic/adapters/typescript-adapter.js";
+import {
+  assertSafeIdentifier,
+  resolveWithinRoot,
+} from "../../src/security/path-boundary.js";
 import {
   loadTrustRegistry,
   registerIdentity,
@@ -263,5 +268,143 @@ describe("Verifiable Execution Comprehensive Coverage", () => {
       format: "json",
     });
     expect(replayCode).toBeDefined();
+  });
+
+  it("covers prepareCommand across Linux, Posix, and Windows providers", () => {
+    const linux = new LinuxSandboxProvider();
+    const posix = new PosixRestrictedProvider();
+    const windows = new WindowsRestrictedProvider();
+
+    const spec = {
+      executable: "node",
+      args: ["-v"],
+      cwd: tempDir,
+      timeoutSeconds: 5,
+      maxOutputBytes: 1000,
+      allowedEnv: [],
+      inheritEnv: true,
+      networkPolicy: "deny" as const,
+      readOnlyWorkspace: false,
+    };
+
+    const lCmd = linux.prepareCommand(spec, "node", ["-v"], tempDir);
+    expect(lCmd.executable).toBe("bwrap");
+
+    const lDefaultCmd = linux.prepareCommand(
+      { ...spec, networkPolicy: "inherit" },
+      "node",
+      ["-v"],
+      tempDir
+    );
+    expect(lDefaultCmd.executable).toBe("node");
+
+    const pCmd = posix.prepareCommand(spec, "node", ["-v"]);
+    expect(pCmd.executable).toBe("node");
+
+    const wCmd = windows.prepareCommand(spec, "node", ["-v"]);
+    expect(wCmd.executable).toBe("node");
+  });
+
+  it("covers security path boundary assertions and boundary errors", () => {
+    expect(assertSafeIdentifier("session_123.test-id", "Test")).toBe(
+      "session_123.test-id"
+    );
+    expect(() => assertSafeIdentifier("../escape", "Test")).toThrow(
+      "must be 1-128 characters"
+    );
+    expect(() => assertSafeIdentifier("", "Test")).toThrow(
+      "must be 1-128 characters"
+    );
+
+    const safeResolved = resolveWithinRoot(tempDir, "sub/file.txt", "Test");
+    expect(safeResolved).toBe(join(tempDir, "sub", "file.txt"));
+    expect(() => resolveWithinRoot(tempDir, "../outside.txt", "Test")).toThrow(
+      "must remain inside"
+    );
+  });
+
+  it("covers runIdentity keygen action and runSemanticDiff threshold options", async () => {
+    const keyId = `keygen-test-${Date.now()}`;
+    const keygenCode = await runIdentity({
+      action: "keygen",
+      values: [keyId],
+      format: "json",
+    });
+    expect(keygenCode).toBe(0);
+
+    const semExitLow = await runSemanticDiff({
+      format: "json",
+      failOn: "low",
+    });
+    expect([0, 1]).toContain(semExitLow);
+
+    const semExitCrit = await runSemanticDiff({
+      format: "json",
+      failOn: "critical",
+    });
+    expect([0, 1]).toContain(semExitCrit);
+  });
+
+  it("covers TypeScriptSemanticAdapter dynamic execution, visibility changes, and guard removals", () => {
+    const adapter = new TypeScriptSemanticAdapter();
+    expect(adapter.supports("file.ts")).toBe(true);
+    expect(adapter.supports("file.tsx")).toBe(true);
+    expect(adapter.supports("file.js")).toBe(true);
+    expect(adapter.supports("file.mjs")).toBe(true);
+    expect(adapter.supports("file.py")).toBe(false);
+
+    // Diagnostics / invalid syntax
+    const diag = adapter.compare("test.ts", "const x =", "const y =");
+    expect(diag.some((f) => f.category === "parser-failure")).toBe(true);
+
+    // Dynamic execution added
+    const dyn = adapter.compare(
+      "test.ts",
+      "const a = 1;",
+      "eval('x'); Function('y')(); const f = require('d' + name);"
+    );
+    expect(dyn.some((f) => f.category === "dynamic-execution-added")).toBe(true);
+
+    // Visibility widening
+    const vis = adapter.compare(
+      "test.ts",
+      "class Demo { private item: string; }",
+      "class Demo { public item: string; }"
+    );
+    expect(vis.some((f) => f.category === "visibility-change")).toBe(true);
+
+    // Removed security guard
+    const guard = adapter.compare(
+      "test.ts",
+      "if (isAuthorizedUser) { doSensitiveWork(); }",
+      "doSensitiveWork();"
+    );
+    expect(guard.some((f) => f.category === "guard-inversion")).toBe(true);
+  });
+
+  it("covers runAttest and runReplay inspect and verify error paths", async () => {
+    const badJsonFile = join(tempDir, "malformed.json");
+    await writeFile(badJsonFile, "{ invalid json");
+
+    const attestInspectFail = await runAttest({
+      action: "inspect",
+      target: badJsonFile,
+      format: "json",
+    });
+    expect(attestInspectFail).toBe(3);
+
+    const attestVerifyFail = await runAttest({
+      action: "verify",
+      target: badJsonFile,
+      format: "json",
+    });
+    expect(attestVerifyFail).toBe(3);
+
+    const replayInspectFail = await runReplay({
+      action: "inspect",
+      target: badJsonFile,
+      format: "json",
+    });
+    expect(replayInspectFail).toBe(3);
   });
 });
