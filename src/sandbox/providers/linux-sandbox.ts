@@ -119,4 +119,45 @@ export class LinuxSandboxProvider implements SandboxProvider {
 
     return env;
   }
+
+  prepareCommand(
+    spec: SandboxExecutionSpec,
+    executable: string,
+    args: readonly string[],
+    tempHome: string
+  ): { readonly executable: string; readonly args: readonly string[] } {
+    if (spec.networkPolicy !== "deny" && !spec.readOnlyWorkspace) {
+      return { executable, args };
+    }
+
+    const bwrapArgs: string[] = [
+      "--die-with-parent",
+      "--new-session",
+      "--unshare-pid",
+      "--ro-bind",
+      "/",
+      "/",
+      "--proc",
+      "/proc",
+      "--dev",
+      "/dev",
+      "--tmpfs",
+      "/tmp",
+      "--dir",
+      tempHome,
+      "--setenv",
+      "HOME",
+      tempHome,
+      "--chdir",
+      spec.cwd,
+    ];
+    if (!spec.readOnlyWorkspace) {
+      bwrapArgs.push("--bind", spec.cwd, spec.cwd);
+    }
+    if (spec.networkPolicy === "deny") {
+      bwrapArgs.push("--unshare-net");
+    }
+    bwrapArgs.push("--", executable, ...args);
+    return { executable: "bwrap", args: bwrapArgs };
+  }
 }

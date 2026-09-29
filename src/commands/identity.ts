@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { generateKeyPairSync } from "node:crypto";
 import type { OutputFormat } from "../types/index.js";
 import { ExitCodes } from "../types/index.js";
 import { getRepositoryRoot } from "../git/inspector.js";
@@ -9,9 +10,10 @@ import {
   revokeIdentity,
 } from "../identity/registry.js";
 import type { ApproverRole, IdentityPublicKey } from "../identity/types.js";
+import { assertSafeIdentifier } from "../security/path-boundary.js";
 
 export interface IdentityCommandOptions {
-  readonly action: "register" | "verify" | "revoke" | "list";
+  readonly action: "keygen" | "register" | "verify" | "revoke" | "list";
   readonly values: readonly string[];
   readonly format: OutputFormat;
 }
@@ -23,6 +25,37 @@ export async function runIdentity(
   if (!repoRoot) return ExitCodes.NOT_GIT_REPO;
 
   try {
+    if (options.action === "keygen") {
+      const keyId = assertSafeIdentifier(
+        options.values[0] ?? "",
+        "Identity key ID"
+      );
+      const directory = resolve(repoRoot, ".safe-change", "keys");
+      await mkdir(directory, { recursive: true, mode: 0o700 });
+      const { privateKey, publicKey } = generateKeyPairSync("ed25519", {
+        privateKeyEncoding: { format: "pem", type: "pkcs8" },
+        publicKeyEncoding: { format: "pem", type: "spki" },
+      });
+      const privateKeyPath = resolve(directory, `${keyId}.private.pem`);
+      const publicKeyPath = resolve(directory, `${keyId}.public.pem`);
+      await writeFile(privateKeyPath, privateKey, {
+        encoding: "utf8",
+        mode: 0o600,
+        flag: "wx",
+      });
+      await writeFile(publicKeyPath, publicKey, {
+        encoding: "utf8",
+        mode: 0o644,
+        flag: "wx",
+      });
+      const result = { created: true, keyId, privateKeyPath, publicKeyPath };
+      process.stdout.write(
+        options.format === "json"
+          ? `${JSON.stringify(result, null, 2)}\n`
+          : `Identity keypair created.\nPrivate key: ${privateKeyPath}\nPublic key: ${publicKeyPath}\n`
+      );
+      return ExitCodes.OK;
+    }
     if (options.action === "register") {
       const [keyId, publicKeyPath, owner, roleText, validDaysText] =
         options.values;

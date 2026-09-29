@@ -1,6 +1,8 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { IdentityPublicKey, TrustRegistry } from "./types.js";
+import { appendAuditEvent } from "../integrity/audit-log.js";
+import { stableDigest } from "../integrity/hash.js";
 
 const DEFAULT_REGISTRY: TrustRegistry = {
   version: 1,
@@ -21,8 +23,10 @@ export async function loadTrustRegistry(
     if (data.version === 1 && Array.isArray(data.identities)) {
       return data;
     }
-  } catch {
-    // return default empty registry if missing
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw new Error(`Identity trust registry is invalid: ${String(error)}`);
+    }
   }
   return DEFAULT_REGISTRY;
 }
@@ -33,7 +37,12 @@ export async function saveTrustRegistry(
 ): Promise<void> {
   const filePath = getRegistryPath(repoRoot);
   await mkdir(resolve(repoRoot, ".safe-change"), { recursive: true });
-  await writeFile(filePath, JSON.stringify(registry, null, 2), "utf-8");
+  const temporary = `${filePath}.${process.pid}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(registry, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  await rename(temporary, filePath);
 }
 
 export async function registerIdentity(
@@ -56,6 +65,13 @@ export async function registerIdentity(
   };
 
   await saveTrustRegistry(repoRoot, updated);
+  await appendAuditEvent(repoRoot, "IDENTITY_REGISTERED", null, {
+    keyId: identity.keyId,
+    owner: identity.owner,
+    role: identity.role,
+    publicKeyDigest: stableDigest(identity.publicKeyPem),
+    registryDigest: stableDigest(updated),
+  });
   return updated;
 }
 
@@ -88,6 +104,11 @@ export async function revokeIdentity(
   };
 
   await saveTrustRegistry(repoRoot, updated);
+  await appendAuditEvent(repoRoot, "IDENTITY_REVOKED", null, {
+    keyId,
+    reason,
+    registryDigest: stableDigest(updated),
+  });
   return updated;
 }
 

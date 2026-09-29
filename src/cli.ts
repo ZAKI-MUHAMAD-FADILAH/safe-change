@@ -75,6 +75,7 @@ interface ParsedArgs {
     privateKey?: string;
     publicKey?: string;
     reexecute?: boolean;
+    failOn?: "critical" | "high" | "medium" | "low";
   };
 }
 
@@ -207,8 +208,26 @@ function parseArgs(argv: string[]): ParsedArgs {
       }
     } else if (arg === "--no-open") {
       result.dashboardOptions.noOpen = true;
-    } else if (arg === "--reexecute") {
+    } else if (arg === "--reexecute" || arg === "--strict") {
       result.options.reexecute = true;
+    } else if (arg === "--fail-on") {
+      const value = args[++i];
+      if (!["critical", "high", "medium", "low"].includes(value ?? "")) {
+        process.stderr.write(
+          "Option --fail-on requires critical, high, medium, or low.\n"
+        );
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+      result.options.failOn = value as ParsedArgs["options"]["failOn"];
+    } else if (arg.startsWith("--fail-on=")) {
+      const value = arg.slice("--fail-on=".length);
+      if (!["critical", "high", "medium", "low"].includes(value)) {
+        process.stderr.write(
+          "Option --fail-on requires critical, high, medium, or low.\n"
+        );
+        process.exit(ExitCodes.CONFIG_ERROR);
+      }
+      result.options.failOn = value as ParsedArgs["options"]["failOn"];
     } else if (arg === "--base") {
       result.options.baseCommit = args[++i];
     } else if (arg.startsWith("--base=")) {
@@ -464,11 +483,12 @@ async function main(): Promise<void> {
 
     case "identity": {
       const action = (parsed.positional[0] ?? "list") as
+        | "keygen"
         | "register"
         | "verify"
         | "revoke"
         | "list";
-      if (!["register", "verify", "revoke", "list"].includes(action)) {
+      if (!["keygen", "register", "verify", "revoke", "list"].includes(action)) {
         process.stderr.write(`Unknown identity action: ${action}\n`);
         exitCode = ExitCodes.CONFIG_ERROR;
         break;
@@ -486,6 +506,7 @@ async function main(): Promise<void> {
         format,
         baseCommit: parsed.options.baseCommit,
         file: parsed.options.file,
+        failOn: parsed.options.failOn,
       });
       break;
     }

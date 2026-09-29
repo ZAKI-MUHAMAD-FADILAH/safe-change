@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, createHash } from "node:crypto";
 import { signApprovalGrant } from "../../src/identity/signer.js";
+import { canonicalizeJson } from "../../src/attestation/canonical.js";
 import {
   verifySignedApprovalGrant,
   verifyApprovalThreshold,
@@ -171,6 +172,9 @@ describe("Approval Identity Signing & Trust Verification", () => {
       approverIdentity: "bob",
       approverKeyId: "key-bob",
       approverRole: "release-manager",
+      previousGrantDigest: createHash("sha256")
+        .update(canonicalizeJson(grant1), "utf8")
+        .digest("hex"),
       privateKeyPem: approver2.privateKey,
     });
 

@@ -111,4 +111,12 @@ export class WindowsRestrictedProvider implements SandboxProvider {
 
     return env;
   }
+
+  prepareCommand(
+    _spec: SandboxExecutionSpec,
+    executable: string,
+    args: readonly string[]
+  ): { readonly executable: string; readonly args: readonly string[] } {
+    return { executable, args };
+  }
 }

@@ -30,6 +30,7 @@ export interface AttestationPredicate {
   readonly testReportDigest: string;
   readonly coverageReportDigest: string;
   readonly dependencyAuditDigest: string;
+  readonly auditLogDigest: string;
   readonly evidenceBundleDigest: string;
   readonly producedArtifactDigests: Record<string, string>;
   readonly verificationState: "verified" | "failed" | "not-verified";

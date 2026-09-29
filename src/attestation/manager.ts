@@ -67,22 +67,11 @@ export function verifyAttestationEnvelope(
     };
   }
 
-  // 2. Verify signature
-  const validSig = verifyDSSESignature(envelope, publicKeyPem);
-  if (!validSig) {
-    return {
-      valid: false,
-      signerKeyId: envelope.signatures[0]?.keyid ?? "unknown",
-      verifiedAt: new Date().toISOString(),
-      statement: null as unknown as AttestationStatement,
-      failureReason: "Ed25519 signature verification failed",
-    };
-  }
-
-  // 3. Decode and parse statement
+  // 2. Decode and parse statement before selecting the declared signer.
   let statement: AttestationStatement;
+  let raw: string;
   try {
-    const raw = Buffer.from(envelope.payload, "base64").toString("utf-8");
+    raw = Buffer.from(envelope.payload, "base64").toString("utf-8");
     statement = JSON.parse(raw) as AttestationStatement;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -95,7 +84,7 @@ export function verifyAttestationEnvelope(
     };
   }
 
-  // 4. Validate statement schema
+  // 3. Validate statement schema and canonical payload.
   if (
     statement._type !== "https://in-toto.io/Statement/v1" ||
     statement.predicateType !== "https://safe-change.dev/attestation/v1"
@@ -108,14 +97,72 @@ export function verifyAttestationEnvelope(
       failureReason: "Statement structure does not conform to in-toto v1 / safe-change v1",
     };
   }
-
-  // 5. Expiration check
-  if (statement.predicate.expiresAt && !options?.allowExpired) {
-    const expTime = new Date(statement.predicate.expiresAt).getTime();
-    if (Date.now() > expTime) {
+  try {
+    if (canonicalizeJson(statement) !== raw) {
       return {
         valid: false,
-        signerKeyId: envelope.signatures[0]?.keyid ?? "unknown",
+        signerKeyId: statement.predicate.signerKeyId,
+        verifiedAt: new Date().toISOString(),
+        statement,
+        failureReason: "Attestation payload is not canonical JCS JSON.",
+      };
+    }
+  } catch (error: unknown) {
+    return {
+      valid: false,
+      signerKeyId: statement.predicate.signerKeyId,
+      verifiedAt: new Date().toISOString(),
+      statement,
+      failureReason: `Attestation canonicalization failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+
+  const signerEnvelope: DSSEEnvelope = {
+    ...envelope,
+    signatures: envelope.signatures.filter(
+      (signature) => signature.keyid === statement.predicate.signerKeyId
+    ),
+  };
+  if (!verifyDSSESignature(signerEnvelope, publicKeyPem)) {
+    return {
+      valid: false,
+      signerKeyId: statement.predicate.signerKeyId,
+      verifiedAt: new Date().toISOString(),
+      statement,
+      failureReason:
+        "Ed25519 signature verification failed for the declared signer key ID.",
+    };
+  }
+
+  const commitSubject = statement.subject.find(
+    (subject) => subject.name === `git+commit:${statement.predicate.endingCommit}`
+  );
+  const evidenceSubject = statement.subject.find(
+    (subject) => subject.name === `evidence:${statement.predicate.sessionId}`
+  );
+  if (
+    commitSubject?.digest["sha1"] !== statement.predicate.endingCommit ||
+    evidenceSubject?.digest["sha256"] !==
+      statement.predicate.evidenceBundleDigest
+  ) {
+    return {
+      valid: false,
+      signerKeyId: statement.predicate.signerKeyId,
+      verifiedAt: new Date().toISOString(),
+      statement,
+      failureReason: "Attestation subjects do not match the signed predicate.",
+    };
+  }
+
+  // 4. Expiration check
+  if (statement.predicate.expiresAt && !options?.allowExpired) {
+    const expTime = new Date(statement.predicate.expiresAt).getTime();
+    if (!Number.isFinite(expTime) || Date.now() > expTime) {
+      return {
+        valid: false,
+        signerKeyId: statement.predicate.signerKeyId,
         verifiedAt: new Date().toISOString(),
         statement,
         failureReason: `Attestation expired at ${statement.predicate.expiresAt}`,
@@ -125,7 +172,7 @@ export function verifyAttestationEnvelope(
 
   return {
     valid: true,
-    signerKeyId: envelope.signatures[0]?.keyid ?? "unknown",
+    signerKeyId: statement.predicate.signerKeyId,
     verifiedAt: new Date().toISOString(),
     statement,
   };

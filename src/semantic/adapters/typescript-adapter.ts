@@ -37,6 +37,36 @@ function cleanText(node: ts.Node, sourceFile: ts.SourceFile): string {
   return node.getText(sourceFile).trim().replace(/\s+/g, " ");
 }
 
+function collectMemberVisibility(
+  sourceFile: ts.SourceFile
+): Map<string, "public" | "protected" | "private"> {
+  const result = new Map<string, "public" | "protected" | "private">();
+  function visit(node: ts.Node): void {
+    if (ts.isClassDeclaration(node) && node.name) {
+      for (const member of node.members) {
+        if (!member.name) continue;
+        const memberName = cleanText(member.name, sourceFile);
+        const modifiers = ts.canHaveModifiers(member)
+          ? ts.getModifiers(member)
+          : undefined;
+        const visibility = modifiers?.some(
+          (modifier) => modifier.kind === ts.SyntaxKind.PrivateKeyword
+        )
+          ? "private"
+          : modifiers?.some(
+                (modifier) => modifier.kind === ts.SyntaxKind.ProtectedKeyword
+              )
+            ? "protected"
+            : "public";
+        result.set(`${node.name.text}.${memberName}`, visibility);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return result;
+}
+
 export class TypeScriptSemanticAdapter implements LanguageSemanticAdapter {
   supports(filePath: string): boolean {
     const ext = filePath.toLowerCase();
@@ -108,6 +138,42 @@ export class TypeScriptSemanticAdapter implements LanguageSemanticAdapter {
           afterRepresentation: msg,
           confidence: "high",
           explanation: `Parser threw an unrecoverable exception: ${msg}`,
+        },
+      ];
+    }
+    const diagnostics = [
+      ...(sourceBefore as ts.SourceFile & {
+        parseDiagnostics?: readonly ts.Diagnostic[];
+      }).parseDiagnostics ?? [],
+      ...(sourceAfter as ts.SourceFile & {
+        parseDiagnostics?: readonly ts.Diagnostic[];
+      }).parseDiagnostics ?? [],
+    ];
+    if (diagnostics.length > 0) {
+      const message = ts.flattenDiagnosticMessageText(
+        diagnostics[0]!.messageText,
+        "\n"
+      );
+      return [
+        {
+          findingId: computeFindingId(
+            filePath,
+            "parser-failure",
+            "",
+            message,
+            1
+          ),
+          file: filePath,
+          language: lang,
+          nodeType: "SourceFile",
+          rangeBefore: null,
+          rangeAfter: null,
+          category: "parser-failure",
+          severity: "high",
+          beforeRepresentation: "",
+          afterRepresentation: message,
+          confidence: "high",
+          explanation: `Parser diagnostics reported invalid syntax: ${message}`,
         },
       ];
     }
@@ -207,14 +273,22 @@ export class TypeScriptSemanticAdapter implements LanguageSemanticAdapter {
     walk(sourceAfter, false);
 
     // 1. Detect Test Skips / Todos added in callsAfter
+    const skippedBefore = new Set(
+      callsBefore
+        .map((call) => cleanText(call.expression, sourceBefore))
+        .filter((text) =>
+          /^(it|test|describe)\.(skip|todo)(?:\.|$)/.test(text)
+        )
+    );
     for (const call of callsAfter) {
       const text = cleanText(call.expression, sourceAfter);
       if (
-        text.startsWith("it.skip") ||
-        text.startsWith("test.skip") ||
-        text.startsWith("describe.skip") ||
-        text.startsWith("it.todo") ||
-        text.startsWith("test.todo")
+        (text.startsWith("it.skip") ||
+          text.startsWith("test.skip") ||
+          text.startsWith("describe.skip") ||
+          text.startsWith("it.todo") ||
+          text.startsWith("test.todo")) &&
+        !skippedBefore.has(text)
       ) {
         const range = getSourceRange(call, sourceAfter);
         addFinding(
@@ -368,17 +442,42 @@ export class TypeScriptSemanticAdapter implements LanguageSemanticAdapter {
         `Control-flow branch count changed from ${ifsBefore.length} to ${ifsAfter.length}`
       );
     }
+    if (ifsBefore.length > ifsAfter.length) {
+      const removedSecurityGuards = ifsBefore.filter((statement) =>
+        /auth|allow|permit|valid|admin|root|deny|access|secret/i.test(
+          cleanText(statement.expression, sourceBefore)
+        )
+      );
+      if (removedSecurityGuards.length > 0) {
+        const removed = removedSecurityGuards[0]!;
+        addFinding(
+          "IfStatement",
+          getSourceRange(removed, sourceBefore),
+          null,
+          "guard-inversion",
+          "critical",
+          cleanText(removed.expression, sourceBefore),
+          "",
+          "medium",
+          "A security-related guard may have been removed."
+        );
+      }
+    }
 
     // 4. Inspect Catch Clauses: detecting swallowed errors
+    const catchBodiesBefore = new Set(
+      catchesBefore.map((clause) => cleanText(clause.block, sourceBefore))
+    );
     for (const catchAfter of catchesAfter) {
       const blockText = cleanText(catchAfter.block, sourceAfter);
       if (
-        blockText === "{}" ||
-        blockText === "{ ; }" ||
-        (!blockText.includes("throw") &&
-          !blockText.includes("reject") &&
-          !blockText.includes("console.error") &&
-          !blockText.includes("process.exit"))
+        (blockText === "{}" ||
+          blockText === "{ ; }" ||
+          (!blockText.includes("throw") &&
+            !blockText.includes("reject") &&
+            !blockText.includes("console.error") &&
+            !blockText.includes("process.exit"))) &&
+        !catchBodiesBefore.has(blockText)
       ) {
         const range = getSourceRange(catchAfter, sourceAfter);
         addFinding(
@@ -391,6 +490,60 @@ export class TypeScriptSemanticAdapter implements LanguageSemanticAdapter {
           blockText,
           "high",
           `Catch block potentially swallows errors without rethrowing or logging error: ${blockText}`
+        );
+      }
+    }
+
+    // 4b. Detect newly introduced dynamic execution primitives.
+    const dynamicCallsBefore = new Set(
+      callsBefore.map((call) => cleanText(call, sourceBefore))
+    );
+    for (const call of callsAfter) {
+      const expression = cleanText(call.expression, sourceAfter);
+      const callText = cleanText(call, sourceAfter);
+      const dynamicRequire =
+        expression === "require" &&
+        call.arguments.length > 0 &&
+        !ts.isStringLiteralLike(call.arguments[0]!);
+      const dangerous =
+        expression === "eval" ||
+        expression === "Function" ||
+        expression.endsWith(".exec") ||
+        dynamicRequire;
+      if (dangerous && !dynamicCallsBefore.has(callText)) {
+        addFinding(
+          "CallExpression",
+          null,
+          getSourceRange(call, sourceAfter),
+          "dynamic-execution-added",
+          "high",
+          "",
+          callText,
+          "high",
+          `Dynamic execution primitive introduced: ${expression}`
+        );
+      }
+    }
+
+    // 4c. Detect visibility widening on named class members.
+    const visibilityBefore = collectMemberVisibility(sourceBefore);
+    const visibilityAfter = collectMemberVisibility(sourceAfter);
+    for (const [member, beforeVisibility] of visibilityBefore) {
+      const afterVisibility = visibilityAfter.get(member);
+      if (
+        afterVisibility === "public" &&
+        (beforeVisibility === "private" || beforeVisibility === "protected")
+      ) {
+        addFinding(
+          "ClassElement",
+          null,
+          null,
+          "visibility-change",
+          "medium",
+          `${member}:${beforeVisibility}`,
+          `${member}:${afterVisibility}`,
+          "high",
+          `Class member '${member}' visibility widened from ${beforeVisibility} to public.`
         );
       }
     }

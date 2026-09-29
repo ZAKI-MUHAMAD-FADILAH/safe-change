@@ -128,6 +128,7 @@ export interface ApprovalRequest {
   readonly expiresAt: string;
   readonly requestDigest: string;
   readonly grants: readonly ApprovalGrant[];
+  readonly signedGrants?: readonly import("../identity/types.js").SignedApprovalGrant[];
 }
 
 export type RiskCategory =

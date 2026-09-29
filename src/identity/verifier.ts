@@ -1,4 +1,4 @@
-import { verify } from "node:crypto";
+import { createHash, verify } from "node:crypto";
 import { canonicalizeJson } from "../attestation/canonical.js";
 import type {
   IdentityPublicKey,
@@ -34,6 +34,11 @@ export function verifySignedApprovalGrant(
     readonly expectedRepository?: string;
     readonly expectedCapability?: string;
     readonly expectedResource?: string;
+    readonly expectedRequestId?: string;
+    readonly expectedRequestDigest?: string;
+    readonly expectedRequesterSession?: string;
+    readonly expectedPolicyDigest?: string;
+    readonly allowedRoles?: readonly IdentityPublicKey["role"][];
     readonly prohibitSelfApproval?: boolean;
   }
 ): SignedApprovalVerification {
@@ -110,6 +115,43 @@ export function verifySignedApprovalGrant(
       `Resource mismatch: grant binds '${grant.resource}', expected '${options.expectedResource}'`
     );
   }
+  if (
+    options?.expectedRequestId &&
+    grant.requestId !== options.expectedRequestId
+  ) {
+    reasons.push("Approval request ID does not match the expected request.");
+  }
+  if (
+    options?.expectedRequestDigest &&
+    grant.requestDigest !== options.expectedRequestDigest
+  ) {
+    reasons.push("Approval request digest does not match the expected request.");
+  }
+  if (
+    options?.expectedRequesterSession &&
+    grant.requesterSession !== options.expectedRequesterSession
+  ) {
+    reasons.push("Approval requester session does not match.");
+  }
+  if (
+    options?.expectedPolicyDigest &&
+    grant.policyDigest !== options.expectedPolicyDigest
+  ) {
+    reasons.push("Approval policy digest does not match the active policy.");
+  }
+  if (grant.approverRole !== identity.role) {
+    reasons.push(
+      `Grant role '${grant.approverRole}' does not match trusted identity role '${identity.role}'.`
+    );
+  }
+  if (
+    options?.allowedRoles &&
+    !options.allowedRoles.includes(identity.role)
+  ) {
+    reasons.push(
+      `Trusted identity role '${identity.role}' is not authorized for this capability.`
+    );
+  }
 
   // 8. Cryptographic Signature Verification
   const signatureValid = verifyApprovalGrantSignature(
@@ -135,6 +177,12 @@ export interface ApprovalChainVerification {
   readonly reasons: readonly string[];
 }
 
+function canonicalGrantDigest(grant: SignedApprovalGrant): string {
+  return createHash("sha256")
+    .update(canonicalizeJson(grant), "utf8")
+    .digest("hex");
+}
+
 export function verifyApprovalThreshold(
   grants: readonly SignedApprovalGrant[],
   registry: TrustRegistry,
@@ -143,14 +191,33 @@ export function verifyApprovalThreshold(
     readonly expectedRepository?: string;
     readonly expectedCapability?: string;
     readonly expectedResource?: string;
+    readonly expectedRequestId?: string;
+    readonly expectedRequestDigest?: string;
+    readonly expectedRequesterSession?: string;
+    readonly expectedPolicyDigest?: string;
+    readonly allowedRoles?: readonly IdentityPublicKey["role"][];
     readonly prohibitSelfApproval?: boolean;
   }
 ): ApprovalChainVerification {
   const reasons: string[] = [];
   const validKeyIds = new Set<string>();
   const validApproverIdentities = new Set<string>();
+  const seenNonces = new Set<string>();
+  let expectedPreviousDigest = "";
 
   for (const grant of grants) {
+    if (grant.previousGrantDigest !== expectedPreviousDigest) {
+      reasons.push(
+        `Grant '${grant.approvalId}' does not continue the signed approval chain.`
+      );
+      continue;
+    }
+    if (seenNonces.has(grant.nonce)) {
+      reasons.push(`Grant '${grant.approvalId}' reuses an approval nonce.`);
+      continue;
+    }
+    seenNonces.add(grant.nonce);
+
     const res = verifySignedApprovalGrant(grant, registry, options);
     if (!res.valid) {
       reasons.push(
@@ -173,6 +240,7 @@ export function verifyApprovalThreshold(
 
     validKeyIds.add(grant.approverKeyId);
     validApproverIdentities.add(grant.approverIdentity);
+    expectedPreviousDigest = canonicalGrantDigest(grant);
   }
 
   const distinctCount = validKeyIds.size;

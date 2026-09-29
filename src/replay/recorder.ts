@@ -5,10 +5,41 @@ import type { CheckDefinition, CheckResult, SafeChangeConfig } from "../types/in
 import type { ReplayCommandSpec, ReplayManifest, ReplayRecordedResult } from "./types.js";
 import { captureWorkspaceFingerprint } from "../integrity/fingerprint.js";
 import { enforcementPolicyDigest } from "../enforcement/policy-signature.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { getGitState } from "../git/inspector.js";
+import { stableStringify } from "../integrity/hash.js";
+
+const execFileAsync = promisify(execFile);
 
 function sha256(content: string | Buffer): string {
   return createHash("sha256").update(content).digest("hex");
+}
+
+export function normalizeReplayOutput(content: string, repoRoot: string): string {
+  const normalizedRoot = repoRoot.replace(/\\/g, "/");
+  return content.replaceAll("\\", "/").replaceAll(normalizedRoot, "<REPO_ROOT>");
+}
+
+export async function repositoryIdentityDigest(
+  repoRoot: string
+): Promise<string> {
+  let identity = "unknown-remote";
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["config", "--get", "remote.origin.url"],
+      { cwd: repoRoot }
+    );
+    identity = stdout
+      .trim()
+      .replace(/^git@github\.com:/, "https://github.com/")
+      .replace(/\.git$/, "")
+      .toLowerCase();
+  } catch {
+    identity = "unknown-remote";
+  }
+  return sha256(identity);
 }
 
 export async function hashFileIfExists(path: string): Promise<string | null> {
@@ -31,7 +62,7 @@ export async function createReplayManifest(
 ): Promise<ReplayManifest> {
   const gitState = await getGitState(repoRoot);
   const currentHead = gitState.headCommit ?? "unknown-commit";
-  const repoHash = sha256(repoRoot.replace(/\\/g, "/"));
+  const repoHash = await repositoryIdentityDigest(repoRoot);
   const fingerprint = await captureWorkspaceFingerprint(repoRoot, config);
   const policyDigest = config.enforcementPolicy
     ? enforcementPolicyDigest(config.enforcementPolicy)
@@ -83,8 +114,8 @@ export async function createReplayManifest(
     name: r.name,
     exitCode: r.exitCode,
     signal: null,
-    stdoutDigest: sha256(r.stdout),
-    stderrDigest: sha256(r.stderr),
+    stdoutDigest: sha256(normalizeReplayOutput(r.stdout, repoRoot)),
+    stderrDigest: sha256(normalizeReplayOutput(r.stderr, repoRoot)),
     secretRedactionState: {
       outputBlocked: r.outputBlocked ?? false,
       detectedSecretTypes: r.detectedSecretTypes ? [...r.detectedSecretTypes] : [],
@@ -99,6 +130,7 @@ export async function createReplayManifest(
     repositoryHash: repoHash,
     startingCommit: baselineId,
     endingCommit: currentHead,
+    workspaceWasClean: gitState.isClean,
     baselineId,
     policyDigest,
     workspaceFingerprint: fingerprint.digest,
@@ -115,7 +147,7 @@ export async function createReplayManifest(
     createdAt: new Date().toISOString(),
   };
 
-  const manifestDigest = sha256(JSON.stringify(rawManifest));
+  const manifestDigest = sha256(stableStringify(rawManifest));
 
   return {
     ...rawManifest,

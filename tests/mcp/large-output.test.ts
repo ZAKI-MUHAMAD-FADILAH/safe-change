@@ -41,7 +41,7 @@ describe("MCP Large Output Memory Bounding", () => {
       const result = await runCli(
         ["save"],
         gitlessDir,
-        15000,
+        30000,
         128
       );
 

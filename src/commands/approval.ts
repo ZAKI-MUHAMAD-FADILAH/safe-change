@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Capability, OutputFormat } from "../types/index.js";
@@ -10,11 +11,16 @@ import {
   createApprovalRequest,
   grantApproval,
   readApprovalRequest,
+  appendSignedApprovalGrant,
 } from "../enforcement/approvals.js";
-import { loadTrustRegistry } from "../identity/registry.js";
+import { findIdentity, loadTrustRegistry } from "../identity/registry.js";
 import { signApprovalGrant } from "../identity/signer.js";
-import { verifySignedApprovalGrant } from "../identity/verifier.js";
+import {
+  verifyApprovalThreshold,
+  verifySignedApprovalGrant,
+} from "../identity/verifier.js";
 import type { ApproverRole, SignedApprovalGrant } from "../identity/types.js";
+import { canonicalizeJson } from "../attestation/canonical.js";
 
 export interface ApprovalCommandOptions {
   readonly action: "request" | "grant" | "status" | "sign" | "verify";
@@ -54,16 +60,38 @@ export async function runApproval(
           `Self-approval is prohibited: requester '${request.requester}' cannot sign own request.`
         );
       }
+      if (Date.parse(request.expiresAt) <= Date.now()) {
+        throw new Error("Approval request has expired.");
+      }
 
       const privKeyAbs = resolve(process.cwd(), privateKeyPath);
       const privateKeyPem = await readFile(privKeyAbs, "utf-8");
 
-      const role: ApproverRole = (roleText as ApproverRole) || "security-lead";
+      const registry = await loadTrustRegistry(repoRoot);
+      const identity = findIdentity(registry, keyId);
+      if (!identity) {
+        throw new Error(`Approver keyId '${keyId}' is not trusted.`);
+      }
+      if (
+        identity.owner.toLowerCase() !== approverIdentity.toLowerCase()
+      ) {
+        throw new Error("Approver identity does not match the trusted key owner.");
+      }
+      if (roleText && roleText !== identity.role) {
+        throw new Error("Requested approver role does not match the trust registry.");
+      }
+      const role: ApproverRole = identity.role;
       const policyDigest = enforcementPolicyDigest(policy);
+      const previousGrant = request.signedGrants?.at(-1);
+      const previousGrantDigest = previousGrant
+        ? createHash("sha256")
+            .update(canonicalizeJson(previousGrant), "utf8")
+            .digest("hex")
+        : "";
 
       const grant = signApprovalGrant({
         requestId: request.id,
-        requestDigest: request.id,
+        requestDigest: request.requestDigest,
         repositoryIdentity: repoRoot.replace(/\\/g, "/"),
         capability: request.capability,
         resource: request.resource,
@@ -73,6 +101,7 @@ export async function runApproval(
         approverKeyId: keyId,
         approverRole: role,
         policyDigest,
+        previousGrantDigest,
         decision: "approved",
         ttlSeconds: Math.max(
           1,
@@ -81,6 +110,7 @@ export async function runApproval(
         privateKeyPem,
       });
 
+      await appendSignedApprovalGrant(repoRoot, request.id, grant);
       const outDir = resolve(repoRoot, ".safe-change", "grants");
       await mkdir(outDir, { recursive: true });
       const grantPath = resolve(outDir, `${grant.approvalId}.json`);
@@ -99,34 +129,56 @@ export async function runApproval(
     }
 
     if (options.action === "verify") {
-      const [grantFilePath] = options.values;
-      if (!grantFilePath) {
-        throw new Error("approval verify requires <grantFile>");
+      const [target] = options.values;
+      if (!target) {
+        throw new Error("approval verify requires <requestId|grantFile>");
       }
 
-      const absPath = resolve(process.cwd(), grantFilePath);
-      const raw = await readFile(absPath, "utf-8");
-      const grant = JSON.parse(raw) as SignedApprovalGrant;
-
       const registry = await loadTrustRegistry(repoRoot);
-      const verification = verifySignedApprovalGrant(grant, registry, {
-        expectedRepository: repoRoot.replace(/\\/g, "/"),
-        prohibitSelfApproval: policy.approvals.prohibitSelfApproval,
-      });
+      let verification: unknown;
+      if (/^[A-Za-z0-9-]{8,80}$/.test(target)) {
+        const request = await readApprovalRequest(repoRoot, target);
+        const threshold = policy.approvals.thresholds[request.capability] ?? 1;
+        verification = verifyApprovalThreshold(
+          request.signedGrants ?? [],
+          registry,
+          threshold,
+          {
+            expectedRepository: repoRoot.replace(/\\/g, "/"),
+            expectedCapability: request.capability,
+            expectedResource: request.resource,
+            expectedRequestId: request.id,
+            expectedRequestDigest: request.requestDigest,
+            expectedRequesterSession: request.sessionId,
+            expectedPolicyDigest: enforcementPolicyDigest(policy),
+            prohibitSelfApproval: policy.approvals.prohibitSelfApproval,
+          }
+        );
+      } else {
+        const absPath = resolve(process.cwd(), target);
+        const raw = await readFile(absPath, "utf-8");
+        const grant = JSON.parse(raw) as SignedApprovalGrant;
+        verification = verifySignedApprovalGrant(grant, registry, {
+          expectedRepository: repoRoot.replace(/\\/g, "/"),
+          expectedPolicyDigest: enforcementPolicyDigest(policy),
+          prohibitSelfApproval: policy.approvals.prohibitSelfApproval,
+        });
+      }
+      const valid = (verification as { valid: boolean }).valid;
 
       if (options.format === "json") {
         process.stdout.write(`${JSON.stringify(verification, null, 2)}\n`);
       } else {
         process.stdout.write(
-          `Approval Verification: ${verification.valid ? "VALID" : "INVALID"}\n`
+          `Approval Verification: ${valid ? "VALID" : "INVALID"}\n`
         );
-        if (!verification.valid) {
-          for (const reason of verification.reasons) {
+        if (!valid) {
+          for (const reason of (verification as { reasons: readonly string[] }).reasons) {
             process.stdout.write(`  - ${reason}\n`);
           }
         }
       }
-      return verification.valid ? ExitCodes.OK : ExitCodes.NEW_FAILURE;
+      return valid ? ExitCodes.OK : ExitCodes.NEW_FAILURE;
     }
 
     let result;

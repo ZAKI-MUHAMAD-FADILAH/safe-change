@@ -44,6 +44,7 @@ export interface ReplayManifest {
   readonly repositoryHash: string;
   readonly startingCommit: string;
   readonly endingCommit: string;
+  readonly workspaceWasClean: boolean;
   readonly baselineId: string;
   readonly policyDigest: string;
   readonly workspaceFingerprint: string;

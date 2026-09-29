@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, relative } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -6,6 +6,8 @@ import type { OutputFormat } from "../types/index.js";
 import { ExitCodes } from "../types/index.js";
 import { getRepositoryRoot } from "../git/inspector.js";
 import { SemanticDiffEngine } from "../semantic/engine.js";
+import { resolveWithinRoot } from "../security/path-boundary.js";
+import type { SemanticSeverity } from "../semantic/types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -13,6 +15,7 @@ export interface SemanticDiffOptions {
   readonly format: OutputFormat;
   readonly baseCommit?: string;
   readonly file?: string;
+  readonly failOn?: SemanticSeverity;
 }
 
 async function getGitFileContent(
@@ -62,7 +65,11 @@ export async function runSemanticDiff(
 
   let targetFiles: string[] = [];
   if (options.file) {
-    const absPath = resolve(process.cwd(), options.file);
+    const absPath = resolveWithinRoot(
+      repoRoot,
+      resolve(process.cwd(), options.file),
+      "Semantic diff file"
+    );
     const rel = relative(repoRoot, absPath).replace(/\\/g, "/");
     targetFiles = [rel];
   } else {
@@ -93,6 +100,17 @@ export async function runSemanticDiff(
   }
 
   const report = engine.generateReport(fileInputs, baseCommit);
+  const reportDirectory = resolve(repoRoot, ".safe-change", "semantic");
+  await mkdir(reportDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(
+    resolveWithinRoot(
+      reportDirectory,
+      "last-report.json",
+      "Semantic report path"
+    ),
+    `${JSON.stringify(report, null, 2)}\n`,
+    { encoding: "utf8", mode: 0o600 }
+  );
 
   if (options.format === "json") {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
@@ -125,5 +143,17 @@ export async function runSemanticDiff(
     }
   }
 
-  return report.summary.hasBlockingFindings ? ExitCodes.NEW_FAILURE : ExitCodes.OK;
+  const severityRank: Record<SemanticSeverity, number> = {
+    low: 1,
+    medium: 2,
+    high: 3,
+    critical: 4,
+  };
+  const threshold = options.failOn ?? "critical";
+  const blocks = report.files.some((file) =>
+    file.findings.some(
+      (finding) => severityRank[finding.severity] >= severityRank[threshold]
+    )
+  );
+  return blocks ? ExitCodes.NEW_FAILURE : ExitCodes.OK;
 }

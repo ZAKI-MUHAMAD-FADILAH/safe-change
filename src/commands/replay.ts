@@ -8,6 +8,10 @@ import { loadBaseline } from "../baseline/manager.js";
 import { createReplayManifest } from "../replay/recorder.js";
 import { verifyReplayManifest } from "../replay/runner.js";
 import type { ReplayManifest } from "../replay/types.js";
+import {
+  assertSafeIdentifier,
+  resolveWithinRoot,
+} from "../security/path-boundary.js";
 
 export interface ReplayOptions {
   readonly action: "record" | "verify" | "inspect";
@@ -23,11 +27,11 @@ export async function runReplay(options: ReplayOptions): Promise<number> {
   const config = await loadConfig(repoRoot);
 
   if (options.action === "record") {
-    const sessionId = options.target;
-    if (!sessionId) {
+    if (!options.target) {
       process.stderr.write("Error: 'record' requires a session ID.\n");
       return ExitCodes.CONFIG_ERROR;
     }
+    const sessionId = assertSafeIdentifier(options.target, "Replay session ID");
 
     const baseline = await loadBaseline(repoRoot);
     if (!baseline) {
@@ -48,7 +52,11 @@ export async function runReplay(options: ReplayOptions): Promise<number> {
 
     const outDir = resolve(repoRoot, ".safe-change", "replay");
     await mkdir(outDir, { recursive: true });
-    const bundlePath = resolve(outDir, `${sessionId}-replay.json`);
+    const bundlePath = resolveWithinRoot(
+      outDir,
+      `${sessionId}-replay.json`,
+      "Replay bundle path"
+    );
     await writeFile(bundlePath, JSON.stringify(manifest, null, 2), "utf-8");
 
     if (options.format === "json") {

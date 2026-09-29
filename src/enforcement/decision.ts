@@ -11,6 +11,8 @@ import {
   enforcementPolicyDigest,
   verifyPolicySignature,
 } from "./policy-signature.js";
+import { loadTrustRegistry } from "../identity/registry.js";
+import { verifyApprovalThreshold } from "../identity/verifier.js";
 
 const CAPABILITIES: readonly Capability[] = [
   "repository:read",
@@ -24,6 +26,15 @@ const CAPABILITIES: readonly Capability[] = [
   "policy:modify",
   "secret:read",
 ];
+
+const APPROVER_ROLES: Readonly<
+  Partial<Record<Capability, readonly ("security-lead" | "release-manager" | "lead-maintainer" | "developer")[]>>
+> = {
+  "release:publish": ["release-manager", "security-lead"],
+  "policy:modify": ["security-lead"],
+  "ci:modify": ["security-lead", "lead-maintainer"],
+  "dependency:modify": ["security-lead", "lead-maintainer"],
+};
 
 export function isCapability(value: string): value is Capability {
   return CAPABILITIES.includes(value as Capability);
@@ -113,14 +124,44 @@ export async function evaluateOperation(
       if (Date.parse(approval.expiresAt) <= Date.now()) {
         reasons.push("Approval request has expired.");
       }
-      const distinctApprovers = new Set(
-        approval.grants.map((grant) => grant.approver),
-      );
-      if (distinctApprovers.size < threshold) {
+      let approvedCount: number;
+      if ((approval.signedGrants?.length ?? 0) > 0) {
+        const registry = await loadTrustRegistry(repoRoot);
+        const signedResult = verifyApprovalThreshold(
+          approval.signedGrants ?? [],
+          registry,
+          threshold,
+          {
+            expectedRepository: repoRoot.replace(/\\/g, "/"),
+            expectedCapability: request.capability,
+            expectedResource: request.resource,
+            expectedRequestId: approval.id,
+            expectedRequestDigest: approval.requestDigest,
+            expectedRequesterSession: request.sessionId,
+            expectedPolicyDigest: policyDigest,
+            allowedRoles: APPROVER_ROLES[request.capability] ?? [
+              "security-lead",
+              "lead-maintainer",
+            ],
+            prohibitSelfApproval: policy.approvals.prohibitSelfApproval,
+          },
+        );
+        if (!signedResult.valid) {
+          reasons.push(
+            `Signed approval verification failed: ${signedResult.reasons.join(" ")}`,
+          );
+        }
+        approvedCount = signedResult.distinctApproverCount;
+      } else {
+        approvedCount = new Set(
+          approval.grants.map((grant) => grant.approver),
+        ).size;
+      }
+      if (approvedCount < threshold) {
         return {
           decision: "require-approval",
           reasons: [
-            `Operation has ${distinctApprovers.size} of ${threshold} required approval(s).`,
+            `Operation has ${approvedCount} of ${threshold} required approval(s).`,
           ],
           capability: request.capability,
           resource: request.resource,

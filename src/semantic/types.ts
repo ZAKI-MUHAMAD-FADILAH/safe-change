@@ -28,6 +28,8 @@ export type SemanticCategory =
   | "import-source-change"
   | "assertion-weakening"
   | "test-skip-added"
+  | "dynamic-execution-added"
+  | "visibility-change"
   | "parser-failure";
 
 export type SemanticSeverity = "critical" | "high" | "medium" | "low";

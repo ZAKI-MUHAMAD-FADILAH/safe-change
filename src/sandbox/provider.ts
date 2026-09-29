@@ -17,4 +17,13 @@ export interface SandboxProvider {
     spec: SandboxExecutionSpec,
     tempHome: string
   ): Record<string, string>;
+  prepareCommand(
+    spec: SandboxExecutionSpec,
+    executable: string,
+    args: readonly string[],
+    tempHome: string
+  ): {
+    readonly executable: string;
+    readonly args: readonly string[];
+  };
 }
