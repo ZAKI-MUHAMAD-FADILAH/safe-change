@@ -39,7 +39,7 @@ Compilation and testing are automated via continuous integration, while producti
   ```json
   {
     "name": "@safe-change/win32-x64-msvc",
-    "version": "0.3.1",
+    "version": "1.0.0",
     "os": ["win32"],
     "cpu": ["x64"],
     "main": "safe-change-native.node"

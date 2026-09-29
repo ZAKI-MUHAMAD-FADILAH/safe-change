@@ -64,33 +64,23 @@ Status labels: Done | In Progress | Planned
 - Commercial AGPL-3.0 copyleft boundaries clarified
 - Unified version synchronization across Rust crate and 7 npm platform packages
 
-## v0.4.0 -- Executable Enterprise Enforcement Platform (In Progress)
+## v1.0.0 -- Production Stable & High-Assurance Enterprise Platform (Released)
 
-- Risk scoring engine and automatic operating-mode selection (foundation complete)
-- Machine-readable enterprise policy and change-budget enforcement (foundation complete)
-- Anti-policy-downgrade detector and approval gate (textual foundation complete)
-- AST-aware semantic diff
-- Multi-agent write lease and workspace fingerprint engine (integrity foundation complete)
-- Checksummed evidence bundles and tamper-evident audit chain (integrity foundation complete)
-- Cryptographic signing and deterministic replay
-- Secret-output blocker (streaming foundation complete)
-- Capability-based agent permissions and PDP/PEP authorization (foundation complete)
-- Command sandbox with executable, argument, environment, output, and network fail-closed policy (foundation complete)
-- Ed25519 signed policy root verification (foundation complete; external trust key required for activation)
-- Expiring multi-party approval engine with self-approval prevention (foundation complete)
-- Enterprise agent certification engine
-- File Change Drawer with syntax-highlighted diffs
-- Multi-Agent Presence Badge and agent identification
-- safe-change rules publish and community rule packages
-- Custom rule condition extensions
-
-## v1.0.0 -- Production Stable (Planned)
-
-- All @safe-change/* native binary packages published
-- Runtime-verified status for all 10 supported agents
-- Stable MCP protocol compatibility
-- Complete documentation and contributor guide
-- Security audit completed
+- Risk scoring engine (0-100) and automatic operating-mode selection (Done)
+- Machine-readable enterprise policy and change-budget enforcement (Done)
+- Anti-policy-downgrade detector and fail-closed approval gate (Done)
+- AST semantic diff engine with TypeScript/JavaScript & JSON parsers (Done)
+- Multi-agent atomic write leases and workspace fingerprint engine (Done)
+- Checksummed evidence bundles and tamper-evident SHA-256 audit chain (Done)
+- In-toto RFC 8785 Ed25519 cryptographic attestations and deterministic replay (Done)
+- Streaming secret-output blocker for credentials, tokens, and keys (Done)
+- Capability-based agent permissions and PDP/PEP authorization (Done)
+- OS-backed command sandbox with process tree isolation and environment scrubbing (Done)
+- Ed25519 approval identity trust registry and multi-party signing (Done)
+- Enterprise Liquid Glass Dashboard with `/SAFE-CHANGE` brand mark, 6 Hero Metrics, and 6 Segments (Done)
+- Zero-dependency embedded REST telemetry API endpoints (Done)
+- Cross-platform precompiled Rust native engine distribution (7 platform targets) (Done)
+- Production-grade security policy, full documentation, and verifiable CI/CD release pipeline (Done)
 
 ---
 

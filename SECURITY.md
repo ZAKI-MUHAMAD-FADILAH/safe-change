@@ -91,7 +91,7 @@ safe-change includes an embedded local dashboard (`safe-change dashboard`) power
 
 1. **Zero-Dependency Supply Chain Isolation:** Rather than importing large external web framework dependency trees (which introduce dependency confusion and supply chain attack surfaces), the server is built entirely with Node.js built-ins (`node:http`, `node:fs/promises`, `node:path`).
 2. **Loopback Only (`127.0.0.1`):** The server explicitly binds to IPv4 loopback `127.0.0.1`. It is strictly unreachable from external network interfaces or local network peers.
-3. **Fixed Route Allowlist:** Only 5 static endpoints are served (`/`, `/api/status`, `/api/log`, `/api/config`, `/api/rules`). Any other path immediately returns a 404 response.
+3. **Fixed Route Allowlist:** Only 10 static endpoints are served (`/`, `/api/status`, `/api/log`, `/api/config`, `/api/rules`, `/api/enterprise`, `/api/lease`, `/api/audit`, `/api/identity`, `/api/verifiable`). Any other path immediately returns a 404 response.
 4. **No Path Traversal or Arbitrary File Serving:** The dashboard does not accept file paths as query parameters or URL path components. All returned JSON data is assembled in-memory from validated internal data structures, and the HTML template is rendered entirely from an embedded in-memory string. No dynamic disk file-serving logic exists.
 5. **Strict Method Restriction:** The server only accepts `GET` requests. Any `POST`, `PUT`, `DELETE`, or other HTTP method is immediately rejected with `405 Method Not Allowed`.
 

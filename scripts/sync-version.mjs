@@ -140,7 +140,7 @@ export function checkVersionParity({ rootDir = resolve(".") } = {}) {
   const templatePath = join(rootDir, "src", "dashboard", "template.ts");
   if (existsSync(templatePath)) {
     const templateContent = readFileSync(templatePath, "utf-8");
-    const badgeMatch = templateContent.match(/<span class="badge badge-info"[^>]*>v([^<]+)<\/span>/);
+    const badgeMatch = templateContent.match(/<span class="badge [^"]*"[^>]*>v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)/);
     if (badgeMatch && badgeMatch[1] !== expectedVersion) {
       mismatches.push({
         file: "src/dashboard/template.ts",
@@ -253,8 +253,8 @@ export function syncVersion({ rootDir = resolve("."), targetVersion } = {}) {
   if (existsSync(templatePath)) {
     let templateContent = readFileSync(templatePath, "utf-8");
     templateContent = templateContent.replace(
-      /<span class="badge badge-info"[^>]*>v[^<]+<\/span>/g,
-      `<span class="badge badge-info" style="font-size: 10px; padding: 1px 6px;">v${resolvedVersion}</span>`
+      /(<span class="badge [^"]*"[^>]*>v)[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?/g,
+      `$1${resolvedVersion}`
     );
     writeFileSync(templatePath, templateContent, "utf-8");
     updatedFiles.push(templatePath);

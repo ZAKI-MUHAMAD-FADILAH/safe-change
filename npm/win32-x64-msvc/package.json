@@ -1,6 +1,6 @@
 {
   "name": "@safe-change/win32-x64-msvc",
-  "version": "0.3.1",
+  "version": "1.0.0",
   "description": "Native binary for safe-change on win32-x64-msvc",
   "os": [
     "win32"

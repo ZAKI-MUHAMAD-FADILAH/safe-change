@@ -1,10 +1,12 @@
-# Local Web Dashboard
+# Local Web Dashboard — Enterprise Edition
 
-The safe-change local dashboard provides a clean, visual interface for monitoring baseline state, inspecting verification history, and tracking active safety rules during AI agent sessions.
+The safe-change local dashboard provides a clean, visual interface for monitoring baseline state, inspecting verification history, assessing enterprise risk, and tracking cryptographic trust during AI agent sessions.
 
 ## Overview
 
-The dashboard runs as an embedded, zero-dependency HTTP server directly from the safe-change binary. It requires no external web frameworks, Node dependencies, or internet connectivity. The interface uses a liquid-glass light design system built on Apple San Francisco typography, structured layout grids, and interactive inspection drawers.
+The dashboard runs as an embedded, zero-dependency HTTP server directly from the safe-change binary. It requires no external web frameworks, Node dependencies, or internet connectivity. The interface uses a liquid-glass design system built on Apple San Francisco typography, structured layout grids, interactive inspection drawers, and dedicated tabs for enterprise verification telemetry.
+
+The dashboard displays the brand mark **`/SAFE-CHANGE`** and is designed to provide full transparency into AI-driven code modifications.
 
 ## Running the Dashboard
 
@@ -17,41 +19,86 @@ safe-change dashboard
 Upon startup, the command initializes the server and outputs the local access URL:
 
 ```
-safe-change dashboard listening at http://127.0.0.1:4242
+Dashboard running at http://localhost:4242
 Press Ctrl+C to stop.
+```
+
+To run in headless or daemon mode without automatically attempting to launch a browser window, use `--no-open`:
+
+```bash
+safe-change dashboard --no-open
 ```
 
 Open `http://127.0.0.1:4242` in any modern web browser to access the interface.
 
-## Dashboard Architecture and Panels
+---
 
-The dashboard aggregates repository health into four primary functional panels:
+## 6 Hero Metric Cards (Liquid Glass Grid)
 
-### 1. System State (Header Metric Grid)
-The top section highlights four key operational indicators:
-- **System State**: Real-time status indicating whether the current working tree has active regressions flagged or if all safety verifications are passing cleanly.
-- **Monitored Baseline**: Number of tracked files and confirmation of the active baseline check state.
-- **Safety History**: Total number of historical runs recorded in the persistent safety log.
-- **Active Guardrails**: Total count of active safety policies enforced on the codebase.
+The top header metric grid aggregates real-time repository health into six responsive operational indicators:
 
-### 2. Monitored Baseline & Verification Scope
-Displays the current baseline configuration:
-- Head commit hash, target branch, and creation timestamp.
-- Overview of monitored checks (`build`, `test`, `lint`) and their execution timeouts.
-- File change statistics comparing the working directory to the recorded baseline.
+1. **System State**: Real-time verification sentinel displaying `Nominal` (green), `Regression` (red), or `No Baseline` (orange).
+2. **Monitored Baseline**: Number of tracked codebase files and confirmation of the active baseline snapshot.
+3. **Enterprise Risk & Mode**: Dynamic risk score (`0–100`) and the active operating mode (`STANDARD`, `ENHANCED`, `HIGH_ASSURANCE`, or `CRITICAL_CHANGE`).
+4. **Change Budget**: Evaluates whether working-tree additions, deletions, and file modifications remain within configured enterprise bounds.
+5. **Active Write Lease**: Displays write lease lock state (`Unlocked` vs `Locked by Holder`), protecting the repository from concurrent AI modification races.
+6. **Audit & Trust**: Real-time verification of the tamper-evident SHA-256 audit hash chain and total recorded events count.
 
-### 3. Regression Timeline (Historical Verification Stream)
-An interactive chronological pipeline stream displaying recorded runs:
-- Sequential run badges with timestamps and descriptive labels.
-- Color-coded status markers indicating whether an execution passed or introduced a regression.
-- Visual file differential counts (`+` added, `~` modified, `-` deleted).
-- Interactive card selection: clicking any timeline entry reveals an inspection drawer with comprehensive check outputs and execution metrics.
+---
 
-### 4. Safety Guardrails & Active Rules Registry
-Lists the rules enforced during `safe-change check`:
-- Displays active built-in rules (e.g., `no-delete-migrations`, `no-modify-lockfile`, `max-deleted-files`).
-- Shows rule condition types, target file patterns, threshold boundaries, and severity levels (`error` vs `warn`).
-- Displays custom user-defined rules registered in `.safe-change/rules.json`.
+## Interactive Navigation Tabs
+
+The dashboard uses an Apple macOS-styled segmented navigation bar to organize features into six dedicated views:
+
+### 1. Overview & Baseline (Default View)
+The primary operational cockpit, preserving the four core monitoring panels:
+- **Panel 1 — Current Status**: Active baseline metadata (timestamp, description, git commit, monitored files, and passing checks rate).
+- **Panel 4 — Active Rules**: Configured guardrails from `.safe-change/rules.json` (e.g., `no-delete-migrations`, `no-modify-lockfile`, `max-deleted-files`) with severity badges.
+- **Panel 3 — Regression Timeline**: Horizontal chronological stream of verification runs with color-coded nodes, diff pills (`+` added, `~` modified, `-` deleted), and an interactive inspector drawer.
+- **Panel 2 — Log History**: Comprehensive audit table with execution IDs, triggers (`CLI` vs `MCP`), check summaries, and quick filters (`All`, `Clean`, `Regressions`).
+
+### 2. Enterprise Risk & Budget
+- **Risk Assessment Score Gauge**: Circular visual gauge displaying the calculated risk score (0–100) and required policy mode.
+- **Risk Signals Classifier**: Real-time categorization of modified files (source code, tests, CI workflows, authentication, migrations, and potential policy downgrades).
+- **Change Budget Guardrails**: Side-by-side comparison of actual metrics versus allowed limits (max files changed, max additions/deletions, public API mutations, and lockfile change restrictions).
+
+### 3. AST Semantic Security
+- **Syntax Tree Diff Engine**: Deep syntactic inspection powered by SWC and TypeScript AST parsers.
+- **Breaking API Export Detection**: Identifies removed or renamed export symbols, modified function signatures, and structural AST regressions.
+- **Fail-Closed Boundaries**: Visual status of semantic safety policies preventing dangerous code mutations before checks execute.
+
+### 4. Verifiable Replay & Attestations
+- **Signed Attestation Envelopes**: Displays in-toto RFC 8785 Ed25519-signed attestation envelopes generated in `.safe-change/attestations/`.
+- **Deterministic Replay Bundles**: Displays recorded execution traces and environment snapshots stored in `.safe-change/replay/` for zero-drift verification.
+
+### 5. Identity & Trust Registry
+- **Authorized Approvers**: Lists enrolled identities, public keys (RFC 8032 Ed25519 Hex), and authorized capability scopes (`deploy`, `override`, `sign-attestation`).
+- **Multi-Signer Quorum**: Displays multi-party approval requirements for critical enterprise operations.
+
+### 6. Tamper-Evident Audit Chain
+- **Cryptographic Verification Banner**: Confirms SHA-256 hash chaining integrity (`CHAIN INTEGRITY VERIFIED (PASS)`).
+- **Immutable Audit Stream**: Displays every recorded lifecycle event with sequence index, actor identity, current event hash, and previous event link hash.
+
+---
+
+## Embedded REST API Endpoints
+
+The dashboard exposes read-only JSON telemetry endpoints for inspection and external automation:
+
+| Endpoint | HTTP Method | Description |
+|---|:---:|---|
+| `/` | `GET` | Serves the self-contained Apple Liquid Glass HTML interface |
+| `/api/status` | `GET` | Baseline metadata, tracked files count, and checks status |
+| `/api/log` | `GET` | Historical array of recorded safe-change verification entries |
+| `/api/config` | `GET` | Project `.safe-change.json` configuration |
+| `/api/rules` | `GET` | Active safety rules registry and validation status |
+| `/api/enterprise` | `GET` | Real-time risk evaluation, score (0-100), operating mode, and budget diff |
+| `/api/lease` | `GET` | Current write lease lock status, holder, and expiration |
+| `/api/audit` | `GET` | Tamper-evident SHA-256 audit events with cryptographic chain verification |
+| `/api/identity` | `GET` | Authorized approver identities and Ed25519 public keys |
+| `/api/verifiable` | `GET` | Latest AST semantic diff report, signed attestations, and replay sessions |
+
+---
 
 ## Port Configuration
 
@@ -62,12 +109,24 @@ safe-change dashboard --port 5000
 safe-change dashboard -p 8080
 ```
 
+You can also specify a permanent port in `.safe-change.json`:
+
+```json
+{
+  "dashboardPort": 8080
+}
+```
+
 If the specified port cannot be bound, the CLI reports an error and exits cleanly without hanging.
+
+---
 
 ## Security and Privacy
 
-The dashboard is engineered with security boundaries appropriate for proprietary development environments:
+The dashboard is engineered with defense-in-depth security boundaries appropriate for high-assurance enterprise development:
 
 - **Localhost-Only Binding**: The HTTP server strictly binds to `127.0.0.1`. It never listens on `0.0.0.0` or external network interfaces, preventing remote access over local area networks or public IP addresses.
 - **Air-Gapped Operation**: The dashboard assets, CSS styles, and typography are rendered locally without third-party CDN dependencies, tracking scripts, or external network requests.
 - **Read-Only Access**: The dashboard interface provides read-only inspection of `.safe-change/` artifacts. It cannot mutate repository state, alter Git history, or modify source code files.
+- **Method Restriction**: Rejects any non-`GET` HTTP request immediately with `405 Method Not Allowed`.
+- **Path Traversal Defense**: The server implements a strict allowlist of fixed endpoints; arbitrary filesystem paths cannot be requested or served.

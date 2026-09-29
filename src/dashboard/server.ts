@@ -129,6 +129,134 @@ export async function createDashboardServer(
       return;
     }
 
+    if (url.pathname === "/api/enterprise") {
+      try {
+        const { getFileEntries, getDiffText } = await import("../git/inspector.js");
+        const { compareFiles } = await import("../comparator/engine.js");
+        const { DEFAULT_ENTERPRISE_POLICY } = await import("../enterprise/policy.js");
+        const { assessChange } = await import("../enterprise/risk-engine.js");
+
+        const config = await loadConfig(repoRoot).catch(() => null);
+        const policy = config?.enterprisePolicy ?? DEFAULT_ENTERPRISE_POLICY;
+        const baseline = await loadBaseline(repoRoot).catch(() => null);
+        const currentFiles = await getFileEntries(repoRoot).catch(() => ({}));
+        const diff = await getDiffText(repoRoot).catch(() => ({ text: "", truncated: false, linesAdded: 0, linesRemoved: 0 }));
+        const fileChanges = baseline
+          ? compareFiles(baseline.files, currentFiles)
+          : {
+              added: Object.keys(currentFiles),
+              modified: [],
+              deleted: [],
+              unchangedCount: 0,
+            };
+        const assessment = assessChange({
+          files: fileChanges,
+          linesAdded: diff.linesAdded,
+          linesDeleted: diff.linesRemoved,
+          diffText: diff.text,
+          policy,
+          hasBaseline: baseline !== null,
+          configuredCheckNames: config?.checks?.map((c) => c.name) ?? [],
+        });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ policy, assessment, diffStats: { linesAdded: diff.linesAdded, linesRemoved: diff.linesRemoved } }));
+      } catch {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Failed to evaluate enterprise risk" }));
+      }
+      return;
+    }
+
+    if (url.pathname === "/api/lease") {
+      try {
+        const { readWriteLease, isLeaseExpired } = await import("../integrity/lease.js");
+        const lease = await readWriteLease(repoRoot);
+        const expired = lease ? isLeaseExpired(lease) : true;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ active: lease !== null && !expired, lease, isExpired: expired }));
+      } catch {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ active: false, lease: null, isExpired: true }));
+      }
+      return;
+    }
+
+    if (url.pathname === "/api/audit") {
+      try {
+        const { readAuditEvents, verifyAuditEvents } = await import("../integrity/audit-log.js");
+        const events = await readAuditEvents(repoRoot);
+        const verified = verifyAuditEvents(events);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ verified, totalEvents: events.length, events: events.slice(-50).reverse() }));
+      } catch {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ verified: true, totalEvents: 0, events: [] }));
+      }
+      return;
+    }
+
+    if (url.pathname === "/api/identity") {
+      try {
+        const { loadTrustRegistry } = await import("../identity/registry.js");
+        const registry = await loadTrustRegistry(repoRoot);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(registry));
+      } catch {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ version: 1, identities: [] }));
+      }
+      return;
+    }
+
+    if (url.pathname === "/api/verifiable") {
+      try {
+        const { readdir } = await import("node:fs/promises");
+        let semanticReport = null;
+        try {
+          const reportRaw = await readFile(join(repoRoot, ".safe-change", "semantic", "last-report.json"), "utf8");
+          semanticReport = JSON.parse(reportRaw);
+        } catch {}
+
+        const attestations: Array<{ filename: string; summary?: Record<string, unknown> }> = [];
+        try {
+          const attestDir = join(repoRoot, ".safe-change", "attestations");
+          const files = await readdir(attestDir);
+          for (const f of files.filter((f) => f.endsWith(".json")).slice(0, 10)) {
+            try {
+              const raw = await readFile(join(attestDir, f), "utf8");
+              const parsed = JSON.parse(raw) as Record<string, unknown>;
+              attestations.push({ filename: f, summary: parsed });
+            } catch {}
+          }
+        } catch {}
+
+        const replays: Array<{ filename: string; sessionId: string; manifestDigest: string; createdAt: string }> = [];
+        try {
+          const replayDir = join(repoRoot, ".safe-change", "replay");
+          const files = await readdir(replayDir);
+          for (const f of files.filter((f) => f.endsWith(".json")).slice(0, 10)) {
+            try {
+              const raw = await readFile(join(replayDir, f), "utf8");
+              const parsed = JSON.parse(raw);
+              replays.push({
+                filename: f,
+                sessionId: parsed.sessionId || f,
+                manifestDigest: parsed.manifestDigest || "",
+                createdAt: parsed.createdAt || "",
+              });
+            } catch {}
+          }
+        } catch {}
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ semanticReport, attestations, replays }));
+      } catch {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ semanticReport: null, attestations: [], replays: [] }));
+      }
+      return;
+    }
+
     res.writeHead(404, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Not Found" }));
   });

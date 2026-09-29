@@ -82,7 +82,7 @@ export async function createReplayManifest(
   }
 
   // Read Safe-Change package version
-  let safeChangeVersion = "0.4.0";
+  let safeChangeVersion = "1.0.0";
   try {
     const pkgRaw = await readFile(resolve(repoRoot, "package.json"), "utf-8");
     const pkg = JSON.parse(pkgRaw) as { version?: string };

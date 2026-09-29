@@ -58,7 +58,7 @@ Request a scoped approval:
 ```bash
 safe-change approval request \
   release:publish \
-  release/safe-change-0.4.0.tgz \
+  release/safe-change-1.0.0.tgz \
   codex \
   session-release \
   900 \
@@ -77,7 +77,7 @@ Authorize the exact approved operation:
 ```bash
 safe-change authorize \
   release:publish \
-  release/safe-change-0.4.0.tgz \
+  release/safe-change-1.0.0.tgz \
   codex \
   session-release \
   <request-id>

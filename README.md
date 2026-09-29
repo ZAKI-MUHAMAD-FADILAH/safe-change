@@ -25,13 +25,17 @@
 
 ## Why safe-change exists
 
-You give an AI agent a task. It edits twelve files, installs two packages, and reorganizes a folder. The app still starts. But login is broken — and you have no idea which of those twelve changes caused it.
+Autonomous AI coding agents are rewriting production codebases at unprecedented speed. When you delegate tasks to an AI agent, it touches dozens of files, mutates dependencies, and restructures critical architectural boundaries. The app might still compile and start, but subtle logic has been inverted, authorization guards removed, or regressions silently introduced — leaving developers guessing what broke and why.
 
-Without a recorded baseline, every regression is a mystery. Every follow-up prompt is a guess.
+Without an authoritative baseline and verifiable execution gates:
+- **Regressions become forensic nightmares**: You don't know which agent action broke passing invariant checks.
+- **AST semantic drift goes undetected**: Inverted logic conditions, removed safety guards, and swallowed errors bypass superficial diffs.
+- **Concurrent multi-agent writes corrupt state**: Uncoordinated agent actions race against each other and your working tree.
+- **Enterprise provenance is impossible to prove**: There is zero cryptographic evidence of who authorized, executed, and verified the changes.
 
-**safe-change records what was passing before the agent worked, then tells you exactly what broke after.**
+**safe-change is the verifiable execution sentinel and high-assurance safety plane for autonomous AI development.**
 
-No cloud. No API key. No model. One command before, one command after.
+It locks in cryptographic baselines before AI agents touch your code, isolates execution within OS-backed sandboxes, verifies AST semantic integrity, enforces enterprise change budgets, and generates in-toto RFC 8785 Ed25519-signed attestations — completely air-gapped, zero cloud dependencies, and 100% deterministic.
 
 <br/>
 
@@ -162,8 +166,13 @@ safe-change diff --stat
 | `approval grant` | Add one independent approval to a request |
 | `approval status` | Inspect request integrity, grants, and expiration |
 | `policy verify` | Verify the configured detached Ed25519 policy signature |
+| `semantic-diff [--base <ref>]` | AST semantic diff analysis for breaking changes and logic mutations |
+| `replay record <session> \| verify` | Record or deterministically replay execution sessions across environments |
+| `attest create <manifest> \| verify` | Create or cryptographically verify in-toto RFC 8785 Ed25519 attestations |
+| `identity keygen \| register \| list` | Manage authorized Ed25519 approver keys in the trust registry |
+| `approval sign <req> \| verify` | Cryptographically sign or verify capability requests with Ed25519 |
 | `log` | Full history of baselines and check results |
-| `dashboard` | Open visual dashboard at `localhost:4242` |
+| `dashboard` | Open visual enterprise dashboard at `localhost:4242` |
 | `rules list` | Show active safety rules |
 | `rules add <id>` | Add a built-in safety rule |
 | `rules remove <id>` | Remove a safety rule |
@@ -307,12 +316,19 @@ safe-change dashboard --port 8080
 
 If the configured port is already in use, the server exits with an error. Choose an available port and retry.
 
-**Panels:**
+**Enterprise Architecture & Features:**
 
-- Current baseline status and metadata
-- Full history log with timestamps and descriptions
-- Regression timeline — green dots clean, red dots regressions
-- Active safety rules and their last evaluation
+- **Brand Mark `/SAFE-CHANGE`**: Minimalist developer-grade typography matching the Apple Liquid Glass design system.
+- **6 Hero Metric Cards**: Real-time System State, Monitored Baseline, Enterprise Risk & Mode (0-100 score), Change Budget Bounds, Active Write Lease, and Tamper-Evident Audit & Trust Chain.
+- **6 Interactive Segmented Tabs**:
+  - `Overview & Baseline`: Baseline status, active rules, interactive regression timeline, and persistent log history.
+  - `Enterprise Risk & Budget`: Risk score gauge meter, real-time signal classification, and diff bounds checks.
+  - `AST Semantic Security`: Deep AST syntax inspection, breaking export detection, and public API surface protection.
+  - `Verifiable Replay & Attestations`: In-toto RFC 8785 Ed25519-signed attestation envelopes and deterministic replay sessions.
+  - `Identity & Trust Registry`: Authorized approver identities, public keys, and multi-sig quorum status.
+  - `Tamper-Evident Audit Chain`: SHA-256 cryptographic chain integrity verification and immutable audit event stream.
+- **Offline Telemetry API**: Read-only JSON endpoints (`/api/status`, `/api/log`, `/api/config`, `/api/rules`, `/api/enterprise`, `/api/lease`, `/api/audit`, `/api/identity`, `/api/verifiable`).
+- Full dashboard documentation in [docs/dashboard.md](docs/dashboard.md).
 
 <br/>
 
@@ -374,7 +390,9 @@ See [SECURITY.md](SECURITY.md) for trust boundaries and vulnerability reporting.
 | [SECURITY.md](SECURITY.md) | Trust model and vulnerability reporting |
 | [docs/mcp-setup.md](docs/mcp-setup.md) | MCP configuration per agent |
 | [docs/rules.md](docs/rules.md) | Safety rules reference |
-| [docs/dashboard.md](docs/dashboard.md) | Dashboard guide |
+| [docs/dashboard.md](docs/dashboard.md) | Local enterprise dashboard reference |
+| [docs/verifiable-execution.md](docs/verifiable-execution.md) | Verifiable execution guide (AST semantic diff, replay, attestations, sandbox, identity) |
+| [docs/verifiable-execution-architecture.md](docs/verifiable-execution-architecture.md) | High-assurance verifiable execution architecture specification |
 | [docs/persistent-log.md](docs/persistent-log.md) | Persistent safety log |
 | [docs/runtime-verification.md](docs/runtime-verification.md) | Multi-agent runtime verification matrix |
 | [docs/enterprise-rollout.md](docs/enterprise-rollout.md) | Enterprise rollout and acceptance guide |

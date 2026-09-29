@@ -142,4 +142,53 @@ describe("Dashboard server", () => {
     expect(secondInstance.port).toBe(assignedPort);
     await secondInstance.close();
   });
+
+  it("GET /api/enterprise returns enterprise assessment and policy", async () => {
+    serverInstance = await startDashboardServer({ port: 0, repoRoot: tempDir });
+    const res = await fetch(`${serverInstance.url}/api/enterprise`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("policy");
+    expect(data).toHaveProperty("assessment");
+    expect(data.assessment).toHaveProperty("riskScore");
+    expect(data.assessment).toHaveProperty("requiredMode");
+  });
+
+  it("GET /api/lease returns lease status", async () => {
+    serverInstance = await startDashboardServer({ port: 0, repoRoot: tempDir });
+    const res = await fetch(`${serverInstance.url}/api/lease`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("active");
+    expect(data).toHaveProperty("isExpired");
+  });
+
+  it("GET /api/audit returns audit hash chain verification", async () => {
+    serverInstance = await startDashboardServer({ port: 0, repoRoot: tempDir });
+    const res = await fetch(`${serverInstance.url}/api/audit`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("verified");
+    expect(data).toHaveProperty("totalEvents");
+    expect(Array.isArray(data.events)).toBe(true);
+  });
+
+  it("GET /api/identity returns trust registry identities", async () => {
+    serverInstance = await startDashboardServer({ port: 0, repoRoot: tempDir });
+    const res = await fetch(`${serverInstance.url}/api/identity`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("version");
+    expect(Array.isArray(data.identities)).toBe(true);
+  });
+
+  it("GET /api/verifiable returns verifiable attestations and replay info", async () => {
+    serverInstance = await startDashboardServer({ port: 0, repoRoot: tempDir });
+    const res = await fetch(`${serverInstance.url}/api/verifiable`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("semanticReport");
+    expect(Array.isArray(data.attestations)).toBe(true);
+    expect(Array.isArray(data.replays)).toBe(true);
+  });
 });

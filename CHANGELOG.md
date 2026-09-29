@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-29
+
 ### Added
 - Executable enterprise risk engine with deterministic 0-100 scoring and Standard, Enhanced, High Assurance, and Critical Change mode selection.
 - `safe-change assess` command for baseline-aware risk classification, change-budget enforcement, mandatory evidence configuration, and approval gating.
@@ -29,8 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deterministic Replay Subsystem recording execution sessions, environment snapshots, toolchain digests, and verifying zero-drift across 13 distinct drift categories.
 - Cryptographic Attestation Framework implementing RFC 8785 JSON Canonicalization Scheme (JCS) and Ed25519 DSSE (Dead Simple Signing Envelope) in-toto attestations over verification evidence.
 - OS-Backed Command Sandbox with direct Node.js/npm executable resolution (preventing CVE-2024-27980 and command injection), process tree termination, temporary home isolation, and scrubbed environment allowlists.
-- Signed Approval Identity Registry with Ed25519 keypair generation, approver role assignment, expiration, revocation tracking, and cryptographic signature attachment to capability requests.
 - Verifiable Execution commands: `semantic-diff`, `replay`, `attest`, `identity`, `approval sign`, and `approval verify`.
+- Enterprise Liquid Glass Dashboard with developer-grade `/SAFE-CHANGE` brand mark, 6 responsive hero metric cards (System State, Monitored Baseline, Enterprise Risk & Mode, Change Budget, Active Write Lease, and Audit & Trust), and 6 interactive segmented tabs (Overview & Baseline, Enterprise Risk & Budget, AST Semantic Security, Verifiable Replay & Attestations, Identity & Trust Registry, and Tamper-Evident Audit Chain).
+- Zero-dependency embedded REST telemetry API endpoints: `/api/enterprise`, `/api/lease`, `/api/audit`, `/api/identity`, and `/api/verifiable`.
 
 ## [0.3.1] - 2026-09-29
 
